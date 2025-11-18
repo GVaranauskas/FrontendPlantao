@@ -3,14 +3,17 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import LoginPage from "@/pages/login";
+import ModulesPage from "@/pages/modules";
+import ShiftHandoverPage from "@/pages/shift-handover";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      <Route path="/" component={LoginPage} />
+      <Route path="/modules" component={ModulesPage} />
+      <Route path="/shift-handover" component={ShiftHandoverPage} />
       <Route component={NotFound} />
     </Switch>
   );
