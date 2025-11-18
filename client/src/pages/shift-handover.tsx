@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { Patient, Alert } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -7,40 +9,34 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
-  AlertTriangle, Edit
+  Edit, Loader2
 } from "lucide-react";
-
-const mockPatients = [
-  {id: "1", leito: "1", nome: "JOSÉ MANDEL BERNARD", internacao: "19/11", braden: "0;15", diagnostico: "INC", alergias: "NEGA", delta: "D", eliminacoes: "DIURESE NORMAL", dispositivos: "D - E+", atb: "ANP NEST", outros: "SANTB", aporte: "PELE INTEGRA", exames: "AAA-19%", cirurgia: "REALIZOU RP", observacoes: "ESTÁVEL", previsaoAlta: "DAT EF", alerta: null},
-  {id: "2", leito: "5", nome: "ANA PAULA OLIVEIRA", internacao: "12/11", braden: "0;10", diagnostico: "APENDICITE AGUDA", alergias: "PENICILINA", delta: "C", eliminacoes: "EVACUAÇÃO AUSENTE", dispositivos: "D - E-", atb: "METRONIDAZOL", outros: "ANALGÉSICO", aporte: "JEJUM", exames: "LEUCOCITOSE", cirurgia: "APENDICECTOMIA", observacoes: "PÓS-OP", previsaoAlta: "22/11", alerta: "medium"},
-  {id: "3", leito: "12", nome: "LUCAS MARTINS RIBEIRO", internacao: "17/11", braden: "0;14", diagnostico: "LOMBALGIA", alergias: "NEGA", delta: "C", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "DIPIRONA", outros: "MIORRELAXANTE", aporte: "DIETA NORMAL", exames: "RX COLUNA", cirurgia: "NENHUMA", observacoes: "DOR MODERADA", previsaoAlta: "22/11", alerta: "critical"},
-  {id: "4", leito: "15", nome: "TATIANE ROCHA BARROS", internacao: "15/11", braden: "0;18", diagnostico: "ANEMIA FERROPRIVA", alergias: "NEGA", delta: "A", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "SULFATO FERROSO", outros: "VITAMINA C", aporte: "DIETA RICA EM FERRO", exames: "HEMOGRAMA", cirurgia: "NENHUMA", observacoes: "COMPENSADA", previsaoAlta: "20/11", alerta: "critical"},
-];
-
-const mockAlerts = [
-  { id: "1", leito: "12", priority: "high", title: "Alergia Grave", description: "Alergia a Penicilina sem observação adequada no prontuário", time: "Há 15 minutos" },
-  { id: "2", leito: "15", priority: "high", title: "Sinais Vitais", description: "Sinais vitais fora dos parâmetros há mais de 2 horas", time: "Há 2 horas" },
-  { id: "3", leito: "5", priority: "medium", title: "Escala de Braden", description: "Escala não preenchida para avaliação de úlcera", time: "Há 45 minutos" },
-  { id: "4", leito: "8", priority: "low", title: "Medicação", description: "Medicação pendente de atualização", time: "Há 30 minutos" },
-];
 
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
 
-  const stats = {
-    complete: 15,
-    pending: 5,
-    alert: 3,
-    critical: 2,
-    total: 25
-  };
+  const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
+    queryKey: ["/api/patients"],
+  });
 
-  const filteredPatients = mockPatients.filter(p =>
+  const { data: alerts } = useQuery<Alert[]>({
+    queryKey: ["/api/alerts"],
+  });
+
+  const filteredPatients = patients?.filter(p =>
     p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.leito.includes(searchTerm)
-  );
+  ) || [];
+
+  const stats = {
+    complete: patients?.filter(p => p.status === "complete").length || 0,
+    pending: patients?.filter(p => p.status === "pending").length || 0,
+    alert: patients?.filter(p => p.alerta === "medium").length || 0,
+    critical: patients?.filter(p => p.alerta === "critical").length || 0,
+    total: patients?.length || 0
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -71,7 +67,12 @@ export default function ShiftHandoverPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" data-testid="button-sync">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => refetch()}
+                data-testid="button-sync"
+              >
                 <RefreshCcw className="w-5 h-5" />
               </Button>
               <Button variant="ghost" size="icon" data-testid="button-filter">
@@ -86,9 +87,11 @@ export default function ShiftHandoverPage() {
                     data-testid="button-alerts"
                   >
                     <Bell className="w-5 h-5" />
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold">
-                      4
-                    </span>
+                    {alerts && alerts.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                        {alerts.length}
+                      </span>
+                    )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent className="w-full sm:max-w-md">
@@ -99,7 +102,7 @@ export default function ShiftHandoverPage() {
                     </SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 space-y-4">
-                    {mockAlerts.map((alert) => (
+                    {alerts?.map((alert) => (
                       <Card 
                         key={alert.id}
                         className={`p-4 border-l-4 ${
@@ -211,67 +214,73 @@ export default function ShiftHandoverPage() {
           </div>
         </div>
 
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-                <tr>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">LEITO</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[200px]">NOME</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DATA INT.</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">BRADEN</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[150px]">DIAGNÓSTICO</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ALERGIAS</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DELTA</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[120px]">ELIMINAÇÕES</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DISPOSITIVOS</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ATB</th>
-                  <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">OBSERVAÇÕES</th>
-                  <th className="px-3 py-3 text-center font-semibold text-xs whitespace-nowrap">AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPatients.map((patient, idx) => (
-                  <tr 
-                    key={patient.id}
-                    className={`border-b transition-colors ${
-                      patient.alerta === "critical"
-                        ? "bg-destructive/5 border-l-4 border-l-destructive hover:bg-destructive/10"
-                        : patient.alerta === "medium"
-                        ? "bg-chart-4/5 border-l-4 border-l-chart-4 hover:bg-chart-4/10"
-                        : idx % 2 === 0
-                        ? "bg-muted/30 hover:bg-primary/5"
-                        : "hover:bg-primary/5"
-                    }`}
-                    data-testid={`row-patient-${patient.id}`}
-                  >
-                    <td className="px-3 py-3 font-bold text-primary text-center">{patient.leito}</td>
-                    <td className="px-3 py-3">{patient.nome}</td>
-                    <td className="px-3 py-3">{patient.internacao}</td>
-                    <td className="px-3 py-3">{patient.braden}</td>
-                    <td className="px-3 py-3">{patient.diagnostico}</td>
-                    <td className="px-3 py-3">{patient.alergias}</td>
-                    <td className="px-3 py-3">{patient.delta}</td>
-                    <td className="px-3 py-3">{patient.eliminacoes}</td>
-                    <td className="px-3 py-3">{patient.dispositivos}</td>
-                    <td className="px-3 py-3">{patient.atb}</td>
-                    <td className="px-3 py-3">{patient.observacoes}</td>
-                    <td className="px-3 py-3 text-center">
-                      <Button 
-                        size="icon" 
-                        variant="ghost"
-                        className="h-8 w-8"
-                        data-testid={`button-edit-${patient.id}`}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </td>
+        {isLoading ? (
+          <Card className="p-12 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
+                  <tr>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">LEITO</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[200px]">NOME</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DATA INT.</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">BRADEN</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[150px]">DIAGNÓSTICO</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ALERGIAS</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DELTA</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[120px]">ELIMINAÇÕES</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DISPOSITIVOS</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ATB</th>
+                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">OBSERVAÇÕES</th>
+                    <th className="px-3 py-3 text-center font-semibold text-xs whitespace-nowrap">AÇÕES</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {filteredPatients.map((patient, idx) => (
+                    <tr 
+                      key={patient.id}
+                      className={`border-b transition-colors ${
+                        patient.alerta === "critical"
+                          ? "bg-destructive/5 border-l-4 border-l-destructive hover:bg-destructive/10"
+                          : patient.alerta === "medium"
+                          ? "bg-chart-4/5 border-l-4 border-l-chart-4 hover:bg-chart-4/10"
+                          : idx % 2 === 0
+                          ? "bg-muted/30 hover:bg-primary/5"
+                          : "hover:bg-primary/5"
+                      }`}
+                      data-testid={`row-patient-${patient.id}`}
+                    >
+                      <td className="px-3 py-3 font-bold text-primary text-center">{patient.leito}</td>
+                      <td className="px-3 py-3">{patient.nome}</td>
+                      <td className="px-3 py-3">{patient.internacao}</td>
+                      <td className="px-3 py-3">{patient.braden}</td>
+                      <td className="px-3 py-3">{patient.diagnostico}</td>
+                      <td className="px-3 py-3">{patient.alergias}</td>
+                      <td className="px-3 py-3">{patient.delta}</td>
+                      <td className="px-3 py-3">{patient.eliminacoes}</td>
+                      <td className="px-3 py-3">{patient.dispositivos}</td>
+                      <td className="px-3 py-3">{patient.atb}</td>
+                      <td className="px-3 py-3">{patient.observacoes}</td>
+                      <td className="px-3 py-3 text-center">
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          className="h-8 w-8"
+                          data-testid={`button-edit-${patient.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

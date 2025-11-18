@@ -30,6 +30,16 @@ export const patients = pgTable("patients", {
   observacoes: text("observacoes"),
   previsaoAlta: text("previsao_alta"),
   alerta: text("alerta"),
+  status: text("status").notNull().default("pending"),
+});
+
+export const alerts = pgTable("alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leito: text("leito").notNull(),
+  priority: text("priority").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  time: text("time").notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -40,7 +50,13 @@ export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
 });
 
+export const insertAlertSchema = createInsertSchema(alerts).omit({
+  id: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patients.$inferSelect;
+export type InsertAlert = z.infer<typeof insertAlertSchema>;
+export type Alert = typeof alerts.$inferSelect;
