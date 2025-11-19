@@ -22,7 +22,7 @@ export const patients = pgTable("patients", {
   rqBradenScp: text("rq_braden_scp"),
   diagnosticoComorbidades: text("diagnostico_comorbidades"),
   alergias: text("alergias"),
-  isolamento: text("isolamento"),
+  mobilidade: text("mobilidade"),
   dieta: text("dieta"),
   eliminacoes: text("eliminacoes"),
   dispositivos: text("dispositivos"),
