@@ -4,11 +4,32 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PatientService, Patient } from '../../services/patient.service';
 import { AlertService, Alert } from '../../services/alert.service';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   selector: 'app-shift-handover',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatToolbarModule,
+    MatCardModule,
+    MatButtonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSidenavModule,
+    MatBadgeModule,
+    MatTooltipModule
+  ],
   templateUrl: './shift-handover.component.html',
   styleUrls: ['./shift-handover.component.css']
 })

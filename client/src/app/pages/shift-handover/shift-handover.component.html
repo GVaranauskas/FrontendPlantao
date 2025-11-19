@@ -1,82 +1,107 @@
-<div class="passagem-page" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--neutral-light);">
-  <!-- Header -->
-  <header class="module-header bg-white" style="box-shadow: var(--shadow); padding: 16px 0; margin-bottom: 0; border-bottom: 3px solid var(--primary-blue);">
-    <div class="container mx-auto px-5">
-      <div class="header-top flex justify-between items-center w-full mb-4">
-        <div class="header-left flex items-center gap-5">
-          <button class="icon-btn" (click)="goToModules()">
-            <i class="fas fa-bars" style="font-size: 24px; color: var(--primary-blue);"></i>
-          </button>
-          <img 
-            src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
-            alt="11Care"
-            class="h-11 hidden sm:block"
-          />
-        </div>
-        
-        <div class="page-info flex items-center justify-center gap-5 flex-1">
-          <div class="text-center">
-            <h1 class="text-[22px] font-bold m-0" style="color: var(--primary-blue);">
-              Passagem de Plantão (SBAR)
-            </h1>
-            <p class="text-sm m-0" style="color: var(--neutral-gray);">
-              UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
-            </p>
-          </div>
-        </div>
-        
-        <div class="header-right flex items-center gap-4">
-          <button 
-            class="icon-btn"
-            (click)="refresh()"
-            data-testid="button-sync"
-            title="Atualizar"
-          >
-            <i class="fas fa-sync-alt" style="font-size: 20px;"></i>
-          </button>
-          <button 
-            class="icon-btn relative"
-            (click)="toggleAlerts()"
-            data-testid="button-alerts"
-            title="Alertas"
-          >
-            <i class="fas fa-bell" style="font-size: 20px;"></i>
-            <span 
-              *ngIf="alerts.length > 0" 
-              class="alert-badge absolute top-0 right-0 rounded-full flex items-center justify-center text-xs font-bold"
-              style="background: var(--accent-red); color: white; width: 18px; height: 18px;"
+<mat-sidenav-container class="passagem-page" style="min-height: 100vh; background: var(--neutral-light);">
+  <mat-sidenav #alertsSidenav mode="over" position="end" [opened]="alertsOpen" (closedStart)="alertsOpen = false">
+    <div class="flex flex-col h-full">
+      <mat-toolbar color="primary" class="flex justify-between items-center">
+        <h3 class="text-lg font-semibold">Alertas do Sistema</h3>
+        <button mat-icon-button (click)="toggleAlerts()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-toolbar>
+      
+      <div class="flex-1 overflow-y-auto p-4">
+        <mat-card 
+          *ngFor="let alert of alerts"
+          class="mb-3"
+          [attr.data-testid]="'alert-' + alert.id"
+        >
+          <mat-card-content>
+            <div 
+              class="inline-block px-2 py-1 rounded text-xs font-bold mb-2"
+              [style.background]="alert.priority === 'critical' ? '#dc3545' : alert.priority === 'medium' ? '#fd7e14' : '#ffc107'"
+              [style.color]="alert.priority === 'low' ? '#333' : 'white'"
             >
-              {{ alerts.length }}
-            </span>
-          </button>
-          <button 
-            class="btn btn-success hidden sm:inline-flex"
-            data-testid="button-print"
-          >
-            Imprimir
-          </button>
-        </div>
+              {{ getPriorityLabel(alert.priority) }} PRIORIDADE
+            </div>
+            <div class="mt-2">
+              <div class="font-semibold text-sm mb-1">Paciente: {{ alert.patientId }}</div>
+              <p class="text-sm text-gray-600">{{ alert.message }}</p>
+            </div>
+          </mat-card-content>
+        </mat-card>
       </div>
     </div>
-  </header>
+  </mat-sidenav>
+  
+  <mat-sidenav-content>
+  <!-- Header -->
+  <mat-toolbar color="primary" class="!h-auto shadow-md">
+    <div class="container mx-auto flex justify-between items-center w-full py-2">
+      <div class="flex items-center gap-4">
+        <button mat-icon-button (click)="goToModules()">
+          <mat-icon>menu</mat-icon>
+        </button>
+        <img 
+          src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
+          alt="11Care"
+          class="h-10 hidden sm:block brightness-0 invert"
+        />
+      </div>
+      
+      <div class="text-center flex-1">
+        <h1 class="text-xl font-semibold m-0">
+          Passagem de Plantão (SBAR)
+        </h1>
+        <p class="text-sm m-0 opacity-90">
+          UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
+        </p>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button 
+          mat-icon-button
+          (click)="refresh()"
+          data-testid="button-sync"
+          matTooltip="Atualizar"
+        >
+          <mat-icon>refresh</mat-icon>
+        </button>
+        <button 
+          mat-icon-button
+          [matBadge]="alerts.length"
+          matBadgeColor="warn"
+          [matBadgeHidden]="alerts.length === 0"
+          (click)="toggleAlerts()"
+          data-testid="button-alerts"
+          matTooltip="Alertas"
+        >
+          <mat-icon>notifications</mat-icon>
+        </button>
+        <button 
+          mat-stroked-button
+          class="hidden sm:inline-flex"
+          data-testid="button-print"
+        >
+          Imprimir
+        </button>
+      </div>
+    </div>
+  </mat-toolbar>
 
   <!-- Breadcrumb -->
-  <div class="breadcrumb bg-white py-4" style="border-bottom: 1px solid var(--border-gray); margin-bottom: 20px;">
+  <div class="bg-white py-3 border-b border-gray-200 mb-5">
     <div class="container mx-auto px-5">
-      <div class="breadcrumb-content flex items-center gap-2 text-sm" style="color: var(--neutral-gray);">
+      <div class="flex items-center gap-2 text-sm text-gray-600">
         <button 
+          mat-button
           (click)="goToModules()"
-          class="hover:underline transition-colors"
-          style="color: var(--primary-blue);"
           data-testid="link-home"
         >
           Início
         </button>
         <span>/</span>
         <button 
+          mat-button
           (click)="goToModules()"
-          class="hover:underline transition-colors"
-          style="color: var(--primary-blue);"
           data-testid="link-modules"
         >
           Módulos
@@ -90,70 +115,66 @@
   <!-- Main Content -->
   <div class="dashboard-container flex-1 container mx-auto px-5">
     <!-- Status Overview -->
-    <div class="status-overview grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-      <div 
-        class="status-card complete rounded-xl text-center transition-transform"
-        style="background: linear-gradient(135deg, white 0%, #f0fff4 100%); border-top: 4px solid var(--accent-green); box-shadow: var(--shadow); padding: 16px; height: 100px; display: flex; flex-direction: column; justify-content: center;"
-      >
-        <div class="status-count text-3xl font-extrabold mb-1" style="color: var(--accent-green);" data-testid="stat-complete">
-          {{ stats.complete }}
-        </div>
-        <div class="status-label text-sm font-semibold" style="color: var(--neutral-gray);">Completos</div>
-      </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <mat-card class="text-center !border-t-4 !border-t-green-500">
+        <mat-card-content class="!p-4">
+          <div class="text-3xl font-bold text-green-600 mb-1" data-testid="stat-complete">
+            {{ stats.complete }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Completos</div>
+        </mat-card-content>
+      </mat-card>
       
-      <div 
-        class="status-card pending rounded-xl text-center transition-transform"
-        style="background: linear-gradient(135deg, white 0%, #fffaf0 100%); border-top: 4px solid var(--accent-orange); box-shadow: var(--shadow); padding: 16px; height: 100px; display: flex; flex-direction: column; justify-content: center;"
-      >
-        <div class="status-count text-3xl font-extrabold mb-1" style="color: var(--accent-orange);" data-testid="stat-pending">
-          {{ stats.pending }}
-        </div>
-        <div class="status-label text-sm font-semibold" style="color: var(--neutral-gray);">Pendentes</div>
-      </div>
+      <mat-card class="text-center !border-t-4 !border-t-orange-500">
+        <mat-card-content class="!p-4">
+          <div class="text-3xl font-bold text-orange-600 mb-1" data-testid="stat-pending">
+            {{ stats.pending }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Pendentes</div>
+        </mat-card-content>
+      </mat-card>
       
-      <div 
-        class="status-card alert rounded-xl text-center transition-transform"
-        style="background: linear-gradient(135deg, white 0%, #fffdf0 100%); border-top: 4px solid var(--accent-yellow); box-shadow: var(--shadow); padding: 16px; height: 100px; display: flex; flex-direction: column; justify-content: center;"
-      >
-        <div class="status-count text-3xl font-extrabold mb-1" style="color: var(--accent-yellow);" data-testid="stat-alert">
-          {{ stats.alert }}
-        </div>
-        <div class="status-label text-sm font-semibold" style="color: var(--neutral-gray);">Com Alertas</div>
-      </div>
+      <mat-card class="text-center !border-t-4 !border-t-yellow-500">
+        <mat-card-content class="!p-4">
+          <div class="text-3xl font-bold text-yellow-600 mb-1" data-testid="stat-alert">
+            {{ stats.alert }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Com Alertas</div>
+        </mat-card-content>
+      </mat-card>
       
-      <div 
-        class="status-card critical rounded-xl text-center transition-transform"
-        style="background: linear-gradient(135deg, white 0%, #fff0f0 100%); border-top: 4px solid var(--accent-red); box-shadow: var(--shadow); padding: 16px; height: 100px; display: flex; flex-direction: column; justify-content: center;"
-      >
-        <div class="status-count text-3xl font-extrabold mb-1" style="color: var(--accent-red);" data-testid="stat-critical">
-          {{ stats.critical }}
-        </div>
-        <div class="status-label text-sm font-semibold" style="color: var(--neutral-gray);">Críticos</div>
-      </div>
+      <mat-card class="text-center !border-t-4 !border-t-red-500">
+        <mat-card-content class="!p-4">
+          <div class="text-3xl font-bold text-red-600 mb-1" data-testid="stat-critical">
+            {{ stats.critical }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Críticos</div>
+        </mat-card-content>
+      </mat-card>
       
-      <div 
-        class="status-card rounded-xl text-center transition-transform"
-        style="background: linear-gradient(135deg, white 0%, var(--light-blue) 100%); border-top: 4px solid var(--primary-blue); box-shadow: var(--shadow); padding: 16px; height: 100px; display: flex; flex-direction: column; justify-content: center;"
-      >
-        <div class="status-count text-3xl font-extrabold mb-1" style="color: var(--primary-blue);" data-testid="stat-total">
-          {{ stats.total }}
-        </div>
-        <div class="status-label text-sm font-semibold" style="color: var(--neutral-gray);">Total de Pacientes</div>
-      </div>
+      <mat-card class="text-center !border-t-4" style="border-top-color: var(--primary-blue) !important;">
+        <mat-card-content class="!p-4">
+          <div class="text-3xl font-bold mb-1" style="color: var(--primary-blue);" data-testid="stat-total">
+            {{ stats.total }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Total de Pacientes</div>
+        </mat-card-content>
+      </mat-card>
     </div>
 
     <!-- Search and Legend -->
     <div class="mb-4 space-y-3">
-      <div class="relative">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Buscar</mat-label>
         <input
+          matInput
           type="search"
           placeholder="Buscar por paciente, leito ou especialidade..."
           [(ngModel)]="searchTerm"
-          class="search-input"
           data-testid="input-search"
         />
-        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-lg" style="color: var(--neutral-gray);"></i>
-      </div>
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
       
       <div class="rounded-lg p-3" style="background: var(--neutral-light);">
         <div class="flex items-center gap-6 text-xs flex-wrap">
@@ -242,53 +263,5 @@
       </div>
     </div>
   </div>
-
-  <!-- Alerts Sidebar -->
-  <div 
-    *ngIf="alertsOpen" 
-    class="alert-sidebar fixed top-0 h-screen bg-white shadow-2xl transition-all flex flex-col"
-    [ngClass]="{'open': alertsOpen}"
-    style="right: 0; width: 400px; z-index: 1000; box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);"
-  >
-    <div class="alert-header flex justify-between items-center p-5" style="background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%); color: white;">
-      <h3 class="text-lg font-bold">Alertas do Sistema</h3>
-      <button (click)="toggleAlerts()" class="text-white text-2xl hover:opacity-80 transition-opacity" style="background: none; border: none; cursor: pointer;">
-        ✕
-      </button>
-    </div>
-    
-    <div class="alert-content flex-1 overflow-y-auto p-5">
-      <div 
-        *ngFor="let alert of alerts"
-        class="alert-item p-4 rounded-lg mb-3"
-        [ngClass]="{
-          'critical': alert.priority === 'critical',
-          'medium': alert.priority === 'medium'
-        }"
-        [attr.data-testid]="'alert-' + alert.id"
-        style="border-left: 4px solid var(--accent-yellow); background: linear-gradient(135deg, #fffdf0 0%, white 100%); border: 1px solid #ffeaa7;"
-      >
-        <span 
-          class="alert-priority inline-block px-2 py-1 rounded-xl text-xs font-bold mb-2"
-          [style.background]="alert.priority === 'critical' ? 'var(--accent-red)' : alert.priority === 'medium' ? 'var(--accent-orange)' : 'var(--accent-yellow)'"
-          [style.color]="alert.priority === 'low' ? 'var(--neutral-dark)' : 'white'"
-        >
-          {{ getPriorityLabel(alert.priority) }} PRIORIDADE
-        </span>
-        <div class="alert-info mb-2">
-          <div class="font-semibold text-sm mb-1">Paciente: {{ alert.patientId }}</div>
-          <p class="text-sm" style="color: var(--text-gray);">
-            {{ alert.message }}
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Backdrop for sidebar -->
-  <div 
-    *ngIf="alertsOpen" 
-    class="fixed inset-0 bg-black bg-opacity-30 z-40"
-    (click)="toggleAlerts()"
-  ></div>
-</div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

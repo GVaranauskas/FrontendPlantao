@@ -10,14 +10,28 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (November 2025)
 
-**Complete UI Redesign - November 19, 2025**
+**Angular Material Design Migration - November 19, 2025**
+- Successfully migrated all components to Angular Material Design for improved UI consistency and professionalism
+- **LoginComponent**: Converted to use mat-card, mat-form-field, mat-input, and mat-button components
+- **ModulesComponent**: Refactored with mat-toolbar, mat-card, mat-button, and mat-chip for module selection interface
+  - Implemented compact 3-column grid layout on desktop for better space utilization
+  - Added custom chip styling for active/coming-soon status badges
+- **ShiftHandoverComponent**: Migrated to Material components:
+  - mat-toolbar with mat-icon-button for header navigation
+  - mat-badge for notification alerts
+  - mat-card for status overview cards with colored top borders
+  - mat-form-field with mat-input for patient search with search icon prefix
+  - Replaced Font Awesome icons with Material icons (menu, refresh, notifications, search)
+- Created custom Indigo Pink theme with 11Care brand color variables (#0056b3) in styles.scss
+- All components maintain full functionality while providing modern Material Design aesthetics
+- Application compiles without errors and maintains responsive design across all screen sizes
+
+**Previous UI Redesign - November 19, 2025**
 - Comprehensive UI redesign matching passagem-de-plantao-v2 reference HTML file
-- Replaced all emoji placeholders with Font Awesome 6.4.0 icons (fa-bars, fa-sync-alt, fa-bell, fa-search)
-- Refactored hover/focus behaviors from inline style manipulation to CSS classes (icon-btn, module-card-hover, btn-secondary-hover, search-input)
-- Added smooth CSS transitions (0.3s ease) for all interactive elements including alert sidebar
+- Replaced all emoji placeholders with Font Awesome 6.4.0 icons (later migrated to Material icons)
+- Refactored hover/focus behaviors from inline style manipulation to CSS classes
+- Added smooth CSS transitions (0.3s ease) for all interactive elements
 - Implemented modern 11Care design system with gradient buttons, card layouts, and professional healthcare aesthetics
-- All three components (Login, Modules, ShiftHandover) now follow consistent design patterns
-- Application compiles successfully and all features remain fully operational
 
 **Major Migration: React → Angular**
 - Completely migrated frontend from React 18 to Angular 19

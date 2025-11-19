@@ -1,1 +1,28 @@
-/* Component-specific styles */
+.module-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.chip-active {
+  background-color: #28a745 !important;
+  color: white !important;
+}
+
+.chip-coming {
+  background-color: #fd7e14 !important;
+  color: white !important;
+}
+
+::ng-deep .mat-mdc-card-header {
+  display: flex;
+  align-items: center;
+}
+
+::ng-deep .mat-mdc-card-title {
+  color: var(--primary-blue);
+  font-weight: 600;
+}

@@ -1,86 +1,82 @@
 <div class="min-h-screen" style="background-color: var(--neutral-light);">
-  <header class="bg-white" style="box-shadow: 0 2px 4px rgba(0,0,0,0.08); border-bottom: 2px solid var(--primary-blue);">
-    <div class="container mx-auto px-5 py-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <img 
-            src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
-            alt="11Care"
-            class="h-9"
-          />
-          <div>
-            <h1 class="text-lg font-bold mb-0.5" style="color: var(--primary-blue);" data-testid="text-welcome">
-              Bem-vindo, Enfermeiro(a)
-            </h1>
-            <p class="text-xs" style="color: var(--neutral-gray);">
-              UNIDADE: 10 A - DAR
-            </p>
-          </div>
+  <mat-toolbar color="primary" class="shadow-md">
+    <div class="container mx-auto flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <img 
+          src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
+          alt="11Care"
+          class="h-10 brightness-0 invert"
+        />
+        <div>
+          <h1 class="text-lg font-semibold mb-0" data-testid="text-welcome">
+            Bem-vindo, Enfermeiro(a)
+          </h1>
+          <p class="text-xs opacity-90">
+            UNIDADE: 10 A - DAR
+          </p>
         </div>
-        <button 
-          class="px-3 py-1.5 rounded-md text-sm font-semibold btn-secondary-hover"
-          (click)="logout()"
-          data-testid="button-logout"
-        >
-          Sair
-        </button>
       </div>
+      <button 
+        mat-stroked-button
+        (click)="logout()"
+        data-testid="button-logout"
+      >
+        Sair
+      </button>
     </div>
-  </header>
+  </mat-toolbar>
 
   <div class="container mx-auto px-5 py-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-      <div 
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <mat-card 
         *ngFor="let module of modules"
         [attr.data-testid]="'card-module-' + module.id"
-        class="bg-white rounded-lg p-4 relative overflow-hidden module-card-hover cursor-pointer border-2"
-        [ngClass]="{'opacity-70': module.status === 'coming'}"
-        [style.box-shadow]="'0 1px 3px rgba(0,0,0,0.1)'"
-        [style.border-color]="module.status === 'active' ? 'var(--primary-blue)' : 'var(--border-gray)'"
+        class="module-card"
+        [ngClass]="{'opacity-60': module.status === 'coming', 'cursor-pointer': module.status === 'active'}"
+        (click)="module.status === 'active' ? accessModule(module) : null"
       >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-bold" style="color: var(--primary-blue);">
+        <mat-card-header>
+          <mat-card-title class="text-lg">
             {{ module.title }}
-          </h3>
-          <span 
+          </mat-card-title>
+          <mat-chip 
             [attr.data-testid]="'badge-status-' + module.id"
-            class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
-            [style.background]="module.status === 'active' ? 'var(--accent-green)' : 'var(--accent-orange)'"
-            style="color: white;"
+            [ngClass]="module.status === 'active' ? 'chip-active' : 'chip-coming'"
+            class="ml-auto"
           >
-            {{ module.status === 'active' ? 'Ativo' : 'Breve' }}
-          </span>
-        </div>
-
-        <p class="mb-3 text-xs leading-relaxed" style="color: var(--neutral-gray);">
-          {{ module.description }}
-        </p>
-
-        <button
-          class="w-full py-2 rounded-md font-semibold transition-all text-sm"
-          [ngClass]="module.status === 'active' ? 'gradient-button text-white' : 'cursor-not-allowed'"
-          [style.background]="module.status !== 'active' ? 'var(--border-gray)' : ''"
-          [style.color]="module.status !== 'active' ? 'var(--neutral-gray)' : ''"
-          [disabled]="module.status !== 'active'"
-          [attr.data-testid]="'button-access-' + module.id"
-          (click)="accessModule(module)"
-        >
-          {{ module.status === 'active' ? 'Acessar' : 'Em Desenvolvimento' }}
-        </button>
-      </div>
+            {{ module.status === 'active' ? 'Ativo' : 'Em Breve' }}
+          </mat-chip>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <p class="text-sm text-gray-600 mb-4">
+            {{ module.description }}
+          </p>
+        </mat-card-content>
+        
+        <mat-card-actions align="end">
+          <button
+            mat-raised-button
+            [color]="module.status === 'active' ? 'primary' : undefined"
+            [disabled]="module.status !== 'active'"
+            [attr.data-testid]="'button-access-' + module.id"
+            (click)="module.status === 'active' ? accessModule(module) : null; $event.stopPropagation()"
+          >
+            {{ module.status === 'active' ? 'Acessar Módulo' : 'Em Desenvolvimento' }}
+          </button>
+        </mat-card-actions>
+      </mat-card>
     </div>
 
     <div class="flex items-center justify-center gap-3 flex-wrap">
       <button 
-        class="px-3 py-1.5 rounded-md bg-white transition-all text-sm border-2"
-        style="border-color: var(--border-gray);"
+        mat-button
         data-testid="button-reports"
       >
         Relatórios Diários
       </button>
       <button 
-        class="px-3 py-1.5 rounded-md bg-white transition-all text-sm border-2"
-        style="border-color: var(--border-gray);"
+        mat-button
         data-testid="button-settings"
       >
         Configurações

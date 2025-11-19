@@ -1,6 +1,10 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatChipsModule } from '@angular/material/chips';
 
 interface Module {
   id: string;
@@ -14,7 +18,13 @@ interface Module {
 @Component({
   selector: 'app-modules',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    MatCardModule,
+    MatButtonModule,
+    MatToolbarModule,
+    MatChipsModule
+  ],
   templateUrl: './modules.component.html',
   styleUrls: ['./modules.component.css']
 })
