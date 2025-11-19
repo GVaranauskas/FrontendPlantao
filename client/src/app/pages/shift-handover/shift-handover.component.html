@@ -4,8 +4,8 @@
     <div class="container mx-auto px-5">
       <div class="header-top flex justify-between items-center w-full mb-4">
         <div class="header-left flex items-center gap-5">
-          <button class="menu-toggle p-2 rounded-md transition-all" (click)="goToModules()">
-            <span style="font-size: 24px; color: var(--primary-blue);">☰</span>
+          <button class="icon-btn" (click)="goToModules()">
+            <i class="fas fa-bars" style="font-size: 24px; color: var(--primary-blue);"></i>
           </button>
           <img 
             src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
@@ -27,24 +27,20 @@
         
         <div class="header-right flex items-center gap-4">
           <button 
-            class="icon-btn p-2 rounded-md transition-all"
+            class="icon-btn"
             (click)="refresh()"
-            (mouseenter)="onIconHover($event, true)"
-            (mouseleave)="onIconHover($event, false)"
             data-testid="button-sync"
             title="Atualizar"
           >
-            <span style="font-size: 20px; color: var(--neutral-gray);">↻</span>
+            <i class="fas fa-sync-alt" style="font-size: 20px;"></i>
           </button>
           <button 
-            class="icon-btn p-2 rounded-md transition-all relative"
+            class="icon-btn relative"
             (click)="toggleAlerts()"
-            (mouseenter)="onIconHover($event, true)"
-            (mouseleave)="onIconHover($event, false)"
             data-testid="button-alerts"
             title="Alertas"
           >
-            <span style="font-size: 20px; color: var(--neutral-gray);">🔔</span>
+            <i class="fas fa-bell" style="font-size: 20px;"></i>
             <span 
               *ngIf="alerts.length > 0" 
               class="alert-badge absolute top-0 right-0 rounded-full flex items-center justify-center text-xs font-bold"
@@ -153,13 +149,10 @@
           type="search"
           placeholder="Buscar por paciente, leito ou especialidade..."
           [(ngModel)]="searchTerm"
-          class="w-full px-4 py-3 pl-12 rounded-lg transition-all bg-white text-base"
-          style="border: 2px solid var(--border-gray);"
-          (focus)="onSearchFocus($event)"
-          (blur)="onSearchBlur($event)"
+          class="search-input"
           data-testid="input-search"
         />
-        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl" style="color: var(--neutral-gray);">🔍</span>
+        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-lg" style="color: var(--neutral-gray);"></i>
       </div>
       
       <div class="rounded-lg p-3" style="background: var(--neutral-light);">

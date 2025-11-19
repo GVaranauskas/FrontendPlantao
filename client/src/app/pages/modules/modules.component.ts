@@ -72,24 +72,4 @@ export class ModulesComponent {
       this.router.navigate([module.route]);
     }
   }
-
-  onCardHover(event: Event, isHover: boolean) {
-    const card = event.target as HTMLElement;
-    if (isHover) {
-      card.style.transform = 'translateY(-6px)';
-      card.style.boxShadow = 'var(--shadow-lg)';
-    } else {
-      card.style.transform = 'translateY(0)';
-      card.style.boxShadow = 'var(--shadow)';
-    }
-  }
-
-  onButtonHover(event: Event, isHover: boolean) {
-    const button = event.target as HTMLElement;
-    if (isHover) {
-      button.style.background = 'var(--light-blue)';
-    } else {
-      button.style.background = 'white';
-    }
-  }
 }

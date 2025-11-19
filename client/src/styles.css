@@ -110,3 +110,83 @@
   background: linear-gradient(135deg, var(--accent-red) 0%, #e4606d 100%);
   color: white;
 }
+
+/* Icon button hover effects */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.icon-btn:hover {
+  background: var(--light-blue);
+  color: var(--primary-blue);
+}
+
+/* Search input focus effects */
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  padding-left: 48px;
+  border-radius: 8px;
+  transition: all 0.3s;
+  background: white;
+  font-size: 16px;
+  border: 2px solid var(--border-gray);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+}
+
+/* Module card hover effects */
+.module-card-hover {
+  transition: all 0.3s ease;
+}
+
+.module-card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Button secondary hover */
+.btn-secondary-hover {
+  background: white;
+  border: 2px solid var(--primary-blue);
+  color: var(--primary-blue);
+  transition: all 0.3s;
+}
+
+.btn-secondary-hover:hover {
+  background: var(--light-blue);
+}
+
+/* Alert sidebar transition */
+.alert-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: white;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-sidebar.open {
+  right: 0;
+}
+
+/* Status card hover */
+.status-card:hover {
+  transform: translateY(-4px);
+}

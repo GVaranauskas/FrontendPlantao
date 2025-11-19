@@ -18,11 +18,8 @@
           </div>
         </div>
         <button 
-          class="px-4 py-2 rounded-lg transition-all bg-white"
-          style="border: 2px solid var(--primary-blue); color: var(--primary-blue);"
+          class="px-4 py-2 rounded-lg btn-secondary-hover"
           (click)="logout()"
-          (mouseenter)="onButtonHover($event, true)"
-          (mouseleave)="onButtonHover($event, false)"
           data-testid="button-logout"
         >
           <span>Sair</span>
@@ -36,13 +33,11 @@
       <div 
         *ngFor="let module of modules"
         [attr.data-testid]="'card-module-' + module.id"
-        class="bg-white rounded-2xl p-7 relative overflow-hidden transition-all cursor-pointer"
+        class="bg-white rounded-2xl p-7 relative overflow-hidden module-card-hover cursor-pointer"
         [ngClass]="{'opacity-80': module.status === 'coming'}"
         [style.box-shadow]="'var(--shadow)'"
         [style.border]="module.status === 'active' ? '2px solid var(--primary-blue)' : '2px solid transparent'"
         [style.background]="module.status === 'active' ? 'linear-gradient(135deg, white 0%, var(--light-blue) 100%)' : 'white'"
-        (mouseenter)="onCardHover($event, true)"
-        (mouseleave)="onCardHover($event, false)"
       >
         <div class="absolute top-0 left-0 right-0 h-1" style="background: linear-gradient(90deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);"></div>
         
@@ -89,19 +84,15 @@
 
     <div class="flex items-center justify-center gap-4 flex-wrap">
       <button 
-        class="px-4 py-2 rounded-lg transition-all bg-white"
+        class="px-4 py-2 rounded-lg bg-white transition-all"
         style="border: 2px solid var(--border-gray);"
-        (mouseenter)="onButtonHover($event, true)"
-        (mouseleave)="onButtonHover($event, false)"
         data-testid="button-reports"
       >
         Relatórios Diários
       </button>
       <button 
-        class="px-4 py-2 rounded-lg transition-all bg-white"
+        class="px-4 py-2 rounded-lg bg-white transition-all"
         style="border: 2px solid var(--border-gray);"
-        (mouseenter)="onButtonHover($event, true)"
-        (mouseleave)="onButtonHover($event, false)"
         data-testid="button-settings"
       >
         Configurações

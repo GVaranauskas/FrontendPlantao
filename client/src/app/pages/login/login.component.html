@@ -32,11 +32,9 @@
               [(ngModel)]="username"
               name="username"
               placeholder="Digite seu usuário"
-              class="w-full px-3.5 py-3.5 text-base rounded-lg transition-all bg-white"
-              style="border: 2px solid var(--border-gray);"
+              class="search-input"
+              style="width: 100%; padding-left: 14px !important;"
               data-testid="input-username"
-              (focus)="onFocus($event)"
-              (blur)="onBlur($event)"
               required
             />
           </div>
@@ -51,11 +49,9 @@
               [(ngModel)]="password"
               name="password"
               placeholder="Digite sua senha"
-              class="w-full px-3.5 py-3.5 text-base rounded-lg transition-all bg-white"
-              style="border: 2px solid var(--border-gray);"
+              class="search-input"
+              style="width: 100%; padding-left: 14px !important;"
               data-testid="input-password"
-              (focus)="onFocus($event)"
-              (blur)="onBlur($event)"
               required
             />
           </div>
