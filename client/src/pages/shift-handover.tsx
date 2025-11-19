@@ -200,7 +200,7 @@ export default function ShiftHandoverPage() {
           </Card>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -212,6 +212,23 @@ export default function ShiftHandoverPage() {
               data-testid="input-search"
             />
           </div>
+          <Card className="p-3 bg-muted/30">
+            <div className="flex items-center gap-6 text-xs flex-wrap">
+              <div className="font-semibold text-muted-foreground">Legenda - Mobilidade:</div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-mono">A</Badge>
+                <span className="text-muted-foreground">Acamado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-mono">D</Badge>
+                <span className="text-muted-foreground">Deambula</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-mono">DA</Badge>
+                <span className="text-muted-foreground">Deambula Com Auxílio</span>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {isLoading ? (

@@ -52,6 +52,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
+}).extend({
+  mobilidade: z.enum(["A", "D", "DA"]).nullable().optional(),
 });
 
 export const insertAlertSchema = createInsertSchema(alerts).omit({

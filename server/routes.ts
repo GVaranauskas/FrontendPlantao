@@ -37,12 +37,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/patients/:id", async (req, res) => {
     try {
-      const patient = await storage.updatePatient(req.params.id, req.body);
+      const validatedData = insertPatientSchema.partial().parse(req.body);
+      const patient = await storage.updatePatient(req.params.id, validatedData);
       if (!patient) {
         return res.status(404).json({ message: "Patient not found" });
       }
       res.json(patient);
     } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid patient data" });
+      }
       res.status(500).json({ message: "Failed to update patient" });
     }
   });

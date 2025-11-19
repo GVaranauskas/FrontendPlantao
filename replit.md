@@ -92,12 +92,26 @@ Preferred communication style: Simple, everyday language.
 **Current Implementation**
 - Login page with 11Care branding and background imagery
 - Module selection dashboard with cards for different platform features
-- Shift handover page with patient listing, search, filtering, and alert system
+- Shift handover page (SBAR methodology) with:
+  - Complete 18-column patient table matching reference document structure
+  - Sticky LEITO (bed) column for easy reference during horizontal scrolling
+  - Visual legend for mobility codes (A, D, DA) with descriptions
+  - Patient search by name, bed number, or specialty
+  - Statistics dashboard showing complete/pending/alert/critical/total patient counts
+  - Color-coded patient rows (red for critical, orange for medium alerts, alternating for others)
+  - Alert system panel with priority-based notifications
 - Mobile-responsive design with hamburger menus and adaptive layouts
 
 **Data Models**
 - User: Authentication and role-based access (username, password, name, role)
-- Patient: Comprehensive shift handover data (bed number, name, admission date, Braden scale, diagnosis, allergies, delta classification, eliminations, devices, antibiotics, nutrition, exams, surgery notes, observations, discharge prediction, alerts)
+- Patient: Comprehensive shift handover data with 18 columns matching reference document:
+  - Basic info: leito (bed number), especialidadeRamal (specialty/extension), nome (name), registro (registration), dataNascimento (birth date)
+  - Clinical data: dataInternacao (admission date), rqBradenScp (Braden scale), diagnosticoComorbidades (diagnosis/comorbidities), alergias (allergies)
+  - Mobility: mobilidade (A=Acamado/Bedridden, D=Deambula/Walks, DA=Deambula Com Auxílio/Walks with assistance)
+  - Care details: dieta (diet), eliminacoes (eliminations), dispositivos (devices), atb (antibiotics), curativos (dressings)
+  - Monitoring: aporteSaida (intake/output), examesRealizadosPendentes (tests completed/pending)
+  - Planning: dataProgramacaoCirurgica (surgical schedule), observacoesIntercorrencias (observations/complications), previsaoAlta (expected discharge)
+  - Alert status for color-coded patient rows
 
 **Planned Features**
 - Work schedule management module (marked as "coming soon")
