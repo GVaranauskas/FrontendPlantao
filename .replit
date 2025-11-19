@@ -15,6 +15,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 36295
+externalPort = 3000
+
+[[ports]]
 localPort = 40625
 externalPort = 3001
 
@@ -43,8 +47,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
+args = "bash dev.sh"
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0"]

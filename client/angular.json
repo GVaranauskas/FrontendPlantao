@@ -6,33 +6,33 @@
     "client": {
       "projectType": "application",
       "root": "",
-      "sourceRoot": "client/src",
+      "sourceRoot": "src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/client",
-            "index": "client/src/index.html",
-            "browser": "client/src/main.ts",
+            "outputPath": "../dist/client/browser",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
             "polyfills": [
               "zone.js"
             ],
-            "tsConfig": "client/tsconfig.app.json",
+            "tsConfig": "tsconfig.app.json",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "client/src/assets",
+                "input": "src/assets",
                 "output": "/assets"
               },
               {
                 "glob": "**/*",
-                "input": "attached_assets",
+                "input": "../attached_assets",
                 "output": "/assets"
               }
             ],
             "styles": [
-              "client/src/styles.css"
+              "src/styles.css"
             ],
             "scripts": []
           },
@@ -74,5 +74,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }

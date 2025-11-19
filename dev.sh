@@ -1,15 +1,22 @@
 #!/bin/bash
 # Development script to run both Express and Angular concurrently
 
-# Start Angular dev server in background
-npx ng serve --configuration development --port 4200 &
+# Disable Angular analytics prompt
+export NG_CLI_ANALYTICS=false
+
+# Get absolute paths
+ROOT_DIR=$(pwd)
+CLIENT_DIR="$ROOT_DIR/client"
+
+# Start Angular dev server in background (from client directory)
+(cd "$CLIENT_DIR" && npx ng serve --configuration development --port 4200) &
 ANGULAR_PID=$!
 
 # Give Angular a moment to start
-sleep 2
+sleep 3
 
-# Start Express server
-NODE_ENV=development npx tsx server/index.ts &
+# Start Express server (from root directory)
+(cd "$ROOT_DIR" && NODE_ENV=development npx tsx server/index.ts) &
 EXPRESS_PID=$!
 
 # Function to cleanup on exit

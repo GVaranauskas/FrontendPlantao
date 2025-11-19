@@ -1,11 +1,16 @@
 {
-  "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "../dist/client",
-    "types": [],
     "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "dom"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
     "useDefineForClassFields": false,
-    "lib": ["ES2022", "dom"]
+    "types": []
   },
   "files": [
     "src/main.ts"
@@ -14,6 +19,13 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "src/**/*.spec.ts"
-  ]
+    "src/**/*.spec.ts",
+    "node_modules"
+  ],
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  }
 }

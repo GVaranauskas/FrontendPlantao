@@ -29,7 +29,7 @@ export async function setupAngularProxy(app: Express) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "client", "browser");
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "client", "browser", "browser");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
