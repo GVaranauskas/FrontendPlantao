@@ -2,54 +2,111 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 210 40% 10%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 210 40% 10%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 10%;
-    
-    --primary: 210 100% 35%;
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 210 100% 50%;
-    --secondary-foreground: 0 0% 100%;
-    
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 210 40% 10%;
-    
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 210 100% 35%;
-    
-    --radius: 0.5rem;
-  }
+/* Variáveis CSS oficiais 11Care */
+:root {
+  --primary-blue: #0056b3;
+  --secondary-blue: #007bff;
+  --light-blue: #e8f4ff;
+  --dark-blue: #003d7a;
+  --accent-green: #28a745;
+  --accent-orange: #fd7e14;
+  --accent-red: #dc3545;
+  --accent-yellow: #ffc107;
+  --neutral-white: #ffffff;
+  --neutral-light: #f8f9fa;
+  --neutral-gray: #6c757d;
+  --neutral-dark: #343a40;
+  --text-gray: #495057;
+  --border-gray: #dee2e6;
+  --shadow: 0 4px 6px -1px rgba(0, 86, 179, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 86, 179, 0.1);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
+  
   body {
-    @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--neutral-light);
+    color: var(--text-gray);
+    line-height: 1.6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 }
 
+/* Botões com gradientes */
 .gradient-button {
-  background: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+  box-shadow: 0 2px 4px rgba(0, 86, 179, 0.3);
+  transition: all 0.3s ease;
 }
 
 .gradient-button:hover {
-  background: linear-gradient(135deg, #004494 0%, #0062cc 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 86, 179, 0.4);
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--accent-green) 0%, #34ce57 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, #fd9843 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(253, 126, 20, 0.3);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 86, 179, 0.2);
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+  border: 1px solid var(--border-gray);
+}
+
+.badge-primary {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: linear-gradient(135deg, var(--accent-green) 0%, #34ce57 100%);
+  color: white;
+}
+
+.badge-warning {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, #fd9843 100%);
+  color: white;
+}
+
+.badge-danger {
+  background: linear-gradient(135deg, var(--accent-red) 0%, #e4606d 100%);
+  color: white;
 }

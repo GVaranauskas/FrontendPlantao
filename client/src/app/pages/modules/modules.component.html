@@ -1,5 +1,5 @@
-<div class="min-h-screen bg-gray-50">
-  <header class="bg-white border-b-4 border-[#0056b3] shadow-md">
+<div class="min-h-screen" style="background-color: var(--neutral-light);">
+  <header class="bg-white shadow-md" style="box-shadow: var(--shadow); border-bottom: 3px solid var(--primary-blue);">
     <div class="container mx-auto px-5 py-5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-5">
@@ -9,17 +9,20 @@
             class="h-11"
           />
           <div>
-            <h1 class="text-2xl font-bold text-[#0056b3] mb-1" data-testid="text-welcome">
+            <h1 class="text-2xl font-bold mb-1" style="color: var(--primary-blue);" data-testid="text-welcome">
               Bem-vindo, Enfermeiro(a)
             </h1>
-            <p class="text-sm text-gray-600">
+            <p class="text-sm" style="color: var(--neutral-gray);">
               UNIDADE DE INTERNAÇÃO: 10 A - DAR
             </p>
           </div>
         </div>
         <button 
-          class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2"
+          class="px-4 py-2 rounded-lg transition-all bg-white"
+          style="border: 2px solid var(--primary-blue); color: var(--primary-blue);"
           (click)="logout()"
+          (mouseenter)="onButtonHover($event, true)"
+          (mouseleave)="onButtonHover($event, false)"
           data-testid="button-logout"
         >
           <span>Sair</span>
@@ -33,58 +36,72 @@
       <div 
         *ngFor="let module of modules"
         [attr.data-testid]="'card-module-' + module.id"
-        class="bg-white rounded-lg shadow-md p-7 relative overflow-hidden transition-all hover:shadow-lg"
-        [ngClass]="{'border-2 border-[#0056b3] bg-gradient-to-br from-white to-blue-50': module.status === 'active'}"
+        class="bg-white rounded-2xl p-7 relative overflow-hidden transition-all cursor-pointer"
+        [ngClass]="{'opacity-80': module.status === 'coming'}"
+        [style.box-shadow]="'var(--shadow)'"
+        [style.border]="module.status === 'active' ? '2px solid var(--primary-blue)' : '2px solid transparent'"
+        [style.background]="module.status === 'active' ? 'linear-gradient(135deg, white 0%, var(--light-blue) 100%)' : 'white'"
+        (mouseenter)="onCardHover($event, true)"
+        (mouseleave)="onCardHover($event, false)"
       >
-        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0056b3] to-[#007bff]"></div>
+        <div class="absolute top-0 left-0 right-0 h-1" style="background: linear-gradient(90deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);"></div>
         
         <div class="flex items-start justify-between mb-5">
-          <h2 class="text-[22px] font-bold text-[#0056b3]">
+          <h2 class="text-[22px] font-bold" style="color: var(--primary-blue);">
             {{ module.title }}
           </h2>
           <span 
             [attr.data-testid]="'badge-status-' + module.id"
-            class="px-3 py-1 rounded-full text-sm font-medium"
-            [ngClass]="module.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold"
+            [style.background]="module.status === 'active' ? 'var(--accent-green)' : 'var(--accent-orange)'"
+            style="color: white;"
           >
-            {{ module.status === 'active' ? 'Ativo' : 'Em Breve' }}
+            {{ module.status === 'active' ? 'ATIVO' : 'EM BREVE' }}
           </span>
         </div>
 
-        <p class="text-gray-600 mb-6 leading-relaxed">
+        <p class="mb-6 leading-relaxed text-[15px]" style="color: var(--neutral-gray);">
           {{ module.description }}
         </p>
 
-        <ul class="space-y-3 mb-6">
-          <li *ngFor="let feature of module.features" class="flex items-start gap-3 text-sm">
-            <div class="mt-0.5 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <span class="text-green-600 text-xs font-bold">✓</span>
+        <ul class="space-y-2 mb-6">
+          <li *ngFor="let feature of module.features" class="flex items-center gap-3 text-sm">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style="background: var(--light-blue);">
+              <span class="text-xs font-bold" style="color: var(--accent-green);">✓</span>
             </div>
             <span>{{ feature }}</span>
           </li>
         </ul>
 
         <button
-          class="w-full py-3 rounded-md font-semibold transition-all"
-          [ngClass]="module.status === 'active' ? 'gradient-button text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+          class="w-full py-3 rounded-lg font-semibold transition-all text-base"
+          [ngClass]="module.status === 'active' ? 'gradient-button text-white' : 'cursor-not-allowed'"
+          [style.background]="module.status !== 'active' ? 'var(--border-gray)' : ''"
+          [style.color]="module.status !== 'active' ? 'var(--neutral-gray)' : ''"
           [disabled]="module.status !== 'active'"
           [attr.data-testid]="'button-access-' + module.id"
           (click)="accessModule(module)"
         >
-          {{ module.status === 'active' ? 'Acessar Módulo' : 'Em Desenvolvimento' }}
+          {{ module.status === 'active' ? 'ACESSAR MÓDULO' : 'EM DESENVOLVIMENTO' }}
         </button>
       </div>
     </div>
 
     <div class="flex items-center justify-center gap-4 flex-wrap">
       <button 
-        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+        class="px-4 py-2 rounded-lg transition-all bg-white"
+        style="border: 2px solid var(--border-gray);"
+        (mouseenter)="onButtonHover($event, true)"
+        (mouseleave)="onButtonHover($event, false)"
         data-testid="button-reports"
       >
         Relatórios Diários
       </button>
       <button 
-        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+        class="px-4 py-2 rounded-lg transition-all bg-white"
+        style="border: 2px solid var(--border-gray);"
+        (mouseenter)="onButtonHover($event, true)"
+        (mouseleave)="onButtonHover($event, false)"
         data-testid="button-settings"
       >
         Configurações

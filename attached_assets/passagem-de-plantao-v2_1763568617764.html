@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Enfermagem - 11Care</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Reset e estilos gerais */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        :root {
+            /* Cores oficiais 11Care baseadas no site */
+            --primary-blue: #0056b3;
+            --secondary-blue: #007bff;
+            --light-blue: #e8f4ff;
+            --dark-blue: #003d7a;
+            --accent-green: #28a745;
+            --accent-orange: #fd7e14;
+            --accent-red: #dc3545;
+            --accent-yellow: #ffc107;
+            --neutral-white: #ffffff;
+            --neutral-light: #f8f9fa;
+            --neutral-gray: #6c757d;
+            --neutral-dark: #343a40;
+            --text-gray: #495057;
+            --border-gray: #dee2e6;
+            --shadow: 0 4px 6px -1px rgba(0, 86, 179, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 86, 179, 0.1);
+        }
+        
+        body {
+            background-color: var(--neutral-light);
+            color: var(--text-gray);
+            line-height: 1.6;
+        }
+        
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Componentes comuns */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 86, 179, 0.3);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-green) 0%, #34ce57 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, #fd9843 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(253, 126, 20, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 86, 179, 0.2);
+        }
+        
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(0, 86, 179, 0.4);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            border: 1px solid var(--border-gray);
+        }
+        
+        .card-gradient {
+            background: linear-gradient(135deg, var(--light-blue) 0%, white 100%);
+            border-left: 4px solid var(--primary-blue);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-primary {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+            color: white;
+        }
+        
+        .badge-success {
+            background: linear-gradient(135deg, var(--accent-green) 0%, #34ce57 100%);
+            color: white;
+        }
+        
+        .badge-warning {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, #fd9843 100%);
+            color: white;
+        }
+        
+        .badge-danger {
+            background: linear-gradient(135deg, var(--accent-red) 0%, #e4606d 100%);
+            color: white;
+        }
+        
+        /* Página de Login */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: url('https://11care.com.br/wp-content/uploads/2025/10/Artigo-Profissionalizacao-da-enfermagem.jpg.webp') center/cover no-repeat;
+            position: relative;
+        }
+        
+        .login-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 86, 179, 0.1);
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            z-index: 2;
+            padding: 20px;
+        }
+        
+        .login-logo {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .login-logo img {
+            max-width: 280px;
+            margin-bottom: 20px;
+        }
+        
+        .login-logo h1 {
+            color: var(--primary-blue);
+            font-size: 32px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        
+        .login-logo p {
+            color: var(--neutral-gray);
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-gray);
+            font-size: 14px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border-gray);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+        
+        .login-footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-gray);
+            font-size: 14px;
+            text-align: center;
+            color: var(--neutral-gray);
+        }
+        
+        /* Header com logo */
+        .header-logo {
+            height: 45px;
+        }
+        
+        /* Página de Módulos */
+        .modules-page {
+            min-height: 100vh;
+            background: var(--neutral-light);
+        }
+        
+        .page-header {
+            background: white;
+            box-shadow: var(--shadow);
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .user-info h1 {
+            font-size: 24px;
+            margin-bottom: 4px;
+            color: var(--primary-blue);
+            font-weight: 700;
+        }
+        
+        .user-info p {
+            color: var(--neutral-gray);
+            font-size: 14px;
+        }
+        
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 28px;
+            margin-bottom: 40px;
+        }
+        
+        .module-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 28px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+        }
+        
+        .module-card.primary {
+            border-color: var(--primary-blue);
+            background: linear-gradient(135deg, white 0%, var(--light-blue) 100%);
+        }
+        
+        .module-card.secondary {
+            border-color: var(--border-gray);
+            background: white;
+            opacity: 0.8;
+        }
+        
+        .module-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        
+        .module-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-blue);
+        }
+        
+        .module-status {
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .status-coming {
+            background: var(--accent-orange);
+            color: white;
+        }
+        
+        .module-description {
+            color: var(--neutral-gray);
+            margin-bottom: 24px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .module-features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+        
+        .module-features li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+        
+        .module-features li:before {
+            content: "✓";
+            color: var(--accent-green);
+            font-weight: bold;
+            background: var(--light-blue);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        /* Página de Passagem de Plantão */
+        .passagem-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--neutral-light);
+        }
+        
+        .module-header {
+            background: white;
+            box-shadow: var(--shadow);
+            padding: 16px 0;
+            margin-bottom: 0;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+        
+        .module-header-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--primary-blue);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+        
+        .menu-toggle:hover {
+            background: var(--light-blue);
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--neutral-gray);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .icon-btn:hover {
+            background: var(--light-blue);
+            color: var(--primary-blue);
+        }
+        
+        .alert-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--accent-red);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        /* Page Info Centralizado - NOVO LAYOUT */
+        .page-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            padding: 16px 0;
+        }
+        
+        .page-title {
+            font-size: 22px; /* Reduzido de 28px */
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin: 0;
+        }
+        
+        .page-subtitle {
+            font-size: 14px; /* Reduzido de 16px */
+            color: var(--neutral-gray);
+            margin: 0;
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            background: white;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-gray);
+            margin-bottom: 20px;
+        }
+        
+        .breadcrumb-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--neutral-gray);
+        }
+        
+        .breadcrumb a {
+            color: var(--primary-blue);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .breadcrumb a:hover {
+            color: var(--dark-blue);
+            text-decoration: underline;
+        }
+        
+        .breadcrumb-separator {
+            color: var(--neutral-gray);
+        }
+        
+        /* Status Overview com altura reduzida */
+        .status-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+            text-align: center;
+            border-top: 4px solid transparent;
+            transition: transform 0.3s ease;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .status-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        .status-card.complete {
+            border-top-color: var(--accent-green);
+            background: linear-gradient(135deg, white 0%, #f0fff4 100%);
+        }
+        
+        .status-card.pending {
+            border-top-color: var(--accent-orange);
+            background: linear-gradient(135deg, white 0%, #fffaf0 100%);
+        }
+        
+        .status-card.alert {
+            border-top-color: var(--accent-yellow);
+            background: linear-gradient(135deg, white 0%, #fffdf0 100%);
+        }
+        
+        .status-card.critical {
+            border-top-color: var(--accent-red);
+            background: linear-gradient(135deg, white 0%, #fff0f0 100%);
+        }
+        
+        .status-count {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        
+        .status-card.complete .status-count {
+            color: var(--accent-green);
+        }
+        
+        .status-card.pending .status-count {
+            color: var(--accent-orange);
+        }
+        
+        .status-card.alert .status-count {
+            color: var(--accent-yellow);
+        }
+        
+        .status-card.critical .status-count {
+            color: var(--accent-red);
+        }
+        
+        .status-label {
+            color: var(--neutral-gray);
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .dashboard-container {
+            display: block;
+            flex: 1;
+        }
+        
+        /* Planilha sem scroll horizontal e sem scroll interno */
+        .planilha-grid {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            width: 100%;
+            border: 1px solid var(--border-gray);
+            margin-bottom: 40px;
+        }
+        
+        .grid-header {
+            display: grid;
+            grid-template-columns: 60px minmax(180px, 1fr) 90px 70px minmax(140px, 1fr) 90px 70px 110px 110px 90px 90px 90px 90px 110px minmax(140px, 1fr) 110px 70px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+            padding: 12px 6px;
+            gap: 1px;
+        }
+        
+        .grid-header > div {
+            padding: 4px 3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* REMOVIDO: Scroll interno da tabela */
+        .patient-rows {
+            /* overflow-y: auto; REMOVIDO - Permite scroll da página inteira */
+        }
+        
+        .patient-row {
+            display: grid;
+            grid-template-columns: 60px minmax(180px, 1fr) 90px 70px minmax(140px, 1fr) 90px 70px 110px 110px 90px 90px 90px 90px 110px minmax(140px, 1fr) 110px 70px;
+            border-bottom: 1px solid var(--border-gray);
+            padding: 10px 6px;
+            gap: 1px;
+            font-size: 12px;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+        
+        .patient-row:nth-child(even) {
+            background-color: var(--neutral-light);
+        }
+        
+        .patient-row.alert {
+            background-color: #fff9e6;
+            border-left: 4px solid var(--accent-yellow);
+        }
+        
+        .patient-row.critical {
+            background-color: #ffe6e6;
+            border-left: 4px solid var(--accent-red);
+        }
+        
+        .patient-row:hover {
+            background-color: var(--light-blue);
+        }
+        
+        .patient-row.alert:hover {
+            background-color: #fff0cc;
+        }
+        
+        .patient-row.critical:hover {
+            background-color: #ffcccc;
+        }
+        
+        .patient-cell {
+            padding: 4px 3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .leito-cell {
+            font-weight: 600;
+            text-align: center;
+            color: var(--primary-blue);
+        }
+        
+        /* Sidebar de Alertas */
+        .alert-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .alert-sidebar.open {
+            right: 0;
+        }
+        
+        .alert-header {
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .alert-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .close-alerts {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .alert-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .alert-item {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--accent-yellow);
+            background: linear-gradient(135deg, #fffdf0 0%, white 100%);
+            border: 1px solid #ffeaa7;
+        }
+        
+        .alert-item.critical {
+            border-left-color: var(--accent-red);
+            background: linear-gradient(135deg, #fff0f0 0%, white 100%);
+            border-color: #f8d7da;
+        }
+        
+        .alert-item.medium {
+            border-left-color: var(--accent-orange);
+            background: linear-gradient(135deg, #fffaf0 0%, white 100%);
+            border-color: #ffe8cc;
+        }
+        
+        .alert-priority {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .priority-high {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .priority-medium {
+            background: var(--accent-orange);
+            color: white;
+        }
+        
+        .priority-low {
+            background: var(--accent-yellow);
+            color: var(--neutral-dark);
+        }
+        
+        .alert-info {
+            margin-bottom: 8px;
+        }
+        
+        .alert-leito {
+            font-weight: 700;
+            color: var(--primary-blue);
+        }
+        
+        .alert-time {
+            font-size: 12px;
+            color: var(--neutral-gray);
+            margin-top: 4px;
+        }
+        
+        /* Overlay para sidebar */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .sidebar-overlay.active {
+            display: block;
+        }
+        
+        /* Responsividade */
+        @media (max-width: 1200px) {
+            .login-page {
+                background-position: center;
+            }
+            
+            .alert-sidebar {
+                width: 350px;
+            }
+            
+            .grid-header, .patient-row {
+                grid-template-columns: 50px minmax(150px, 1fr) 80px 60px minmax(120px, 1fr) 80px 60px 100px 100px 80px 80px 80px 80px 100px minmax(120px, 1fr) 100px 60px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+            
+            .status-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                align-items: flex-start;
+            }
+            
+            .alert-sidebar {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .grid-header, .patient-row {
+                grid-template-columns: 40px minmax(120px, 1fr) 70px 50px minmax(100px, 1fr) 70px 50px 90px 90px 70px 70px 70px 70px 90px minmax(100px, 1fr) 90px 50px;
+                font-size: 10px;
+            }
+            
+            .page-info {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+            
+            .page-title {
+                font-size: 20px;
+            }
+            
+            .page-subtitle {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Página de Login -->
+    <div id="login-page" class="login-page">
+        <div class="login-container">
+            <div class="card card-gradient">
+                <div class="login-logo">
+                    <img src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp" alt="11Care" class="header-logo">
+                    <h1>Plataforma de Enfermagem</h1>
+                    <p>11Care - HSPE</p>
+                </div>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Usuário</label>
+                        <input type="text" id="username" class="form-control" placeholder="Digite seu usuário" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input type="password" id="password" class="form-control" placeholder="Digite sua senha" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px;">
+                        Acessar Plataforma
+                    </button>
+                </form>
+                
+                <div class="login-footer">
+                    <p>Problemas com acesso? <a href="#" style="color: var(--primary-blue); text-decoration: none;">Contate o suporte</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Página de Módulos (inicialmente oculta) -->
+    <div id="modules-page" class="modules-page" style="display: none;">
+        <div class="page-header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="user-info">
+                        <img src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp" alt="11Care" class="header-logo">
+                        <div>
+                            <h1>Bem-vinda, Enf. Andressa Silva</h1>
+                            <p>Setor: 10 A - DAR | COREN: 123.456-SP</p>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="logout()">Sair</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container">
+            <div class="modules-grid">
+                <!-- Módulo Principal - Passagem de Plantão -->
+                <div class="module-card primary">
+                    <div class="module-header">
+                        <div class="module-title">Passagem de Plantão</div>
+                        <div class="module-status status-active">Ativo</div>
+                    </div>
+                    <p class="module-description">
+                        Dashboard de pacientes e geração de planilha automatizada para passagem de plantão.
+                    </p>
+                    <ul class="module-features">
+                        <li>Visualização em tempo real</li>
+                        <li>Validação de dados automatizada</li>
+                        <li>Geração de relatórios inteligentes</li>
+                        <li>Export para impressão e Excel</li>
+                        <li>Alertas automáticos de pendências</li>
+                    </ul>
+                    <button class="btn btn-primary" onclick="showPassagemPlantao()">
+                        Acessar Módulo
+                    </button>
+                </div>
+                
+                <!-- Módulos Futuros -->
+                <div class="module-card secondary">
+                    <div class="module-header">
+                        <div class="module-title">Assistente Digital</div>
+                        <div class="module-status status-coming">Em Breve</div>
+                    </div>
+                    <p class="module-description">
+                        Protocolos, calculadoras e apoio à decisão clínica para a equipe de enfermagem.
+                    </p>
+                    <ul class="module-features">
+                        <li>Calculadoras médicas especializadas</li>
+                        <li>Protocolos atualizados automaticamente</li>
+                        <li>Checklists de segurança</li>
+                        <li>Biblioteca de procedimentos</li>
+                    </ul>
+                    <button class="btn btn-secondary" disabled>
+                        Em Desenvolvimento
+                    </button>
+                </div>
+                
+                <div class="module-card secondary">
+                    <div class="module-header">
+                        <div class="module-title">PEC</div>
+                        <div class="module-status status-coming">Em Breve</div>
+                    </div>
+                    <p class="module-description">
+                        Prescrição Eletrônica de Enfermagem com integração completa ao prontuário.
+                    </p>
+                    <ul class="module-features">
+                        <li>Prescrições digitais seguras</li>
+                        <li>Evoluções integradas automáticas</li>
+                        <li>Planos de cuidado personalizados</li>
+                        <li>Alertas de interações medicamentosas</li>
+                    </ul>
+                    <button class="btn btn-secondary" disabled>
+                        Em Desenvolvimento
+                    </button>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 40px;">
+                <button class="btn btn-secondary">Trocar de Setor</button>
+                <button class="btn btn-secondary">Relatórios Diários</button>
+                <button class="btn btn-secondary">Configurações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Página de Passagem de Plantão (inicialmente oculta) -->
+    <div id="passagem-page" class="passagem-page" style="display: none;">
+        <!-- Overlay para sidebar -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        
+        <!-- Sidebar de Alertas -->
+        <div class="alert-sidebar" id="alert-sidebar">
+            <div class="alert-header">
+                <h3><i class="fas fa-bell"></i> Alertas do Sistema</h3>
+                <button class="close-alerts" onclick="closeAlertSidebar()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="alert-content">
+                <div class="alert-item critical">
+                    <div class="alert-priority priority-high">ALTA PRIORIDADE</div>
+                    <div class="alert-info">
+                        <div class="alert-leito">Leito 12 - Alergia Grave</div>
+                        <p>Alergia a Penicilina sem observação adequada no prontuário.</p>
+                        <div class="alert-time">Há 15 minutos</div>
+                    </div>
+                </div>
+                
+                <div class="alert-item critical">
+                    <div class="alert-priority priority-high">ALTA PRIORIDADE</div>
+                    <div class="alert-info">
+                        <div class="alert-leito">Leito 15 - Sinais Vitais</div>
+                        <p>Sinais vitais fora dos parâmetros estabelecidos há mais de 2 horas.</p>
+                        <div class="alert-time">Há 2 horas e 15 minutos</div>
+                    </div>
+                </div>
+                
+                <div class="alert-item medium">
+                    <div class="alert-priority priority-medium">MÉDIA PRIORIDADE</div>
+                    <div class="alert-info">
+                        <div class="alert-leito">Leito 5 - Escala de Braden</div>
+                        <p>Escala de Braden não preenchida para avaliação de risco de úlcera por pressão.</p>
+                        <div class="alert-time">Há 45 minutos</div>
+                    </div>
+                </div>
+                
+                <div class="alert-item">
+                    <div class="alert-priority priority-low">BAIXA PRIORIDADE</div>
+                    <div class="alert-info">
+                        <div class="alert-leito">Leito 8 - Medicação</div>
+                        <p>Medicação pendente de atualização no sistema.</p>
+                        <div class="alert-time">Há 30 minutos</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="module-header">
+            <div class="container">
+                <div class="module-header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <button class="menu-toggle">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <div>
+                                <img src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp" alt="11Care" class="header-logo">
+                            </div>
+                            <!-- NOVO LAYOUT: Logo + Textos alinhados horizontalmente -->
+                    <div class="page-info">
+                        
+                        <div>
+                            <h1 class="page-title">Passagem de Plantão (SBAR)</h1>
+                            <p class="page-subtitle">UNIDADE DE INTERNAÇÃO: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO</p>
+                        </div>
+                    </div>
+                        </div>
+                        
+                        <div class="header-right">
+                            <div class="header-actions">
+                                <button class="icon-btn" title="Sincronizar Dados">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button class="icon-btn" title="Filtrar Pacientes">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                                <button class="icon-btn" title="Buscar">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <button class="icon-btn" title="Alertas" onclick="openAlertSidebar()">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="alert-badge">4</span>
+                                </button>
+                                <button class="btn btn-success" onclick="generateReport()">
+                                    <i class="fas fa-print"></i> Imprimir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    
+                </div>
+            </div>
+        </div>
+        
+        <div class="breadcrumb">
+            <div class="container">
+                <div class="breadcrumb-content">
+                    <a href="#" onclick="showModulesPage()">Início</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <a href="#" onclick="showModulesPage()">Módulos</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <span>Passagem de Plantão</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="status-overview">
+                <div class="status-card complete">
+                    <div class="status-count">15</div>
+                    <div class="status-label">Completos</div>
+                </div>
+                <div class="status-card pending">
+                    <div class="status-count">5</div>
+                    <div class="status-label">Pendentes</div>
+                </div>
+                <div class="status-card alert">
+                    <div class="status-count">3</div>
+                    <div class="status-label">Com Alertas</div>
+                </div>
+                <div class="status-card critical">
+                    <div class="status-count">2</div>
+                    <div class="status-label">Críticos</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-count" style="color: var(--primary-blue);">25</div>
+                    <div class="status-label">Total de Pacientes</div>
+                </div>
+            </div>
+            
+            <div class="dashboard-container">
+                <div class="planilha-grid">
+                    <div class="grid-header">
+                        <div>LEITO</div>
+                        <div>NOME</div>
+                        <div>DATA INTERNAÇÃO</div>
+                        <div>BRADEN/MORSE</div>
+                        <div>DIAGNÓSTICO</div>
+                        <div>ALERGIAS</div>
+                        <div>DELTA</div>
+                        <div>ELIMINAÇÕES</div>
+                        <div>DISPOSITIVOS</div>
+                        <div>ATB</div>
+                        <div>OUTROS</div>
+                        <div>APORTE</div>
+                        <div>EXAMES</div>
+                        <div>CIRURGIA</div>
+                        <div>OBSERVAÇÕES</div>
+                        <div>PREVISÃO ALTA</div>
+                        <div>AÇÕES</div>
+                    </div>
+                    
+                    <div class="patient-rows" id="patient-rows">
+                        <!-- As linhas de pacientes serão inseridas aqui pelo JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dados dos pacientes com informações de alerta
+        const pacientes = [
+            {leito: 1, nome: "JOSÉ MANDEL BERNARD TZAK, PT. 17 PAR-4 - AC PRIMIZA", internacao: "19/11", braden: "0;15", diagnostico: "INC", alergias: "NEGA", delta: "D", eliminacoes: "DIURESE REVISORA MAS", dispositivos: "D - E+", atb: "ANP NEST. 1911", outros: "SANTB", aporte: "PELE INTEGRA", exames: "AAA-19%", cirurgia: "REALIZOU RP - TL PEDRA", observacoes: "CHEGOU EDIAN", previsaoAlta: "DAT EF", alerta: false},
+            {leito: 2, nome: "RAMUNGO DOBERTO AVES TEDEMA, 64 ANOS PT. 1523/89", internacao: "19/10/2025", braden: "0;15", diagnostico: "PLA XIV IC Fvn/B B", alergias: "NEGA", delta: "D", eliminacoes: "DIURESE PASTOSSA", dispositivos: "D + E +", atb: "SAMPP", outros: "AMONGSTANA ORATUM", aporte: "PELE INTEGRA", exames: "AAA-6%", cirurgia: "DDT. 514", observacoes: "ESTABELECIA DISTÂNCIA EM 1911", previsaoAlta: "BANHO QUIRNO B 1911", alerta: false},
+            {leito: 3, nome: "MARIA SILVA SANTOS, 45 ANOS PT. 2345/21", internacao: "15/11/2025", braden: "0;12", diagnostico: "HIPERTENSÃO ARTERIAL", alergias: "DIPIRONA", delta: "A", eliminacoes: "DIURESE NORMAL", dispositivos: "SNE", atb: "CEFALEXINA", outros: "ANALGÉSICO", aporte: "DIETA LÍQUIDA", exames: "HEMOGRAMA NORMAL", cirurgia: "NENHUMA", observacoes: "ESTÁVEL", previsaoAlta: "20/11/2025", alerta: false},
+            {leito: 4, nome: "ANTÔNIO COSTA PEREIRA, 72 ANOS PT. 3456/22", internacao: "10/11/2025", braden: "0;18", diagnostico: "DIABETES MELLITUS", alergias: "NEGA", delta: "B", eliminacoes: "EVACUAÇÃO NORMAL", dispositivos: "CVC", atb: "INSULINA", outros: "ANTIDIABÉTICO", aporte: "DIETA DIABÉTICA", exames: "GLICEMIA 180", cirurgia: "NENHUMA", observacoes: "CONTROLADO", previsaoAlta: "18/11/2025", alerta: false},
+            {leito: 5, nome: "ANA PAULA OLIVEIRA, 38 ANOS PT. 4567/23", internacao: "12/11/2025", braden: "0;10", diagnostico: "APENDICITE AGUDA", alergias: "PENICILINA", delta: "C", eliminacoes: "EVACUAÇÃO AUSENTE", dispositivos: "D - E-", atb: "METRONIDAZOL", outros: "ANALGÉSICO", aporte: "JEJUM", exames: "LEUCOCITOSE", cirurgia: "APENDICECTOMIA", observacoes: "PÓS-OPERATÓRIO", previsaoAlta: "22/11/2025", alerta: "medium"},
+            {leito: 6, nome: "CARLOS ALBERTO MENDES, 55 ANOS PT. 5678/24", internacao: "08/11/2025", braden: "0;14", diagnostico: "INSUF. CARDÍACA", alergias: "NEGA", delta: "A", eliminacoes: "DIURESE DIMINUÍDA", dispositivos: "O2", atb: "FUROSEMIDA", outros: "DIGOXINA", aporte: "DIETA HIPOSSÓDICA", exames: "ECO NORMAL", cirurgia: "NENHUMA", observacoes: "ESTÁVEL", previsaoAlta: "19/11/2025", alerta: false},
+            {leito: 7, nome: "FERNANDA LIMA ROCHA, 29 ANOS PT. 6789/25", internacao: "14/11/2025", braden: "0;16", diagnostico: "GRIPE A", alergias: "NEGA", delta: "B", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "OSELTAMIVIR", outros: "ANTITÉRMICO", aporte: "DIETA NORMAL", exames: "RT-PCR POSITIVO", cirurgia: "NENHUMA", observacoes: "FEBRE BAIXA", previsaoAlta: "21/11/2025", alerta: false},
+            {leito: 8, nome: "ROBERTO SANTOS ALMEIDA, 61 ANOS PT. 7890/26", internacao: "05/11/2025", braden: "0;13", diagnostico: "PNEUMONIA", alergias: "NEGA", delta: "C", eliminacoes: "DIURESE NORMAL", dispositivos: "O2", atb: "AZITROMICINA", outros: "BRONCODILATADOR", aporte: "DIETA NORMAL", exames: "RX TÓRAX", cirurgia: "NENHUMA", observacoes: "MELHORA CLÍNICA", previsaoAlta: "20/11/2025", alerta: "low"},
+            {leito: 9, nome: "JULIANA ANDRADE COSTA, 33 ANOS PT. 8901/27", internacao: "16/11/2025", braden: "0;17", diagnostico: "COLECISTITE", alergias: "NEGA", delta: "B", eliminacoes: "EVACUAÇÃO NORMAL", dispositivos: "SNE", atb: "CEFTRIAXONA", outros: "ANALGÉSICO", aporte: "DIETA LÍQUIDA", exames: "USG ABDÔMEN", cirurgia: "COLECISTECTOMIA", observacoes: "PRÉ-OPERATÓRIO", previsaoAlta: "25/11/2025", alerta: false},
+            {leito: 10, nome: "PEDRO HENRIQUE LIMA, 47 ANOS PT. 9012/28", internacao: "09/11/2025", braden: "0;11", diagnostico: "DIVERTICULITE", alergias: "NEGA", delta: "A", eliminacoes: "EVACUAÇÃO DIFICULTADA", dispositivos: "NENHUM", atb: "METRONIDAZOL", outros: "LAXANTE", aporte: "DIETA FIBRADA", exames: "TOMOGRAFIA", cirurgia: "NENHUMA", observacoes: "DOR ABDOMINAL", previsaoAlta: "23/11/2025", alerta: false},
+            {leito: 11, nome: "AMANDA SOUZA FERREIRA, 52 ANOS PT. 1234/29", internacao: "13/11/2025", braden: "0;15", diagnostico: "HIPOTIREOIDISMO", alergias: "NEGA", delta: "B", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "LEVOTIROXINA", outros: "NENHUM", aporte: "DIETA NORMAL", exames: "TSH ELEVADO", cirurgia: "NENHUMA", observacoes: "COMPENSADO", previsaoAlta: "18/11/2025", alerta: false},
+            {leito: 12, nome: "LUCAS MARTINS RIBEIRO, 41 ANOS PT. 2345/30", internacao: "17/11/2025", braden: "0;14", diagnostico: "LOMBALGIA", alergias: "NEGA", delta: "C", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "DIPIRONA", outros: "MIORRELAXANTE", aporte: "DIETA NORMAL", exames: "RX COLUNA", cirurgia: "NENHUMA", observacoes: "DOR MODERADA", previsaoAlta: "22/11/2025", alerta: "critical"},
+            {leito: 13, nome: "PATRÍCIA ALVES MONTEIRO, 58 ANOS PT. 3456/31", internacao: "11/11/2025", braden: "0;16", diagnostico: "ASMA BRÔNQUICA", alergias: "POEIRA", delta: "A", eliminacoes: "NORMAL", dispositivos: "INALADOR", atb: "BUDESONIDA", outros: "BRONCODILATADOR", aporte: "DIETA NORMAL", exames: "ESPIROMETRIA", cirurgia: "NENHUMA", observacoes: "CRISE CONTROLADA", previsaoAlta: "19/11/2025", alerta: false},
+            {leito: 14, nome: "RICARDO GOMES TEIXEIRA, 63 ANOS PT. 4567/32", internacao: "07/11/2025", braden: "0;12", diagnostico: "AVC ISQUÊMICO", alergias: "NEGA", delta: "B", eliminacoes: "INCONTINÊNCIA", dispositivos: "SNG", atb: "AAS", outros: "ANTICOAGULANTE", aporte: "DIETA LÍQUIDA", exames: "TOMOGRAFIA", cirurgia: "NENHUMA", observacoes: "HEMIPARESIA DIREITA", previsaoAlta: "26/11/2025", alerta: false},
+            {leito: 15, nome: "TATIANE ROCHA BARROS, 36 ANOS PT. 5678/33", internacao: "15/11/2025", braden: "0;18", diagnostico: "ANEMIA FERROPRIVA", alergias: "NEGA", delta: "A", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "SULFATO FERROSO", outros: "VITAMINA C", aporte: "DIETA RICA EM FERRO", exames: "HEMOGRAMA", cirurgia: "NENHUMA", observacoes: "COMPENSADA", previsaoAlta: "20/11/2025", alerta: "critical"},
+            {leito: 16, nome: "VINICIUS OLIVEIRA SANTOS, 44 ANOS PT. 6789/34", internacao: "12/11/2025", braden: "0;13", diagnostico: "GASTRITE", alergias: "NEGA", delta: "B", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "OMEPRAZOL", outros: "ANTIEMÉTICO", aporte: "DIETA LÍQUIDA", exames: "ENDOSCOPIA", cirurgia: "NENHUMA", observacoes: "DOR EPIGÁSTRICA", previsaoAlta: "18/11/2025", alerta: false},
+            {leito: 17, nome: "BRUNA COSTA LIMA, 31 ANOS PT. 7890/35", internacao: "14/11/2025", braden: "0;15", diagnostico: "RINOSSINUSITE", alergias: "NEGA", delta: "C", eliminacoes: "NORMAL", dispositivos: "NENHUM", atb: "AMOXICILINA", outros: "DESCONGESTIONANTE", aporte: "DIETA NORMAL", exames: "RX SEIOS DA FACE", cirurgia: "NENHUMA", observacoes: "MELHORA CLÍNICA", previsaoAlta: "21/11/2025", alerta: false},
+            {leito: 18, nome: "DIEGO FERNANDES ALMEIDA, 49 ANOS PT. 8901/36", internacao: "10/11/2025", braden: "0;14", diagnostico: "HIPERTENSÃO PULMONAR", alergias: "NEGA", delta: "A", eliminacoes: "NORMAL", dispositivos: "O2", atb: "SILDENAFILA", outros: "DIURÉTICO", aporte: "DIETA HIPOSSÓDICA", exames: "ECO CARDÍACO", cirurgia: "NENHUMA", observacoes: "ESTÁVEL", previsaoAlta: "24/11/2025", alerta: false},
+            {leito: 19, nome: "FABIANA SILVA ROCHA, 27 ANOS PT. 9012/37", internacao: "16/11/2025", braden: "0;17", diagnostico: "INFECÇÃO URINÁRIA", alergias: "NEGA", delta: "B", eliminacoes: "DISÚRIA", dispositivos: "NENHUM", atb: "NITROFURANTOÍNA", outros: "ANALGÉSICO", aporte: "DIETA NORMAL", exames: "UROCULTURA", cirurgia: "NENHUMA", observacoes: "MELHORA DOS SINTOMAS", previsaoAlta: "22/11/2025", alerta: false},
+            {leito: 20, nome: "GUSTAVO HENRIQUE MARTINS, 56 ANOS PT. 1235/38", internacao: "13/11/2025", braden: "0;11", diagnostico: "DOENÇA PULMONAR OBSTRUTIVA", alergias: "NEGA", delta: "C", eliminacoes: "NORMAL", dispositivos: "O2", atb: "BROMETO DE TIOTRÓPIO", outros: "CORTICOIDE", aporte: "DIETA NORMAL", exames: "ESPIROMETRIA", cirurgia: "NENHUMA", observacoes: "DISPNEIA AOS ESFORÇOS", previsaoAlta: "25/11/2025", alerta: false}
+        ];
+        
+        // Função para renderizar os pacientes
+        function renderPacientes() {
+            const container = document.getElementById('patient-rows');
+            container.innerHTML = '';
+            
+            pacientes.forEach(paciente => {
+                const row = document.createElement('div');
+                let alertClass = '';
+                
+                if (paciente.alerta === 'critical') {
+                    alertClass = 'critical';
+                } else if (paciente.alerta === 'medium' || paciente.alerta === 'low') {
+                    alertClass = 'alert';
+                }
+                
+                row.className = `patient-row ${alertClass}`;
+                row.innerHTML = `
+                    <div class="patient-cell leito-cell">${paciente.leito}</div>
+                    <div class="patient-cell">${paciente.nome}</div>
+                    <div class="patient-cell">${paciente.internacao}</div>
+                    <div class="patient-cell">${paciente.braden}</div>
+                    <div class="patient-cell">${paciente.diagnostico}</div>
+                    <div class="patient-cell">${paciente.alergias}</div>
+                    <div class="patient-cell">${paciente.delta}</div>
+                    <div class="patient-cell">${paciente.eliminacoes}</div>
+                    <div class="patient-cell">${paciente.dispositivos}</div>
+                    <div class="patient-cell">${paciente.atb}</div>
+                    <div class="patient-cell">${paciente.outros}</div>
+                    <div class="patient-cell">${paciente.aporte}</div>
+                    <div class="patient-cell">${paciente.exames}</div>
+                    <div class="patient-cell">${paciente.cirurgia}</div>
+                    <div class="patient-cell">${paciente.observacoes}</div>
+                    <div class="patient-cell">${paciente.previsaoAlta}</div>
+                    <div class="patient-cell">
+                        <button class="btn" style="padding: 4px 8px; font-size: 12px; background: var(--primary-blue); color: white;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+        
+        // Funções para abrir/fechar sidebar de alertas
+        function openAlertSidebar() {
+            document.getElementById('alert-sidebar').classList.add('open');
+            document.getElementById('sidebar-overlay').classList.add('active');
+        }
+        
+        function closeAlertSidebar() {
+            document.getElementById('alert-sidebar').classList.remove('open');
+            document.getElementById('sidebar-overlay').classList.remove('active');
+        }
+        
+        // Fechar sidebar ao clicar no overlay
+        document.getElementById('sidebar-overlay').addEventListener('click', closeAlertSidebar);
+        
+        // Navegação entre páginas
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            showModulesPage();
+        });
+        
+        function showModulesPage() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('passagem-page').style.display = 'none';
+            document.getElementById('modules-page').style.display = 'block';
+        }
+        
+        function showPassagemPlantao() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('modules-page').style.display = 'none';
+            document.getElementById('passagem-page').style.display = 'block';
+            renderPacientes();
+        }
+        
+        function logout() {
+            document.getElementById('modules-page').style.display = 'none';
+            document.getElementById('passagem-page').style.display = 'none';
+            document.getElementById('login-page').style.display = 'flex';
+        }
+        
+        function generateReport() {
+            alert('Planilha para impressão gerada com sucesso!');
+            // Em uma implementação real, isso geraria um PDF/Excel
+        }
+        
+        // Inicialização
+        renderPacientes();
+    </script>
+</body>
+</html>

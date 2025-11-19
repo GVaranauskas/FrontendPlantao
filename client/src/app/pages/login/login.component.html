@@ -2,20 +2,20 @@
   class="min-h-screen flex items-center justify-center relative"
   style="background-image: url('https://11care.com.br/wp-content/uploads/2025/10/Artigo-Profissionalizacao-da-enfermagem.jpg.webp'); background-size: cover; background-position: center;"
 >
-  <div class="absolute inset-0 bg-[#0056b3] opacity-10"></div>
+  <div class="absolute inset-0" style="background: rgba(0, 86, 179, 0.1);"></div>
   
-  <div class="relative z-10 w-full max-w-md px-5">
-    <div class="bg-white rounded-lg shadow-lg p-8">
+  <div class="relative z-10 w-full max-w-[420px] px-5">
+    <div class="bg-white rounded-xl shadow-2xl p-8">
       <div class="text-center mb-8">
         <img 
           src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
           alt="11Care Logo"
-          class="max-w-[280px] mx-auto mb-6"
+          class="max-w-[280px] mx-auto mb-5"
         />
-        <h1 class="text-[32px] font-bold text-[#0056b3] mb-2">
+        <h1 class="text-[32px] font-bold mb-2" style="color: var(--primary-blue);">
           Plataforma de Enfermagem
         </h1>
-        <p class="text-gray-600 text-base">
+        <p class="text-base" style="color: var(--neutral-gray);">
           Sistema integrado de gestão hospitalar
         </p>
       </div>
@@ -23,7 +23,7 @@
       <form (ngSubmit)="handleSubmit($event)" data-testid="form-login">
         <div class="space-y-6">
           <div class="space-y-2">
-            <label for="username" class="block text-sm font-semibold text-gray-700">
+            <label for="username" class="block text-sm font-semibold" style="color: var(--text-gray);">
               Usuário
             </label>
             <input
@@ -32,14 +32,17 @@
               [(ngModel)]="username"
               name="username"
               placeholder="Digite seu usuário"
-              class="w-full h-[50px] px-3 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0056b3] focus:border-transparent"
+              class="w-full px-3.5 py-3.5 text-base rounded-lg transition-all bg-white"
+              style="border: 2px solid var(--border-gray);"
               data-testid="input-username"
+              (focus)="onFocus($event)"
+              (blur)="onBlur($event)"
               required
             />
           </div>
 
           <div class="space-y-2">
-            <label for="password" class="block text-sm font-semibold text-gray-700">
+            <label for="password" class="block text-sm font-semibold" style="color: var(--text-gray);">
               Senha
             </label>
             <input
@@ -48,23 +51,26 @@
               [(ngModel)]="password"
               name="password"
               placeholder="Digite sua senha"
-              class="w-full h-[50px] px-3 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0056b3] focus:border-transparent"
+              class="w-full px-3.5 py-3.5 text-base rounded-lg transition-all bg-white"
+              style="border: 2px solid var(--border-gray);"
               data-testid="input-password"
+              (focus)="onFocus($event)"
+              (blur)="onBlur($event)"
               required
             />
           </div>
 
           <button 
             type="submit" 
-            class="w-full h-12 text-base font-semibold text-white rounded-md gradient-button transition-all"
+            class="w-full py-3.5 text-base font-semibold text-white rounded-lg gradient-button"
             data-testid="button-login"
           >
-            Entrar
+            ENTRAR
           </button>
         </div>
       </form>
 
-      <div class="mt-8 pt-6 border-t text-center text-sm text-gray-500">
+      <div class="mt-8 pt-5 text-center text-sm" style="border-top: 1px solid var(--border-gray); color: var(--neutral-gray);">
         <p>© 2025 11Care - Todos os direitos reservados</p>
       </div>
     </div>
