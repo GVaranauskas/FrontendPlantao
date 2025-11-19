@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (November 2025)
 
+**Complete UI Redesign - November 19, 2025**
+- Comprehensive UI redesign matching passagem-de-plantao-v2 reference HTML file
+- Replaced all emoji placeholders with Font Awesome 6.4.0 icons (fa-bars, fa-sync-alt, fa-bell, fa-search)
+- Refactored hover/focus behaviors from inline style manipulation to CSS classes (icon-btn, module-card-hover, btn-secondary-hover, search-input)
+- Added smooth CSS transitions (0.3s ease) for all interactive elements including alert sidebar
+- Implemented modern 11Care design system with gradient buttons, card layouts, and professional healthcare aesthetics
+- All three components (Login, Modules, ShiftHandover) now follow consistent design patterns
+- Application compiles successfully and all features remain fully operational
+
 **Major Migration: React → Angular**
 - Completely migrated frontend from React 18 to Angular 19
 - Maintained all features and functionality
