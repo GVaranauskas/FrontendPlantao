@@ -147,12 +147,12 @@
 
 /* Module card hover effects */
 .module-card-hover {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .module-card-hover:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 86, 179, 0.15);
 }
 
 /* Button secondary hover */
