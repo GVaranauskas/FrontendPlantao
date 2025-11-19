@@ -109,7 +109,7 @@ Preferred communication style: Simple, everyday language.
   - Clinical data: dataInternacao (admission date), rqBradenScp (Braden scale), diagnosticoComorbidades (diagnosis/comorbidities), alergias (allergies)
   - Mobility: mobilidade (A=Acamado/Bedridden, D=Deambula/Walks, DA=Deambula Com Auxílio/Walks with assistance)
   - Care details: dieta (diet), eliminacoes (eliminations), dispositivos (devices), atb (antibiotics), curativos (dressings)
-  - Monitoring: aporteSaida (intake/output), examesRealizadosPendentes (tests completed/pending)
+  - Monitoring: aporteSaturacao (intake/saturation), examesRealizadosPendentes (tests completed/pending)
   - Planning: dataProgramacaoCirurgica (surgical schedule), observacoesIntercorrencias (observations/complications), previsaoAlta (expected discharge)
   - Alert status for color-coded patient rows
 

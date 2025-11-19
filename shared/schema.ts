@@ -28,7 +28,7 @@ export const patients = pgTable("patients", {
   dispositivos: text("dispositivos"),
   atb: text("atb"),
   curativos: text("curativos"),
-  aporteSaida: text("aporte_saida"),
+  aporteSaturacao: text("aporte_saturacao"),
   examesRealizadosPendentes: text("exames_realizados_pendentes"),
   dataProgramacaoCirurgica: text("data_programacao_cirurgica"),
   observacoesIntercorrencias: text("observacoes_intercorrencias"),
