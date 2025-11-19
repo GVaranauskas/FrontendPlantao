@@ -1,0 +1,18 @@
+/* Sticky column styles */
+.sticky {
+  position: sticky;
+}
+
+.left-0 {
+  left: 0;
+}
+
+/* Ensure sticky column has proper background */
+tbody tr td.sticky {
+  background: inherit;
+}
+
+/* Table scrolling */
+.overflow-x-auto {
+  overflow-x: auto;
+}

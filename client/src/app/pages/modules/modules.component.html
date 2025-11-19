@@ -1,0 +1,94 @@
+<div class="min-h-screen bg-gray-50">
+  <header class="bg-white border-b-4 border-[#0056b3] shadow-md">
+    <div class="container mx-auto px-5 py-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-5">
+          <img 
+            src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
+            alt="11Care"
+            class="h-11"
+          />
+          <div>
+            <h1 class="text-2xl font-bold text-[#0056b3] mb-1" data-testid="text-welcome">
+              Bem-vindo, Enfermeiro(a)
+            </h1>
+            <p class="text-sm text-gray-600">
+              UNIDADE DE INTERNAÇÃO: 10 A - DAR
+            </p>
+          </div>
+        </div>
+        <button 
+          class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2"
+          (click)="logout()"
+          data-testid="button-logout"
+        >
+          <span>Sair</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-5 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-7 mb-10">
+      <div 
+        *ngFor="let module of modules"
+        [attr.data-testid]="'card-module-' + module.id"
+        class="bg-white rounded-lg shadow-md p-7 relative overflow-hidden transition-all hover:shadow-lg"
+        [ngClass]="{'border-2 border-[#0056b3] bg-gradient-to-br from-white to-blue-50': module.status === 'active'}"
+      >
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0056b3] to-[#007bff]"></div>
+        
+        <div class="flex items-start justify-between mb-5">
+          <h2 class="text-[22px] font-bold text-[#0056b3]">
+            {{ module.title }}
+          </h2>
+          <span 
+            [attr.data-testid]="'badge-status-' + module.id"
+            class="px-3 py-1 rounded-full text-sm font-medium"
+            [ngClass]="module.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+          >
+            {{ module.status === 'active' ? 'Ativo' : 'Em Breve' }}
+          </span>
+        </div>
+
+        <p class="text-gray-600 mb-6 leading-relaxed">
+          {{ module.description }}
+        </p>
+
+        <ul class="space-y-3 mb-6">
+          <li *ngFor="let feature of module.features" class="flex items-start gap-3 text-sm">
+            <div class="mt-0.5 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <span class="text-green-600 text-xs font-bold">✓</span>
+            </div>
+            <span>{{ feature }}</span>
+          </li>
+        </ul>
+
+        <button
+          class="w-full py-3 rounded-md font-semibold transition-all"
+          [ngClass]="module.status === 'active' ? 'gradient-button text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+          [disabled]="module.status !== 'active'"
+          [attr.data-testid]="'button-access-' + module.id"
+          (click)="accessModule(module)"
+        >
+          {{ module.status === 'active' ? 'Acessar Módulo' : 'Em Desenvolvimento' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-4 flex-wrap">
+      <button 
+        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+        data-testid="button-reports"
+      >
+        Relatórios Diários
+      </button>
+      <button 
+        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+        data-testid="button-settings"
+      >
+        Configurações
+      </button>
+    </div>
+  </div>
+</div>

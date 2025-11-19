@@ -1,0 +1,244 @@
+<div class="min-h-screen bg-gray-50 flex flex-col">
+  <!-- Header -->
+  <header class="bg-white border-b-4 border-[#0056b3] shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-5 py-4">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-5">
+          <img 
+            src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
+            alt="11Care"
+            class="h-11 hidden sm:block"
+          />
+          <div>
+            <h1 class="text-xl sm:text-[22px] font-bold text-[#0056b3] leading-tight">
+              Passagem de Plantão (SBAR)
+            </h1>
+            <p class="text-xs sm:text-sm text-gray-600">
+              UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button 
+            class="p-2 hover:bg-gray-100 rounded-md"
+            (click)="refresh()"
+            data-testid="button-sync"
+          >
+            ↻
+          </button>
+          <button 
+            class="p-2 hover:bg-gray-100 rounded-md relative"
+            (click)="toggleAlerts()"
+            data-testid="button-alerts"
+          >
+            🔔
+            <span *ngIf="alerts.length > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              {{ alerts.length }}
+            </span>
+          </button>
+          <button class="px-4 py-2 gradient-button text-white rounded-md hidden sm:block" data-testid="button-print">
+            Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="bg-white border-b py-4">
+    <div class="container mx-auto px-5">
+      <div class="flex items-center gap-2 text-sm text-gray-600">
+        <button 
+          (click)="goToModules()"
+          class="hover:text-[#0056b3] transition-colors"
+          data-testid="link-home"
+        >
+          Início
+        </button>
+        <span>/</span>
+        <button 
+          (click)="goToModules()"
+          class="hover:text-[#0056b3] transition-colors"
+          data-testid="link-modules"
+        >
+          Módulos
+        </button>
+        <span>/</span>
+        <span>Passagem de Plantão</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto px-5 py-6 flex-1">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow-md p-4 text-center border-t-4 border-t-green-500">
+        <div class="text-3xl font-bold text-green-600 mb-1" data-testid="stat-complete">
+          {{ stats.complete }}
+        </div>
+        <div class="text-sm font-semibold text-gray-600">Completos</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-4 text-center border-t-4 border-t-yellow-500">
+        <div class="text-3xl font-bold text-yellow-600 mb-1" data-testid="stat-pending">
+          {{ stats.pending }}
+        </div>
+        <div class="text-sm font-semibold text-gray-600">Pendentes</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-4 text-center border-t-4 border-t-orange-500">
+        <div class="text-3xl font-bold text-orange-600 mb-1" data-testid="stat-alert">
+          {{ stats.alert }}
+        </div>
+        <div class="text-sm font-semibold text-gray-600">Com Alertas</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-4 text-center border-t-4 border-t-red-500">
+        <div class="text-3xl font-bold text-red-600 mb-1" data-testid="stat-critical">
+          {{ stats.critical }}
+        </div>
+        <div class="text-sm font-semibold text-gray-600">Críticos</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-4 text-center border-t-4 border-t-[#0056b3]">
+        <div class="text-3xl font-bold text-[#0056b3] mb-1" data-testid="stat-total">
+          {{ stats.total }}
+        </div>
+        <div class="text-sm font-semibold text-gray-600">Total</div>
+      </div>
+    </div>
+
+    <!-- Search and Legend -->
+    <div class="mb-4 space-y-3">
+      <div class="relative">
+        <input
+          type="search"
+          placeholder="Buscar por paciente ou leito..."
+          [(ngModel)]="searchTerm"
+          class="w-full h-10 pl-10 pr-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0056b3] focus:border-transparent"
+          data-testid="input-search"
+        />
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+      </div>
+      <div class="bg-gray-100 rounded-lg p-3">
+        <div class="flex items-center gap-6 text-xs flex-wrap">
+          <div class="font-semibold text-gray-600">Legenda - Mobilidade:</div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-gray-200 rounded text-xs font-mono">A</span>
+            <span class="text-gray-600">Acamado</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-gray-200 rounded text-xs font-mono">D</span>
+            <span class="text-gray-600">Deambula</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-gray-200 rounded text-xs font-mono">DA</span>
+            <span class="text-gray-600">Deambula Com Auxílio</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading or Table -->
+    <div *ngIf="isLoading" class="bg-white rounded-lg shadow-md p-12 flex items-center justify-center">
+      <div class="text-[#0056b3] text-xl">Carregando...</div>
+    </div>
+
+    <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-md overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-[11px] border-collapse">
+          <thead class="bg-gradient-to-r from-[#0056b3] to-[#007bff] text-white">
+            <tr>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap sticky left-0 bg-[#0056b3] z-10">LEITO</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[100px]">ESPECIALIDADE/<br/>RAMAL</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>DATA DE NASCIMENTO</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[90px]">DATA DE<br/>INTERNAÇÃO</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[70px]">RQ BRADEN<br/>SCP</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[140px]">DIAGNÓSTICO/<br/>COMORBIDADES</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[90px]">ALERGIAS</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[80px]">MOBILIDADE</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[120px]">DIETA</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[90px]">ELIMINAÇÕES</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[110px]">DISPOSITIVOS</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[100px]">ATB</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[100px]">CURATIVOS</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[100px]">APORTE<br/>E SAÍDA</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[140px]">EXAMES<br/>REALIZADOS/<br/>PENDENTES</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[120px]">DATA DA<br/>PROGRAMAÇÃO<br/>CIRÚRGICA</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[180px]">OBSERVAÇÕES/<br/>INTERCORRÊNCIAS</th>
+              <th class="px-2 py-2 text-center font-semibold text-[10px] border border-blue-600 whitespace-nowrap min-w-[100px]">PREVISÃO<br/>DE ALTA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr 
+              *ngFor="let patient of filteredPatients; let i = index"
+              [ngClass]="getRowClass(patient, i)"
+              [attr.data-testid]="'row-patient-' + patient.id"
+              class="transition-colors"
+            >
+              <td class="px-2 py-2 text-center font-bold text-[#0056b3] border border-gray-300 sticky left-0 bg-inherit z-10">{{ patient.leito }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.especialidadeRamal || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">
+                <div class="font-semibold">{{ patient.nome }}</div>
+                <div class="text-gray-500">{{ patient.registro || '-' }}</div>
+                <div class="text-gray-500">{{ patient.dataNascimento || '-' }}</div>
+              </td>
+              <td class="px-2 py-2 text-[10px] text-center border border-gray-300">{{ patient.dataInternacao || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] text-center border border-gray-300">{{ patient.rqBradenScp || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.diagnosticoComorbidades || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.alergias || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] text-center border border-gray-300">{{ patient.mobilidade || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.dieta || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.eliminacoes || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.dispositivos || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.atb || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.curativos || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.aporteSaida || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.examesRealizadosPendentes || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.dataProgramacaoCirurgica || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.observacoesIntercorrencias || '-' }}</td>
+              <td class="px-2 py-2 text-[10px] border border-gray-300">{{ patient.previsaoAlta || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts Sidebar -->
+  <div *ngIf="alertsOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50" (click)="toggleAlerts()">
+    <div class="fixed right-0 top-0 h-full w-full sm:max-w-md bg-white shadow-xl p-6 overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-[#0056b3]">Alertas do Sistema</h2>
+        <button (click)="toggleAlerts()" class="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      <div class="space-y-4">
+        <div 
+          *ngFor="let alert of alerts"
+          class="p-4 rounded-lg border-l-4"
+          [ngClass]="{
+            'border-l-red-500 bg-red-50': alert.priority === 'high' || alert.priority === 'critical',
+            'border-l-orange-500 bg-orange-50': alert.priority === 'medium',
+            'border-l-yellow-500 bg-yellow-50': alert.priority === 'low'
+          }"
+          [attr.data-testid]="'alert-' + alert.id"
+        >
+          <span 
+            class="inline-block px-2 py-1 rounded text-xs font-semibold mb-2"
+            [ngClass]="{
+              'bg-red-600 text-white': alert.priority === 'high' || alert.priority === 'critical',
+              'bg-orange-600 text-white': alert.priority === 'medium',
+              'bg-yellow-600 text-white': alert.priority === 'low'
+            }"
+          >
+            {{ getPriorityLabel(alert.priority) }} PRIORIDADE
+          </span>
+          <div class="font-semibold text-sm mb-1">
+            Paciente: {{ alert.patientId }}
+          </div>
+          <p class="text-sm text-gray-600">
+            {{ alert.message }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
