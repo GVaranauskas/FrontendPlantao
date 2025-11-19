@@ -221,59 +221,66 @@ export default function ShiftHandoverPage() {
         ) : (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-[11px] border-collapse">
                 <thead className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
                   <tr>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">LEITO</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[200px]">NOME</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DATA INT.</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">BRADEN</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[150px]">DIAGNÓSTICO</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ALERGIAS</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DELTA</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap min-w-[120px]">ELIMINAÇÕES</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">DISPOSITIVOS</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">ATB</th>
-                    <th className="px-3 py-3 text-left font-semibold text-xs whitespace-nowrap">OBSERVAÇÕES</th>
-                    <th className="px-3 py-3 text-center font-semibold text-xs whitespace-nowrap">AÇÕES</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap sticky left-0 bg-primary z-10">LEITO</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">ESPECIALIDADE/<br/>RAMAL</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>DATA DE NASCIMENTO</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>INTERNAÇÃO</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[70px]">RQ BRADEN<br/>SCP</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[140px]">DIAGNÓSTICO/<br/>COMORBIDADES</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">ALERGIAS</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[80px]">ISOLAMENTO</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[120px]">DIETA</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">ELIMINAÇÕES</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[110px]">DISPOSITIVOS</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">ATB</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">CURATIVOS</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">APORTE<br/>E SAÍDA</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[140px]">EXAMES<br/>REALIZADOS/<br/>PENDENTES</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[120px]">DATA DA<br/>PROGRAMAÇÃO<br/>CIRÚRGICA</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">OBSERVAÇÕES/<br/>INTERCORRÊNCIAS</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">PREVISÃO<br/>DE ALTA</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPatients.map((patient, idx) => (
                     <tr 
                       key={patient.id}
-                      className={`border-b transition-colors ${
+                      className={`transition-colors ${
                         patient.alerta === "critical"
-                          ? "bg-destructive/5 border-l-4 border-l-destructive hover:bg-destructive/10"
+                          ? "bg-destructive/10 hover:bg-destructive/20"
                           : patient.alerta === "medium"
-                          ? "bg-chart-4/5 border-l-4 border-l-chart-4 hover:bg-chart-4/10"
+                          ? "bg-chart-3/10 hover:bg-chart-3/20"
                           : idx % 2 === 0
-                          ? "bg-muted/30 hover:bg-primary/5"
-                          : "hover:bg-primary/5"
+                          ? "bg-muted/30 hover:bg-muted/50"
+                          : "hover:bg-muted/30"
                       }`}
                       data-testid={`row-patient-${patient.id}`}
                     >
-                      <td className="px-3 py-3 font-bold text-primary text-center">{patient.leito}</td>
-                      <td className="px-3 py-3">{patient.nome}</td>
-                      <td className="px-3 py-3">{patient.internacao}</td>
-                      <td className="px-3 py-3">{patient.braden}</td>
-                      <td className="px-3 py-3">{patient.diagnostico}</td>
-                      <td className="px-3 py-3">{patient.alergias}</td>
-                      <td className="px-3 py-3">{patient.delta}</td>
-                      <td className="px-3 py-3">{patient.eliminacoes}</td>
-                      <td className="px-3 py-3">{patient.dispositivos}</td>
-                      <td className="px-3 py-3">{patient.atb}</td>
-                      <td className="px-3 py-3">{patient.observacoes}</td>
-                      <td className="px-3 py-3 text-center">
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          className="h-8 w-8"
-                          data-testid={`button-edit-${patient.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                      <td className="px-2 py-2 text-center font-bold text-primary border border-border sticky left-0 bg-inherit z-10">{patient.leito}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.especialidadeRamal || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">
+                        <div className="font-semibold">{patient.nome}</div>
+                        <div className="text-muted-foreground">{patient.registro || "-"}</div>
+                        <div className="text-muted-foreground">{patient.dataNascimento || "-"}</div>
                       </td>
+                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataInternacao || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.rqBradenScp || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.diagnosticoComorbidades || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.alergias || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.isolamento || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.dieta || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.eliminacoes || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.dispositivos || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.atb || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.curativos || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.aporteSaida || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.examesRealizadosPendentes || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.dataProgramacaoCirurgica || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.observacoesIntercorrencias || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.previsaoAlta || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
