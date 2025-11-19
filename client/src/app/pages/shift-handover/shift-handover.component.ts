@@ -100,4 +100,36 @@ export class ShiftHandoverComponent implements OnInit {
   toggleAlerts() {
     this.alertsOpen = !this.alertsOpen;
   }
+
+  onIconHover(event: Event, isHover: boolean) {
+    const button = event.target as HTMLElement;
+    const parentButton = button.closest('button');
+    if (parentButton) {
+      if (isHover) {
+        parentButton.style.background = 'var(--light-blue)';
+        const icon = parentButton.querySelector('span');
+        if (icon) {
+          icon.style.color = 'var(--primary-blue)';
+        }
+      } else {
+        parentButton.style.background = 'transparent';
+        const icon = parentButton.querySelector('span');
+        if (icon) {
+          icon.style.color = 'var(--neutral-gray)';
+        }
+      }
+    }
+  }
+
+  onSearchFocus(event: Event) {
+    const input = event.target as HTMLInputElement;
+    input.style.borderColor = 'var(--primary-blue)';
+    input.style.boxShadow = '0 0 0 3px rgba(0, 86, 179, 0.1)';
+  }
+
+  onSearchBlur(event: Event) {
+    const input = event.target as HTMLInputElement;
+    input.style.borderColor = 'var(--border-gray)';
+    input.style.boxShadow = 'none';
+  }
 }
