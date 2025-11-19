@@ -1,0 +1,7 @@
+{
+  "dev": "bash dev.sh",
+  "dev:server": "NODE_ENV=development tsx server/index.ts",
+  "dev:angular": "ng serve --configuration development --port 4200",
+  "build": "bash build.sh",
+  "start": "NODE_ENV=production node dist/index.js"
+}
