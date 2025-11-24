@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
+import { n8nIntegrationService } from "./services/n8n-integration-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", async (req, res) => {
@@ -196,6 +197,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to sync evolucoes" });
+    }
+  });
+
+  // Import endpoints
+  app.post("/api/import/evolucoes", async (req, res) => {
+    try {
+      const { enfermaria } = req.body;
+      
+      if (!enfermaria || enfermaria.trim() === "") {
+        return res.status(400).json({ message: "enfermaria is required" });
+      }
+
+      console.log(`[Import] Starting import for enfermaria: ${enfermaria}`);
+      
+      const stats = {
+        total: 0,
+        importados: 0,
+        erros: 0,
+        detalhes: [] as Array<{ leito: string; status: string; mensagem?: string }>
+      };
+
+      // Fetch evolucoes from N8N
+      const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
+      
+      if (!evolucoes || evolucoes.length === 0) {
+        console.log(`[Import] No evolucoes found for enfermaria: ${enfermaria}`);
+        return res.json({
+          success: true,
+          enfermaria,
+          stats: { ...stats, total: 0 },
+          mensagem: "Nenhuma evolução encontrada para esta enfermaria"
+        });
+      }
+
+      stats.total = evolucoes.length;
+
+      // Process each evolução
+      for (const evolucao of evolucoes) {
+        try {
+          const leito = evolucao.leito || evolucao.ds_leito_completo || "";
+          
+          if (!leito) {
+            stats.erros++;
+            stats.detalhes.push({ 
+              leito: "DESCONHECIDO", 
+              status: "erro", 
+              mensagem: "Leito não encontrado na evolução" 
+            });
+            console.warn(`[Import] Leito not found, skipping`);
+            continue;
+          }
+
+          // Process and validate
+          const processada = await n8nIntegrationService.processEvolucao(leito, evolucao);
+          const validacao = n8nIntegrationService.validateProcessedData(processada);
+
+          if (!validacao.valid) {
+            stats.erros++;
+            stats.detalhes.push({ 
+              leito, 
+              status: "erro", 
+              mensagem: validacao.errors.join("; ") 
+            });
+            console.warn(`[Import] Validation failed for leito ${leito}:`, validacao.errors);
+            continue;
+          }
+
+          // Check if patient exists
+          const existingPatients = await storage.getAllPatients();
+          const existingPatient = existingPatients.find(p => p.leito === leito);
+
+          let patient;
+          if (existingPatient) {
+            // Update existing
+            patient = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
+            if (patient) {
+              stats.importados++;
+              stats.detalhes.push({ 
+                leito, 
+                status: "atualizado", 
+                mensagem: processada.pacienteName 
+              });
+              console.log(`[Import] Updated patient for leito: ${leito} (${processada.pacienteName})`);
+            } else {
+              stats.erros++;
+              stats.detalhes.push({ 
+                leito, 
+                status: "erro", 
+                mensagem: "Falha ao atualizar paciente" 
+              });
+              console.error(`[Import] Failed to update patient for leito: ${leito}`);
+            }
+          } else {
+            // Create new
+            patient = await storage.createPatient(processada.dadosProcessados);
+            stats.importados++;
+            stats.detalhes.push({ 
+              leito, 
+              status: "criado", 
+              mensagem: processada.pacienteName 
+            });
+            console.log(`[Import] Created new patient for leito: ${leito} (${processada.pacienteName})`);
+          }
+        } catch (error) {
+          const leito = evolucao.leito || "DESCONHECIDO";
+          stats.erros++;
+          stats.detalhes.push({ 
+            leito, 
+            status: "erro", 
+            mensagem: error instanceof Error ? error.message : "Erro desconhecido" 
+          });
+          console.error(`[Import] Error processing leito ${leito}:`, error);
+        }
+      }
+
+      console.log(`[Import] Completed import for enfermaria ${enfermaria}. Stats:`, stats);
+
+      return res.json({
+        success: true,
+        enfermaria,
+        stats,
+        mensagem: `Import concluído: ${stats.importados} importados, ${stats.erros} erros`
+      });
+    } catch (error) {
+      console.error("[Import] Fatal error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro fatal ao importar evolucoes",
+        erro: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // List enfermarias endpoint
+  app.get("/api/enfermarias", async (req, res) => {
+    try {
+      // Predefined list of enfermarias
+      const enfermarias = [
+        { codigo: "10A02", nome: "Enfermaria 10A02" },
+        { codigo: "10A03", nome: "Enfermaria 10A03" },
+        { codigo: "10A04", nome: "Enfermaria 10A04" },
+        { codigo: "10B01", nome: "Enfermaria 10B01" },
+        { codigo: "10B02", nome: "Enfermaria 10B02" },
+        { codigo: "10C01", nome: "Enfermaria 10C01" },
+      ];
+
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(enfermarias);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(enfermarias);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch enfermarias" });
+    }
+  });
+
+  // Import status endpoint - test N8N connectivity
+  app.get("/api/import/status", async (req, res) => {
+    try {
+      const startTime = Date.now();
+      
+      console.log("[Status] Testing N8N API connectivity...");
+      
+      // Try to fetch evolucoes for a test enfermaria
+      const testEnfermaria = "10A";
+      const result = await n8nIntegrationService.fetchEvolucoes(testEnfermaria);
+      
+      const endTime = Date.now();
+      const latency = endTime - startTime;
+
+      if (result !== null) {
+        console.log(`[Status] N8N API is online (latency: ${latency}ms)`);
+        return res.json({
+          status: "online",
+          latency: `${latency}ms`,
+          timestamp: new Date().toISOString(),
+          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes"
+        });
+      } else {
+        console.log(`[Status] N8N API returned null (latency: ${latency}ms)`);
+        return res.json({
+          status: "offline",
+          latency: `${latency}ms`,
+          timestamp: new Date().toISOString(),
+          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes"
+        });
+      }
+    } catch (error) {
+      const latency = 0;
+      console.error("[Status] N8N API test failed:", error);
+      
+      return res.json({
+        status: "offline",
+        latency: `${latency}ms`,
+        timestamp: new Date().toISOString(),
+        api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes",
+        erro: error instanceof Error ? error.message : "Connection timeout"
+      });
     }
   });
 
