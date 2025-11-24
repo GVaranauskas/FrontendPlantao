@@ -52,3 +52,33 @@ Preferred communication style: Simple, everyday language.
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **Development Tools**: tsx, esbuild, Replit-specific plugins (dev banners, cartographer, error overlays).
 - **External API**: N8N API (`https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes`) for patient evolution data.
+## Analytics Dashboard
+
+**Created**: `/analytics` page for comprehensive visual data analysis
+
+**Features**:
+- 📊 **Top Stats Cards**: 
+  - Total de Pacientes
+  - Registros Completos
+  - Registros Pendentes
+  - % Preenchimento Geral
+
+- 🥧 **Gráficos Visuais**:
+  - Pizza chart: Distribuição de especialidades
+  - Bar chart: Distribuição de mobilidade
+
+- 📈 **Análise de Preenchimento por Campo**:
+  - 14 campos principais analisados
+  - Barra de progresso visual com %
+  - Quantidade preenchida vs vazia
+
+- 🔍 **Tabela Interativa de Pacientes**:
+  - Buscar por: leito, nome, especialidade
+  - Filtrar por: status (completo/pendente)
+  - Ordenar por: leito, nome, especialidade
+  - Mostrar % de campos preenchidos por paciente
+
+- 📥 **Exportar Análise**: Baixar JSON completo com dados e estatísticas
+- 🧹 **Limpar Filtros**: Reset rápido da busca
+
+**URL**: `http://localhost:5000/analytics`

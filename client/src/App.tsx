@@ -10,6 +10,7 @@ import ImportPage from "@/pages/import";
 import DashboardPage from "@/pages/dashboard";
 import ImportPanelPage from "@/pages/import-panel";
 import DebugPage from "@/pages/debug";
+import AnalyticsPage from "@/pages/analytics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/import-panel" component={ImportPanelPage} />
       <Route path="/debug" component={DebugPage} />
+      <Route path="/analytics" component={AnalyticsPage} />
       <Route component={NotFound} />
     </Switch>
   );
