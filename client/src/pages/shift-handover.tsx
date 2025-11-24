@@ -9,10 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
-  Edit, Loader2, Cloud, Download
+  Edit, Loader2, Cloud, Download, FileSpreadsheet
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
+import { exportPatientsToExcel } from "@/lib/export-to-excel";
 
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
@@ -78,6 +79,20 @@ export default function ShiftHandoverPage() {
                 data-testid="button-sync"
               >
                 <RefreshCcw className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  if (patients?.length) {
+                    exportPatientsToExcel(patients);
+                  }
+                }}
+                disabled={!patients?.length}
+                data-testid="button-export-excel"
+                title="Exportar para Excel"
+              >
+                <FileSpreadsheet className="w-5 h-5" />
               </Button>
               <Sheet open={syncOpen} onOpenChange={setSyncOpen}>
                 <SheetTrigger asChild>
