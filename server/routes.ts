@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
-import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI } from "./sync";
+import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", async (req, res) => {
@@ -173,6 +173,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to sync patients" });
+    }
+  });
+
+  // N8N Evolucoes sync endpoint
+  app.post("/api/sync/evolucoes/:enfermaria", async (req, res) => {
+    try {
+      const enfermaria = req.params.enfermaria;
+      
+      if (!enfermaria || enfermaria.trim() === "") {
+        return res.status(400).json({ message: "enfermaria parameter is required" });
+      }
+
+      const patients = await syncEvolucoesByEnfermaria(enfermaria);
+      
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patients);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync evolucoes" });
     }
   });
 

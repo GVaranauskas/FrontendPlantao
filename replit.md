@@ -151,12 +151,31 @@ Preferred communication style: Simple, everyday language.
 - Integrated with external API: https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes
 - Sync endpoints for fetching patient data:
   - POST /api/sync/patient/:leito - Sync single patient
-  - POST /api/sync/patients - Sync multiple patients
+  - POST /api/sync/patients - Sync multiple patients  
+  - POST /api/sync/evolucoes/:enfermaria - Sync all evolucoes for enfermaria via N8N Integration Service
 - Automatic field mapping and normalization (flexible field name matching for N8N variations)
 - Support for both JSON and TOON response formats
 - Frontend UI with sync panel (cloud icon button)
 - Ability to sync specific patients or batch sync all patients
 - Automatic validation and error handling
+
+**N8N Integration Service** (`server/services/n8n-integration-service.ts`)
+- Dedicated service for N8N API integration with specialized processing
+- Core Methods:
+  - `fetchEvolucoes(enfermaria)` - Fetches raw evolução data from N8N API
+  - `processEvolucao(leito, dados)` - Processes and extracts structured data
+  - `validateProcessedData(dados)` - Validates before database storage
+- Data Extraction:
+  - Extracts patient name (removes PT: and AT: codes)
+  - Extracts registration number (PT: XXXXX)
+  - Extracts care code (AT: XXXXX)
+  - Formats dates to DD/MM/YYYY
+  - Normalizes mobilidade (A, D, DA)
+  - Maps all 27 fields (18 original + 9 N8N fields)
+- Data Validation:
+  - Requires: leito, nome, dataInternacao
+  - Validates date format (DD/MM/YYYY)
+  - Validates mobilidade codes
 - N8N Field Storage:
   - Stores evolution ID (idEvolucao)
   - Captures complete ward/bed codes (dsEnfermaria, dsLeitoCompleto)
@@ -164,6 +183,10 @@ Preferred communication style: Simple, everyday language.
   - Preserves full evolution text (dsEvolucaoCompleta)
   - Archives raw JSON response in JSONB column (dadosBrutosJson) for audit trail
   - Marks all records with fonteDados="N8N_IAMSPE" for data source tracking
+- Logging:
+  - [N8N] tags for API operations
+  - [Sync] tags for sync operations
+  - Detailed error tracking for debugging
 
 **Planned Features**
 - Work schedule management module (marked as "coming soon")
