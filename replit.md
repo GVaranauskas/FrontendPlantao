@@ -17,11 +17,13 @@ Preferred communication style: Simple, everyday language.
    - Processes evolved data with automatic field mapping
    - Extracts registration numbers, care codes, and patient names
    - Full validation pipeline with error handling
+   - **Field Synchronization**: `ds_especialidade` (N8N) ↔ `especialidadeRamal` (Replit) - Both fields keep synchronized
    
 2. ✅ Created Import/Dashboard Pages
    - `/import` - Manual import interface with enfermaria selection
    - `/dashboard` - Statistics dashboard with import history timeline
    - Real-time API status indicator showing connectivity
+   - Cache invalidation after import to auto-refresh patient table
    
 3. ✅ Added Periodic Sync Scheduler
    - Cron-based automation (node-cron)
@@ -37,6 +39,10 @@ Preferred communication style: Simple, everyday language.
    - Added ImportHistory interface
    - Methods: getAllImportHistory(), createImportHistory(), getLastImport()
    - Tracks all import events with detailed statistics
+   
+6. ✅ Removed Mock/Example Data
+   - Cleaned seedData() to use only N8N imported data
+   - System now starts empty, expects data from N8N integration
 
 **API Endpoints Tested & Working**:
 - `GET /api/enfermarias` ✅ - Returns all available ward codes
@@ -214,6 +220,7 @@ Preferred communication style: Simple, everyday language.
   - Formats dates to DD/MM/YYYY
   - Normalizes mobilidade (A, D, DA)
   - Maps all 27 fields (18 original + 9 N8N fields)
+  - **Field Synchronization**: `ds_especialidade` from N8N → `especialidadeRamal` in database
 - Data Validation:
   - Requires: leito, nome, dataInternacao
   - Validates date format (DD/MM/YYYY)
@@ -223,6 +230,7 @@ Preferred communication style: Simple, everyday language.
   - Captures complete ward/bed codes (dsEnfermaria, dsLeitoCompleto)
   - Records creation timestamp (dhCriacaoEvolucao)
   - Preserves full evolution text (dsEvolucaoCompleta)
+  - Stores specialty (dsEspecialidade) - kept in sync with especialidadeRamal
   - Archives raw JSON response in JSONB column (dadosBrutosJson) for audit trail
   - Marks all records with fonteDados="N8N_IAMSPE" for data source tracking
 - Logging:

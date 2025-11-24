@@ -95,13 +95,16 @@ export class N8NIntegrationService {
       const codigoAtendimento = this.extractCodigoAtendimento(dadosBrutos);
 
       // Mapear todos os campos
+      // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
+      const especialidade = this.extractEspecialidade(dadosBrutos);
+      
       const dadosProcessados: InsertPatient = {
         // Campos básicos
         leito,
         nome: nomePaciente,
         registro,
         codigoAtendimento,
-        especialidadeRamal: this.extractEspecialidade(dadosBrutos),
+        especialidadeRamal: especialidade,
         dataNascimento: this.formatDateToDDMMYYYY(dadosBrutos.data_nascimento || dadosBrutos.dataNascimento || ""),
         dataInternacao: this.formatDateToDDMMYYYY(dadosBrutos.data_internacao || dadosBrutos.dataInternacao || new Date().toISOString()),
 
@@ -137,7 +140,8 @@ export class N8NIntegrationService {
         idEvolucao: dadosBrutos.id_evolucao || dadosBrutos.id || "",
         dsEnfermaria: this.extractEnfermaria(dadosBrutos, leito),
         dsLeitoCompleto: dadosBrutos.ds_leito_completo || dadosBrutos.leito_completo || leito,
-        dsEspecialidade: dadosBrutos.ds_especialidade || this.extractEspecialidade(dadosBrutos),
+        // SINCRONIZAÇÃO: Manter ds_especialidade sincronizado com especialidadeRamal
+        dsEspecialidade: especialidade,
         dsEvolucaoCompleta: dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || dadosBrutos.descricao || "",
         dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dh_criacao_evolucao || dadosBrutos.data_criacao),
         fonteDados: "N8N_IAMSPE",
@@ -249,6 +253,8 @@ export class N8NIntegrationService {
 
   /**
    * Extrai especialidade
+   * NOTA: ds_especialidade (N8N) é equivalente a especialidadeRamal (Replit)
+   * Prioriza o campo N8N (ds_especialidade) quando disponível
    */
   private extractEspecialidade(dados: N8NRawData): string {
     return dados.ds_especialidade || dados.especialidade || dados.especialidadeRamal || "";
