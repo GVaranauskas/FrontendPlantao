@@ -9,13 +9,16 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
-  Edit, Loader2
+  Edit, Loader2, Cloud, Download
 } from "lucide-react";
+import { useSyncPatient } from "@/hooks/use-sync-patient";
 
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -75,6 +78,96 @@ export default function ShiftHandoverPage() {
               >
                 <RefreshCcw className="w-5 h-5" />
               </Button>
+              <Sheet open={syncOpen} onOpenChange={setSyncOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    data-testid="button-sync-external"
+                  >
+                    <Cloud className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-md">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Cloud className="w-5 h-5" />
+                      Sincronizar com API Externa
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-4">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Sincronize dados de pacientes diretamente da API externa do sistema de evolução.
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Sincronizar Paciente Específico:</label>
+                      <Input
+                        placeholder="Ex: 10A02"
+                        id="leito-input"
+                        className="text-sm"
+                        data-testid="input-sync-leito"
+                      />
+                      <Button 
+                        className="w-full"
+                        size="sm"
+                        onClick={() => {
+                          const leito = (document.getElementById("leito-input") as HTMLInputElement)?.value;
+                          if (leito.trim()) {
+                            syncSinglePatient.mutate(leito.trim());
+                            (document.getElementById("leito-input") as HTMLInputElement).value = "";
+                          }
+                        }}
+                        disabled={syncSinglePatient.isPending}
+                        data-testid="button-sync-single"
+                      >
+                        {syncSinglePatient.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Sincronizando...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Sincronizar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Ou sincronize múltiplos pacientes de uma vez:
+                      </p>
+                      <Button 
+                        variant="outline"
+                        className="w-full"
+                        size="sm"
+                        onClick={() => {
+                          const leitos = patients?.map(p => p.leito) || [];
+                          if (leitos.length > 0) {
+                            syncMultiplePatients.mutate(leitos);
+                          }
+                        }}
+                        disabled={syncMultiplePatients.isPending || !patients?.length}
+                        data-testid="button-sync-all"
+                      >
+                        {syncMultiplePatients.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Sincronizando...
+                          </>
+                        ) : (
+                          <>
+                            <Cloud className="w-4 h-4 mr-2" />
+                            Sincronizar Todos ({patients?.length || 0})
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
               <Button variant="ghost" size="icon" data-testid="button-filter">
                 <Filter className="w-5 h-5" />
               </Button>

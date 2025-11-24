@@ -146,8 +146,21 @@ Preferred communication style: Simple, everyday language.
   curl -H "Accept: application/toon" http://localhost:5000/api/patients
   ```
 
+**External API Integration**
+- Integrated with external API: https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes
+- Sync endpoints for fetching patient data:
+  - POST /api/sync/patient/:leito - Sync single patient
+  - POST /api/sync/patients - Sync multiple patients
+- Automatic field mapping and normalization
+- Support for both JSON and TOON response formats
+- Frontend UI with sync panel (cloud icon button)
+- Ability to sync specific patients or batch sync all patients
+- Automatic validation and error handling
+
 **Planned Features**
 - Work schedule management module (marked as "coming soon")
 - Bed management module (marked as "coming soon")
 - Print functionality for shift handover reports
 - Real-time updates and notifications
+- Automatic periodic sync from external API
+- Webhook-based real-time updates

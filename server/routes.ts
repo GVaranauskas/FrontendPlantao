@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
+import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI } from "./sync";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", async (req, res) => {
@@ -128,6 +129,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete alert" });
+    }
+  });
+
+  // Sync endpoints for external API integration
+  app.post("/api/sync/patient/:leito", async (req, res) => {
+    try {
+      const leito = req.params.leito;
+      const patient = await syncPatientFromExternalAPI(leito);
+      
+      if (!patient) {
+        return res.status(404).json({ message: "Failed to sync patient data from external API" });
+      }
+
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(patient);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patient);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync patient" });
+    }
+  });
+
+  app.post("/api/sync/patients", async (req, res) => {
+    try {
+      const { leitos } = req.body;
+      
+      if (!Array.isArray(leitos) || leitos.length === 0) {
+        return res.status(400).json({ message: "leitos array is required" });
+      }
+
+      const patients = await syncMultiplePatientsFromExternalAPI(leitos);
+      
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patients);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync patients" });
     }
   });
 
