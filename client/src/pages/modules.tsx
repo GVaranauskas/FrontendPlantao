@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert } from "lucide-react";
+import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert, Download } from "lucide-react";
 
 const modules = [
   {
@@ -162,6 +162,14 @@ export default function ModulesPage() {
         </div>
 
         <div className="flex items-center justify-center gap-4 flex-wrap">
+          <Button 
+            variant="outline" 
+            onClick={() => setLocation("/import-panel")}
+            data-testid="button-import-evolucoes"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Importar Evoluções
+          </Button>
           <Button variant="outline" data-testid="button-reports">
             <FileText className="w-4 h-4 mr-2" />
             Relatórios Diários
