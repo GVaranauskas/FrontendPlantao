@@ -12,6 +12,7 @@ import {
   Edit, Loader2, Cloud, Download, FileSpreadsheet
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 
@@ -21,6 +22,12 @@ export default function ShiftHandoverPage() {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
+  
+  // Enable automatic sync on page load and every 5 minutes
+  const { isSyncing: isAutoSyncing, lastSyncTimeAgo } = useAutoSync({
+    enabled: true,
+    syncInterval: 300000, // 5 minutes
+  });
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -65,9 +72,22 @@ export default function ShiftHandoverPage() {
                 <h1 className="text-xl sm:text-[22px] font-bold text-primary leading-tight">
                   Passagem de Plantão (SBAR)
                 </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
-                </p>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
+                  </p>
+                  {isAutoSyncing && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Sincronizando...
+                    </div>
+                  )}
+                  {!isAutoSyncing && lastSyncTimeAgo && (
+                    <div className="text-xs text-muted-foreground px-2 py-1">
+                      Última sincronização: {lastSyncTimeAgo}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
