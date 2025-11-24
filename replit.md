@@ -43,7 +43,10 @@ Preferred communication style: Simple, everyday language.
 **API Design**
 - RESTful API structure with resource-based endpoints
 - Conventional HTTP methods (GET, POST, PATCH, DELETE)
-- JSON request/response format
+- Dual format support: JSON and TOON (Token-Oriented Object Notation)
+  - Send `Content-Type: application/toon` for TOON format requests
+  - Send `Accept: application/toon` to receive responses in TOON format
+  - Fall back to JSON if no TOON headers specified
 - Error handling with appropriate HTTP status codes
 
 **Storage Layer**
@@ -66,7 +69,7 @@ Preferred communication style: Simple, everyday language.
 - Note: Database is configured but storage layer currently uses in-memory implementation
 
 **UI & Styling**
-- Radix UI primitives for accessible, unstyled components (accordion, dialog, dropdown, etc.)
+- Radix UI primitives for accessible, unstyled components
 - Tailwind CSS with PostCSS for styling pipeline
 - class-variance-authority for variant-based component styling
 - Lucide React for consistent iconography
@@ -76,6 +79,12 @@ Preferred communication style: Simple, everyday language.
 - Zod for runtime type validation and schema definition
 - @hookform/resolvers for integration between validation and forms
 - drizzle-zod for automatic schema-to-Zod conversions
+
+**Data Format & Transmission**
+- @toon-format/toon for Token-Oriented Object Notation (TOON) encoding/decoding
+  - Enables compact, human-readable data transmission (~40% token savings for LLMs)
+  - Maintains JSON data model compatibility with deterministic round-trips
+  - Ideal for API responses that will be processed by language models
 
 **Utilities**
 - date-fns for date manipulation and formatting
@@ -112,6 +121,30 @@ Preferred communication style: Simple, everyday language.
   - Monitoring: aporteSaturacao (intake/saturation), examesRealizadosPendentes (tests completed/pending)
   - Planning: dataProgramacaoCirurgica (surgical schedule), observacoesIntercorrencias (observations/complications), previsaoAlta (expected discharge)
   - Alert status for color-coded patient rows
+
+**API Endpoints (Support Both JSON and TOON)**
+- `GET /api/patients` - Fetch all patients
+- `GET /api/patients/:id` - Fetch single patient
+- `POST /api/patients` - Create new patient (validates against schema with Zod, accepts JSON or TOON)
+- `PATCH /api/patients/:id` - Update patient (validates with Zod, accepts JSON or TOON)
+- `DELETE /api/patients/:id` - Delete patient
+- `GET /api/alerts` - Fetch all alerts
+- `POST /api/alerts` - Create alert (accepts JSON or TOON)
+- `DELETE /api/alerts/:id` - Delete alert
+
+**TOON Format Usage Examples**
+- Request in TOON:
+  ```
+  curl -X POST http://localhost:5000/api/patients \
+    -H "Content-Type: application/toon" \
+    -d 'leito: "10"
+  nome: TEST PATIENT
+  mobilidade: DA'
+  ```
+- Response in TOON:
+  ```
+  curl -H "Accept: application/toon" http://localhost:5000/api/patients
+  ```
 
 **Planned Features**
 - Work schedule management module (marked as "coming soon")

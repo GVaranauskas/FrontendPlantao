@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { parseToon, isToonFormat } from "./toon";
 
 const app = express();
 
@@ -9,6 +10,28 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// Custom TOON body parser middleware
+app.use((req, res, next) => {
+  if (isToonFormat(req.get("content-type"))) {
+    let data = "";
+    req.on("data", chunk => {
+      data += chunk;
+    });
+    req.on("end", () => {
+      try {
+        req.body = parseToon(data);
+        req.rawBody = data;
+        next();
+      } catch (error) {
+        res.status(400).json({ message: "Invalid TOON format" });
+      }
+    });
+  } else {
+    next();
+  }
+});
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;

@@ -2,12 +2,19 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
+import { stringifyToToon, isToonFormat } from "./toon";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", async (_req, res) => {
+  app.get("/api/patients", async (req, res) => {
     try {
       const patients = await storage.getAllPatients();
-      res.json(patients);
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patients);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch patients" });
     }
@@ -19,7 +26,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!patient) {
         return res.status(404).json({ message: "Patient not found" });
       }
-      res.json(patient);
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(patient);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patient);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch patient" });
     }
@@ -29,7 +42,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validatedData);
-      res.status(201).json(patient);
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(patient);
+        res.status(201).type("application/toon").send(toonData);
+      } else {
+        res.status(201).json(patient);
+      }
     } catch (error) {
       res.status(400).json({ message: "Invalid patient data" });
     }
@@ -42,7 +61,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!patient) {
         return res.status(404).json({ message: "Patient not found" });
       }
-      res.json(patient);
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(patient);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patient);
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid patient data" });
@@ -63,10 +88,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/alerts", async (_req, res) => {
+  app.get("/api/alerts", async (req, res) => {
     try {
       const alerts = await storage.getAllAlerts();
-      res.json(alerts);
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(alerts);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(alerts);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch alerts" });
     }
@@ -76,7 +107,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertAlertSchema.parse(req.body);
       const alert = await storage.createAlert(validatedData);
-      res.status(201).json(alert);
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(alert);
+        res.status(201).type("application/toon").send(toonData);
+      } else {
+        res.status(201).json(alert);
+      }
     } catch (error) {
       res.status(400).json({ message: "Invalid alert data" });
     }
