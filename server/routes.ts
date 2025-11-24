@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer } from "ws";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
@@ -400,7 +401,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import history endpoint
+  app.get("/api/import/history", async (req, res) => {
+    try {
+      const history = await storage.getAllImportHistory();
+      
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(history);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(history);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch import history" });
+    }
+  });
+
   const httpServer = createServer(app);
+
+  // Setup WebSocket for real-time notifications on specific path
+  const wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    if (request.url === "/ws/import") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
+  wss.on("connection", (ws) => {
+    console.log("[WebSocket] Client connected to /ws/import");
+    
+    // Send welcome message
+    ws.send(JSON.stringify({ type: "connected", message: "Connected to import notifications" }));
+
+    ws.on("close", () => {
+      console.log("[WebSocket] Client disconnected");
+    });
+
+    ws.on("error", (error) => {
+      console.error("[WebSocket] Error:", error);
+    });
+  });
+
+  // Export broadcast function for import notifications
+  (app as any).broadcastImportEvent = (event: any) => {
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1) { // OPEN
+        client.send(JSON.stringify(event));
+      }
+    });
+  };
 
   return httpServer;
 }

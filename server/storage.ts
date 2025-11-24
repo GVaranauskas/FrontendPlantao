@@ -1,6 +1,17 @@
 import { type User, type InsertUser, type Patient, type InsertPatient, type Alert, type InsertAlert } from "@shared/schema";
 import { randomUUID } from "crypto";
 
+export interface ImportHistory {
+  id: string;
+  enfermaria: string;
+  timestamp: Date;
+  total: number;
+  importados: number;
+  erros: number;
+  detalhes: Array<{ leito: string; status: string; mensagem?: string }>;
+  duracao: number;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -16,17 +27,23 @@ export interface IStorage {
   getAlert(id: string): Promise<Alert | undefined>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   deleteAlert(id: string): Promise<boolean>;
+
+  getAllImportHistory(): Promise<ImportHistory[]>;
+  createImportHistory(history: Omit<ImportHistory, 'id'>): Promise<ImportHistory>;
+  getLastImport(): Promise<ImportHistory | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private patients: Map<string, Patient>;
   private alerts: Map<string, Alert>;
+  private importHistory: Map<string, ImportHistory>;
 
   constructor() {
     this.users = new Map();
     this.patients = new Map();
     this.alerts = new Map();
+    this.importHistory = new Map();
     this.seedData();
   }
 
@@ -210,6 +227,22 @@ export class MemStorage implements IStorage {
 
   async deleteAlert(id: string): Promise<boolean> {
     return this.alerts.delete(id);
+  }
+
+  async getAllImportHistory(): Promise<ImportHistory[]> {
+    return Array.from(this.importHistory.values()).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }
+
+  async createImportHistory(history: Omit<ImportHistory, 'id'>): Promise<ImportHistory> {
+    const id = randomUUID();
+    const record: ImportHistory = { ...history, id };
+    this.importHistory.set(id, record);
+    return record;
+  }
+
+  async getLastImport(): Promise<ImportHistory | undefined> {
+    const history = await this.getAllImportHistory();
+    return history[0];
   }
 }
 

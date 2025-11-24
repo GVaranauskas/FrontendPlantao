@@ -188,10 +188,56 @@ Preferred communication style: Simple, everyday language.
   - [Sync] tags for sync operations
   - Detailed error tracking for debugging
 
-**Planned Features**
-- Work schedule management module (marked as "coming soon")
-- Bed management module (marked as "coming soon")
-- Print functionality for shift handover reports
-- Real-time updates and notifications
-- Automatic periodic sync from external API
-- Webhook-based real-time updates
+**Implementation Complete** ✅
+
+1. **Frontend Integration** (`client/src/pages/import.tsx`, `client/src/pages/dashboard.tsx`)
+   - Import page with enfermaria selection and import triggering
+   - Dashboard page with import history, statistics, and timeline
+   - Real-time status display (API connectivity)
+   - Detailed import results with leito-by-leito breakdown
+
+2. **Sincronização Periódica** (`server/services/import-scheduler.ts`)
+   - Cron-based automatic sync every hour for enfermarias 10A and 10B
+   - Automatic history recording with statistics
+   - Error handling and logging
+   - Schedule can be customized with cron expressions
+
+3. **Webhooks em Tempo Real** (`server/routes.ts`)
+   - WebSocket server at `/ws/import` for real-time notifications
+   - Broadcast function for import events
+   - Client connection management with welcome messages
+   - Separated from Vite HMR to avoid conflicts
+
+4. **Dashboard de Status** (`client/src/pages/dashboard.tsx`)
+   - Total imports, processed patients, total errors, success rate statistics
+   - Last import card with detailed breakdown
+   - Full import history timeline sorted by date
+   - Auto-refresh every 30 seconds
+
+**New API Endpoints**
+- `POST /api/import/evolucoes` - Import evolucoes with detailed statistics
+- `GET /api/enfermarias` - List available enfermarias
+- `GET /api/import/status` - Test N8N API connectivity
+- `GET /api/import/history` - Fetch complete import history
+
+**Storage Layer Updates**
+- Added `ImportHistory` interface to storage
+- Methods: `getAllImportHistory()`, `createImportHistory()`, `getLastImport()`
+- Stores detailed import records with timestamps and results
+
+**New Routes in Frontend**
+- `/import` - Import management page
+- `/dashboard` - Import statistics and history dashboard
+
+**Automatic Features**
+- Cron job started on server startup with default schedule
+- Periodic sync for 10A at top of hour, 10B at 30 minutes
+- Automatic history recording after each import
+- Scheduler status logging with [Scheduler] tags
+
+**Next Steps (Optional)**
+- Email notifications on import failures
+- Custom cron expression UI
+- Webhook endpoints for external systems
+- Database persistence for import history
+- Advanced filtering and search in dashboard

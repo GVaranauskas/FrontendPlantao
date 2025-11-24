@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import LoginPage from "@/pages/login";
 import ModulesPage from "@/pages/modules";
 import ShiftHandoverPage from "@/pages/shift-handover";
+import ImportPage from "@/pages/import";
+import DashboardPage from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +16,8 @@ function Router() {
       <Route path="/" component={LoginPage} />
       <Route path="/modules" component={ModulesPage} />
       <Route path="/shift-handover" component={ShiftHandoverPage} />
+      <Route path="/import" component={ImportPage} />
+      <Route path="/dashboard" component={DashboardPage} />
       <Route component={NotFound} />
     </Switch>
   );
