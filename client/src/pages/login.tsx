@@ -12,7 +12,10 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login:", { username, password });
+    // Security: Never log credentials
+    if (!username.trim() || !password.trim()) {
+      return;
+    }
     setLocation("/modules");
   };
 
@@ -30,11 +33,15 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md px-5">
         <Card className="p-8">
           <div className="text-center mb-8">
-            <img 
-              src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
-              alt="11Care Logo"
-              className="max-w-[280px] mx-auto mb-6"
-            />
+            <picture>
+              <img 
+                src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
+                alt="11Care Logo"
+                className="max-w-[280px] mx-auto mb-6"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
             <h1 className="text-[32px] font-bold text-primary mb-2">
               Plataforma de Enfermagem
             </h1>
@@ -53,10 +60,11 @@ export default function LoginPage() {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.trim())}
                   placeholder="Digite seu usuário"
                   className="h-[50px] text-base"
                   data-testid="input-username"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -73,6 +81,7 @@ export default function LoginPage() {
                   placeholder="Digite sua senha"
                   className="h-[50px] text-base"
                   data-testid="input-password"
+                  maxLength={255}
                   required
                 />
               </div>

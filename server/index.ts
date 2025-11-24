@@ -3,8 +3,13 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
 import { importScheduler } from "./services/import-scheduler";
+import { setupHelmet, setupRateLimit } from "./security";
 
 const app = express();
+
+// Apply security middleware first
+setupHelmet(app);
+setupRateLimit(app);
 
 declare module 'http' {
   interface IncomingMessage {

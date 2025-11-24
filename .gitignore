@@ -1,6 +1,159 @@
+# Dependencies
 node_modules
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-debug.log
+
+# Environment variables - CRITICAL
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+.envrc
+
+# Build outputs
 dist
+build
+*.tsbuildinfo
+out
+
+# Development
 .DS_Store
-server/public
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.cache
+.parcel-cache
+.next
+.turbo
+.nuxt
+coverage
+.nyc_output
+
+# Vite specific
 vite.config.ts.*
+
+# Server
+server/public
+server/dist
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Logs and debugging
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+pnpm-debug.log
+
+# OS & IDE
+.DS_Store
+.AppleDouble
+.LSOverride
+*.sublime-workspace
+*.sublime-project
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode/*.code-snippets
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Archives
 *.tar.gz
+*.tar
+*.zip
+*.rar
+
+# OS temp
+Thumbs.db
+desktop.ini
+
+# SSL Certificates and keys - CRITICAL
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# API Keys and Secrets - CRITICAL
+.env.prod
+.env.production
+secrets/
+*.secret
+*.credentials
+auth/
+tokens/
+
+# Private configs
+config/private*
+config/*.local.js
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker
+
+# Testing
+.coverage
+.nyc_output
+test-results
+junit.xml
+
+# Backups and recovery
+*.bak
+*.backup
+*.recover
+~$*
+
+# IDE specific - even more specific
+.vscode/.history
+.vscode/.recommendedextensions
+.idea/workspace.xml
+.idea/modules.xml
+.idea/*.iml
+.idea/misc.xml
+.idea/scopes
+.idea/vcs.xml
+
+# Node specific
+npm-debug.log
+.npm
+.eslintcache
+.node_repl_history
+
+# Generated files
+*.generated.ts
+*.generated.js
+*.generated.*
+
+# Private docs
+INTERNAL.md
+SECURITY.md
+TODO_PRIVATE.md

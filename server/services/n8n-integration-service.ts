@@ -1,4 +1,5 @@
 import type { InsertPatient } from "@shared/schema";
+import { validateEnfermaria, sanitizePatientData, validatePatientDataLength } from "../validation";
 
 interface N8NRequest {
   flowId: string;
@@ -30,6 +31,12 @@ export class N8NIntegrationService {
    */
   async fetchEvolucoes(enfermaria: string): Promise<N8NRawData[] | null> {
     try {
+      // Validate enfermaria parameter to prevent injection
+      if (!validateEnfermaria(enfermaria)) {
+        console.error(`[N8N] Invalid enfermaria parameter: ${enfermaria}`);
+        return null;
+      }
+
       const payload: N8NRequest = {
         flowId: "1a2b3c",
         forceUpdate: false,
@@ -98,7 +105,7 @@ export class N8NIntegrationService {
       // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
       const especialidade = this.extractEspecialidade(dadosBrutos);
       
-      const dadosProcessados: InsertPatient = {
+      let dadosProcessados: InsertPatient = {
         // Campos básicos
         leito,
         nome: nomePaciente,
@@ -147,6 +154,12 @@ export class N8NIntegrationService {
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,
       };
+
+      // Sanitize and validate patient data
+      dadosProcessados = sanitizePatientData(dadosProcessados);
+      if (!validatePatientDataLength(dadosProcessados)) {
+        erros.push("Patient data exceeds maximum field lengths");
+      }
 
       return {
         pacienteName: nomePaciente,
