@@ -9,6 +9,7 @@ import ShiftHandoverPage from "@/pages/shift-handover";
 import ImportPage from "@/pages/import";
 import DashboardPage from "@/pages/dashboard";
 import ImportPanelPage from "@/pages/import-panel";
+import DebugPage from "@/pages/debug";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/import" component={ImportPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/import-panel" component={ImportPanelPage} />
+      <Route path="/debug" component={DebugPage} />
       <Route component={NotFound} />
     </Switch>
   );
