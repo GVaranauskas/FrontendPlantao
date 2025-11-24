@@ -8,6 +8,48 @@ The 11Care Nursing Platform is a healthcare management system designed for nursi
 
 Preferred communication style: Simple, everyday language.
 
+## Latest Updates (Session)
+
+**Session Date**: November 24, 2025
+
+**Completed Tasks**:
+1. ✅ Implemented N8N Integration Service with data extraction from N8N API
+   - Processes evolved data with automatic field mapping
+   - Extracts registration numbers, care codes, and patient names
+   - Full validation pipeline with error handling
+   
+2. ✅ Created Import/Dashboard Pages
+   - `/import` - Manual import interface with enfermaria selection
+   - `/dashboard` - Statistics dashboard with import history timeline
+   - Real-time API status indicator showing connectivity
+   
+3. ✅ Added Periodic Sync Scheduler
+   - Cron-based automation (node-cron)
+   - Default schedule: 10A at top of hour, 10B at 30 minutes
+   - Automatic history recording with statistics
+   
+4. ✅ Implemented Real-time WebSocket
+   - Separate `/ws/import` path to avoid Vite HMR conflicts
+   - Broadcast function for import events
+   - Welcome messages for client connections
+   
+5. ✅ Extended Storage Layer
+   - Added ImportHistory interface
+   - Methods: getAllImportHistory(), createImportHistory(), getLastImport()
+   - Tracks all import events with detailed statistics
+
+**API Endpoints Tested & Working**:
+- `GET /api/enfermarias` ✅ - Returns all available ward codes
+- `GET /api/import/status` ✅ - API connectivity test (897ms latency)
+- `POST /api/import/evolucoes` ✅ - Import evolucoes with statistics
+- `GET /api/import/history` ✅ - Fetch import history timeline
+- WebSocket `/ws/import` ✅ - Real-time notifications
+
+**Known Notes**:
+- N8N API responds with patient data (tested with enfermaria 10A - 2 patients)
+- Scheduler starts automatically on server startup
+- History is in-memory; persists during session
+
 ## System Architecture
 
 ### Frontend Architecture
