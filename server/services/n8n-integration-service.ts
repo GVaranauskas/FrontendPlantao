@@ -253,11 +253,16 @@ export class N8NIntegrationService {
 
   /**
    * Extrai especialidade
-   * NOTA: ds_especialidade (N8N) é equivalente a especialidadeRamal (Replit)
-   * Prioriza o campo N8N (ds_especialidade) quando disponível
+   * NOTA: ds_especialidade/ds_especialid (N8N) é equivalente a especialidadeRamal (Replit)
+   * Prioriza o campo N8N quando disponível
+   * N8N envia como "ds_especialid" (sem o "ade" no final)
    */
   private extractEspecialidade(dados: N8NRawData): string {
-    return dados.ds_especialidade || dados.especialidade || dados.especialidadeRamal || "";
+    return dados.ds_especialidade || 
+           dados.ds_especialid ||      // Campo do N8N (sem "ade" no final)
+           dados.especialidade || 
+           dados.especialidadeRamal || 
+           "";
   }
 
   /**
