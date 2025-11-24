@@ -10,7 +10,7 @@ interface ExternalAPIRequest {
 }
 
 interface ExternalAPIResponse {
-  [key: string]: string;
+  [key: string]: any;
 }
 
 const EXTERNAL_API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes";
@@ -78,29 +78,51 @@ export class ExternalAPIService {
     const mobilidadeRaw = data.mobilidade || "";
     const mobilidade = this.normalizeMobilidade(mobilidadeRaw);
 
+    // Parse timestamp de criação
+    let dhCriacaoEvolucao: Date | undefined;
+    if (data.dh_criacao_evolucao || data.data_criacao || data.dhCriacaoEvolucao) {
+      const dateStr = data.dh_criacao_evolucao || data.data_criacao || data.dhCriacaoEvolucao;
+      try {
+        dhCriacaoEvolucao = new Date(dateStr);
+      } catch {
+        dhCriacaoEvolucao = undefined;
+      }
+    }
+
     return {
       leito: leito,
-      especialidadeRamal: data.especialidade || data.especialidadeRamal || "",
-      nome: data.paciente || data.nome || "",
-      registro: data.registro || "",
-      dataNascimento: data.dataNascimento || data.nascimento || "",
-      dataInternacao: data.dataInternacao || data.internacao || new Date().toLocaleDateString("pt-BR"),
-      rqBradenScp: data.braden || "",
-      diagnosticoComorbidades: data.diagnostico || "",
+      especialidadeRamal: data.especialidade || data.especialidadeRamal || data.ds_especialidade || "",
+      nome: data.paciente || data.nome || data.nome_paciente || "",
+      registro: data.registro || data.codigo_atendimento || "",
+      dataNascimento: data.dataNascimento || data.nascimento || data.data_nascimento || "",
+      dataInternacao: data.dataInternacao || data.internacao || data.data_internacao || new Date().toLocaleDateString("pt-BR"),
+      rqBradenScp: data.braden || data.rq_braden || "",
+      diagnosticoComorbidades: data.diagnostico || data.diagnostico_comorbidades || "",
       alergias: data.alergias || "",
       mobilidade: mobilidade as "A" | "D" | "DA" | null | undefined,
       dieta: data.dieta || "",
       eliminacoes: data.eliminacoes || "",
       dispositivos: data.dispositivos || "",
-      atb: data.atb || "",
+      atb: data.atb || data.antibioticos || "",
       curativos: data.curativos || "",
-      aporteSaturacao: data.aporteSaturacao || "",
-      examesRealizadosPendentes: data.exames || "",
-      dataProgramacaoCirurgica: data.cirurgia || "",
-      observacoesIntercorrencias: data.observacoes || "",
-      previsaoAlta: data.previsaoAlta || "",
+      aporteSaturacao: data.aporteSaturacao || data.aporte_saturacao || "",
+      examesRealizadosPendentes: data.exames || data.exames_realizados_pendentes || "",
+      dataProgramacaoCirurgica: data.cirurgia || data.data_programacao_cirurgica || "",
+      observacoesIntercorrencias: data.observacoes || data.observacoes_intercorrencias || "",
+      previsaoAlta: data.previsaoAlta || data.previsao_alta || "",
       alerta: null,
-      status: "pending"
+      status: "pending",
+      
+      // Novos campos da API N8N
+      idEvolucao: data.id_evolucao || data.id || data.idEvolucao || "",
+      dsEnfermaria: data.ds_enfermaria || data.enfermaria || data.dsEnfermaria || leito,
+      dsLeitoCompleto: data.ds_leito_completo || data.leito_completo || data.dsLeitoCompleto || leito,
+      dsEspecialidade: data.ds_especialidade || data.especialidade || data.dsEspecialidade || "",
+      codigoAtendimento: data.codigo_atendimento || data.at || data.codigoAtendimento || "",
+      dsEvolucaoCompleta: data.ds_evolucao_completa || data.evolucao_completa || data.descricao || data.dsEvolucaoCompleta || "",
+      dhCriacaoEvolucao: dhCriacaoEvolucao,
+      fonteDados: "N8N_IAMSPE",
+      dadosBrutosJson: data,
     };
   }
 

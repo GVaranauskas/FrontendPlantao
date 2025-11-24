@@ -113,7 +113,7 @@ Preferred communication style: Simple, everyday language.
 
 **Data Models**
 - User: Authentication and role-based access (username, password, name, role)
-- Patient: Comprehensive shift handover data with 18 columns matching reference document:
+- Patient: Comprehensive shift handover data with 18 columns + extended N8N fields:
   - Basic info: leito (bed number), especialidadeRamal (specialty/extension), nome (name), registro (registration), dataNascimento (birth date)
   - Clinical data: dataInternacao (admission date), rqBradenScp (Braden scale), diagnosticoComorbidades (diagnosis/comorbidities), alergias (allergies)
   - Mobility: mobilidade (A=Acamado/Bedridden, D=Deambula/Walks, DA=Deambula Com Auxílio/Walks with assistance)
@@ -121,6 +121,7 @@ Preferred communication style: Simple, everyday language.
   - Monitoring: aporteSaturacao (intake/saturation), examesRealizadosPendentes (tests completed/pending)
   - Planning: dataProgramacaoCirurgica (surgical schedule), observacoesIntercorrencias (observations/complications), previsaoAlta (expected discharge)
   - Alert status for color-coded patient rows
+  - N8N Fields: idEvolucao (evolution ID), dsEnfermaria (ward code), dsLeitoCompleto (complete bed code), dsEspecialidade (full specialty), codigoAtendimento (care code), dsEvolucaoCompleta (full evolution text), dhCriacaoEvolucao (creation timestamp), fonteDados (data source), dadosBrutosJson (raw API data as JSONB)
 
 **API Endpoints (Support Both JSON and TOON)**
 - `GET /api/patients` - Fetch all patients
@@ -151,11 +152,18 @@ Preferred communication style: Simple, everyday language.
 - Sync endpoints for fetching patient data:
   - POST /api/sync/patient/:leito - Sync single patient
   - POST /api/sync/patients - Sync multiple patients
-- Automatic field mapping and normalization
+- Automatic field mapping and normalization (flexible field name matching for N8N variations)
 - Support for both JSON and TOON response formats
 - Frontend UI with sync panel (cloud icon button)
 - Ability to sync specific patients or batch sync all patients
 - Automatic validation and error handling
+- N8N Field Storage:
+  - Stores evolution ID (idEvolucao)
+  - Captures complete ward/bed codes (dsEnfermaria, dsLeitoCompleto)
+  - Records creation timestamp (dhCriacaoEvolucao)
+  - Preserves full evolution text (dsEvolucaoCompleta)
+  - Archives raw JSON response in JSONB column (dadosBrutosJson) for audit trail
+  - Marks all records with fonteDados="N8N_IAMSPE" for data source tracking
 
 **Planned Features**
 - Work schedule management module (marked as "coming soon")

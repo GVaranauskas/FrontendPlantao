@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -35,6 +35,17 @@ export const patients = pgTable("patients", {
   previsaoAlta: text("previsao_alta"),
   alerta: text("alerta"),
   status: text("status").notNull().default("pending"),
+  
+  // Campos da API N8N de Evolução
+  idEvolucao: text("id_evolucao"),
+  dsEnfermaria: text("ds_enfermaria"),
+  dsLeitoCompleto: text("ds_leito_completo"),
+  dsEspecialidade: text("ds_especialidade"),
+  codigoAtendimento: text("codigo_atendimento"),
+  dsEvolucaoCompleta: text("ds_evolucao_completa"),
+  dhCriacaoEvolucao: timestamp("dh_criacao_evolucao"),
+  fonteDados: text("fonte_dados").default("N8N_IAMSPE"),
+  dadosBrutosJson: jsonb("dados_brutos_json"),
 });
 
 export const alerts = pgTable("alerts", {
