@@ -329,7 +329,7 @@ export default function ShiftHandoverPage() {
           <h2 className="text-xl font-semibold mb-4">
             📥 Importar Dados do Sistema Externo (N8N)
           </h2>
-          <ImportEvolucoes />
+          <ImportEvolucoes autoSync={true} syncInterval={300000} />
         </section>
 
         {isLoading ? (

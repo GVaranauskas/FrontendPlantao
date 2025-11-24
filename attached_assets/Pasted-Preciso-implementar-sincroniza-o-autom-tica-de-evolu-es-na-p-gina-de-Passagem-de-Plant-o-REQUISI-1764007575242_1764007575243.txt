@@ -1,0 +1,74 @@
+Preciso implementar sincronização automática de evoluções na página de Passagem de Plantão.
+
+REQUISITOS:
+
+1. SINCRONIZAÇÃO AUTOMÁTICA:
+   - Ao abrir a página, fazer PRIMEIRA sincronização automática imediatamente
+   - Depois, continuar sincronizando a cada 5 MINUTOS
+   - Sincronizar TODAS as enfermarias cadastradas (10A02, 10A03, 10B01)
+   - Não mostrar alertas ou popups a cada sincronização (silencioso)
+   - Apenas mostrar indicador visual discreto de "Sincronizando..." no canto da tela
+
+2. INDICADOR VISUAL:
+   - Badge ou toast pequeno no canto superior direito
+   - Mostrar: "🔄 Sincronizando..." durante a sincronização
+   - Mostrar: "✅ Sincronizado" por 2 segundos após sucesso
+   - Mostrar: "⚠️ Erro na sincronização" se falhar
+   - Deve ser discreto e não atrapalhar o uso da página
+
+3. COMPONENTE ImportEvolucoes.tsx:
+   - Adicionar prop opcional: autoSync?: boolean (default: false)
+   - Adicionar prop opcional: syncInterval?: number (default: 300000 = 5 min)
+   - Se autoSync = true, ativar sincronização automática
+   - Adicionar useEffect para gerenciar o intervalo
+   - Fazer cleanup do interval ao desmontar componente
+
+4. PÁGINA shift-handover.tsx:
+   - Passar autoSync={true} para o componente ImportEvolucoes
+   - Manter a opção manual de importar também
+   - Adicionar toggle visual para desabilitar auto-sync se usuário quiser
+
+5. LÓGICA DE SINCRONIZAÇÃO:
+   - Buscar lista de enfermarias de /api/enfermarias
+   - Para cada enfermaria, fazer POST /api/import/evolucoes
+   - Processar em sequência (aguardar uma terminar antes da próxima)
+   - Não bloquear a interface durante sincronização
+   - Acumular estatísticas: total importado, erros
+   - Logar no console (para debug): "Auto-sync: X registros importados de Y enfermarias"
+
+6. TRATAMENTO DE ERROS:
+   - Se uma enfermaria falhar, continuar com as próximas
+   - Não mostrar erro ao usuário (apenas no indicador discreto)
+   - Logar erros no console para debug
+   - Não interromper o intervalo de 5 minutos
+
+7. PERFORMANCE:
+   - Não fazer sincronização se a aba não estiver ativa (usar Page Visibility API)
+   - Pausar sincronização se usuário estiver preenchendo formulário
+   - Retomar quando formulário for fechado/submetido
+
+8. INTERFACE DE CONTROLE:
+   Adicionar no topo da seção de importação:
+
+   [Toggle Switch] Sincronização automática (a cada 5 min)
+   [Indicador] Última sincronização: há 2 minutos
+   [Botão] Sincronizar agora
+
+EXEMPLO DE COMO DEVE FUNCIONAR:
+
+1. Usuário abre página → Sincronização inicia imediatamente
+2. Badge aparece: "🔄 Sincronizando..."
+3. Após 10s: "✅ Sincronizado - 15 novos registros"
+4. Badge desaparece após 2s
+5. Após 5 minutos: repete automaticamente
+6. Se usuário desligar o toggle: para de sincronizar
+7. Se usuário clicar "Sincronizar agora": força sincronização imediata
+
+IMPORTANTE:
+- Não atrapalhar a experiência do usuário
+- Sincronização deve ser transparente e silenciosa
+- Manter botão manual de importação para controle explícito
+- Permitir desabilitar auto-sync facilmente
+- Não fazer requests desnecessários se não houver dados novos
+
+Implemente essas funcionalidades mantendo o código limpo e bem organizado.

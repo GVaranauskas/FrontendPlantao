@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import {
   Download,
   Loader2,
@@ -11,8 +12,11 @@ import {
   XCircle,
   AlertTriangle,
   ChevronDown,
+  RefreshCw,
+  Check,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 
 interface Enfermaria {
   codigo: string;
@@ -33,9 +37,24 @@ interface ImportResponse {
   mensagem: string;
 }
 
-export function ImportEvolucoes() {
+interface ImportEvolucoeProps {
+  autoSync?: boolean;
+  syncInterval?: number;
+}
+
+export function ImportEvolucoes({ autoSync = false, syncInterval = 300000 }: ImportEvolucoeProps) {
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const [result, setResult] = useState<ImportResponse | null>(null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(autoSync);
+  
+  const {
+    isSyncing,
+    lastSyncTime,
+    lastSyncTimeAgo,
+    syncStatus,
+    totalImported,
+    triggerSync,
+  } = useAutoSync({ enabled: autoSyncEnabled, syncInterval });
 
   const { data: enfermarias, isLoading: isLoadingEnfermarias } = useQuery<
     Enfermaria[]
@@ -72,6 +91,86 @@ export function ImportEvolucoes() {
 
   return (
     <div className="space-y-4">
+      {/* Auto-sync Status Indicator */}
+      {syncStatus !== "idle" && (
+        <div className="fixed top-24 right-5 z-40 animate-in fade-in">
+          <div className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg bg-card border border-border">
+            {syncStatus === "syncing" && (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-sm font-medium">Sincronizando...</span>
+              </>
+            )}
+            {syncStatus === "success" && (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium">
+                  Sincronizado - {totalImported} registros
+                </span>
+              </>
+            )}
+            {syncStatus === "error" && (
+              <>
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-medium">Erro na sincronização</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-sync Controls */}
+      <Card className="p-4 bg-muted/30" data-testid="card-autosync-controls">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckboxPrimitive.Root
+                checked={autoSyncEnabled}
+                onCheckedChange={(checked) => setAutoSyncEnabled(checked === true)}
+                className="w-5 h-5 rounded border border-border bg-background flex items-center justify-center cursor-pointer hover:bg-muted"
+                data-testid="checkbox-autosync"
+              >
+                <CheckboxPrimitive.Indicator>
+                  <Check className="w-3 h-3 text-primary" />
+                </CheckboxPrimitive.Indicator>
+              </CheckboxPrimitive.Root>
+              <div className="flex-1">
+                <label className="text-sm font-semibold cursor-pointer">
+                  Sincronização automática
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Sincroniza todas as enfermarias a cada 5 minutos
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={triggerSync}
+              disabled={isSyncing}
+              data-testid="button-sync-now"
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Sincronizar agora
+                </>
+              )}
+            </Button>
+          </div>
+          {lastSyncTime && (
+            <div className="text-xs text-muted-foreground pl-8">
+              Última sincronização: {lastSyncTimeAgo}
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* Import Form */}
       <Card className="p-6" data-testid="card-import-form">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
