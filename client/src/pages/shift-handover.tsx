@@ -104,19 +104,22 @@ export default function ShiftHandoverPage() {
                     <Cloud className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-md">
+                <SheetContent className="w-full sm:max-w-md max-h-screen overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
                       <Cloud className="w-5 h-5" />
-                      Sincronizar com API Externa
+                      Importar e Sincronizar Dados
                     </SheetTitle>
                   </SheetHeader>
-                  <div className="mt-6 space-y-4">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Sincronize dados de pacientes diretamente da API externa do sistema de evolução.
-                    </p>
-                    
-                    <div className="space-y-2">
+                  <div className="mt-6 space-y-6">
+                    {/* Section: Manual Import */}
+                    <div className="space-y-3 pb-4 border-b">
+                      <h3 className="text-sm font-semibold">Importar Evolução (N8N)</h3>
+                      <ImportEvolucoes autoSync={false} syncInterval={0} />
+                    </div>
+
+                    {/* Section: Sync Single Patient */}
+                    <div className="space-y-3 pb-4 border-b">
                       <label className="text-sm font-medium">Sincronizar Paciente Específico:</label>
                       <Input
                         placeholder="Ex: 10A02"
@@ -151,10 +154,9 @@ export default function ShiftHandoverPage() {
                       </Button>
                     </div>
 
-                    <div className="pt-4 border-t">
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Ou sincronize múltiplos pacientes de uma vez:
-                      </p>
+                    {/* Section: Sync All Patients */}
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Sincronizar Todos os Pacientes:</p>
                       <Button 
                         variant="outline"
                         className="w-full"
@@ -171,12 +173,12 @@ export default function ShiftHandoverPage() {
                         {syncMultiplePatients.isPending ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Sincronizando...
+                            Sincronizando {patients?.length} pacientes...
                           </>
                         ) : (
                           <>
-                            <Cloud className="w-4 h-4 mr-2" />
-                            Sincronizar Todos ({patients?.length || 0})
+                            <Download className="w-4 h-4 mr-2" />
+                            Sincronizar {patients?.length || 0} Pacientes
                           </>
                         )}
                       </Button>
@@ -339,13 +341,6 @@ export default function ShiftHandoverPage() {
             </div>
           </Card>
         </div>
-
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">
-            📥 Importar Dados do Sistema Externo (N8N)
-          </h2>
-          <ImportEvolucoes autoSync={true} syncInterval={300000} />
-        </section>
 
         {isLoading ? (
           <Card className="p-12 flex items-center justify-center">
