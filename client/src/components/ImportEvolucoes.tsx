@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   ChevronDown,
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface Enfermaria {
   codigo: string;
@@ -53,6 +53,7 @@ export function ImportEvolucoes() {
     },
     onSuccess: (data) => {
       setResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
     },
   });
 
