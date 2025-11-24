@@ -34,9 +34,12 @@ export function useAutoSync(props?: UseAutoSyncProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPageVisibleRef = useRef(true);
 
-  // Fetch enfermarias list
-  const { data: enfermarias } = useQuery<Enfermaria[]>({
+  // Fetch enfermarias list for sync
+  const { data: enfermarias, isLoading: isLoadingEnfermarias } = useQuery<Enfermaria[]>({
     queryKey: ["/api/enfermarias"],
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
+    gcTime: 1000 * 60 * 60, // Keep in garbage collection for 1 hour
+    retry: 2,
   });
 
   // Detect page visibility changes
@@ -51,19 +54,32 @@ export function useAutoSync(props?: UseAutoSyncProps) {
 
   // Function to sync all enfermarias sequentially
   const performAutoSync = async () => {
-    if (!isPageVisibleRef.current || !enfermarias?.length) return;
+    if (!isPageVisibleRef.current) {
+      console.log("[Auto-sync] Page not visible, skipping sync");
+      return;
+    }
+
+    if (!enfermarias?.length) {
+      console.log("[Auto-sync] Enfermarias not loaded yet, skipping sync");
+      return;
+    }
 
     setSyncState(prev => ({ ...prev, isSyncing: true, syncStatus: "syncing" }));
     let totalImported = 0;
     let totalErrors = 0;
 
     try {
-      // Process each enfermaria sequentially
+      // Process each enfermaria sequentially with delays
       for (const enfermaria of enfermarias) {
         try {
           const res = await apiRequest("POST", "/api/import/evolucoes", {
             enfermaria: enfermaria.codigo,
           });
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          
           const data = (await res.json()) as {
             success: boolean;
             stats: { total: number; importados: number; erros: number };
@@ -72,11 +88,18 @@ export function useAutoSync(props?: UseAutoSyncProps) {
           if (data.success) {
             totalImported += data.stats.importados;
             totalErrors += data.stats.erros;
+            console.log(`[Auto-sync] ✓ ${enfermaria.codigo}: ${data.stats.importados} imported`);
+          } else {
+            totalErrors++;
+            console.warn(`[Auto-sync] ✗ ${enfermaria.codigo}: sync failed`);
           }
         } catch (error) {
           console.error(`[Auto-sync] Error syncing ${enfermaria.codigo}:`, error);
           totalErrors++;
         }
+        
+        // Small delay between requests to avoid hammering the API
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // Invalidate patient cache to refresh UI
@@ -84,7 +107,7 @@ export function useAutoSync(props?: UseAutoSyncProps) {
 
       // Log summary
       console.log(
-        `[Auto-sync] Sync completed: ${totalImported} imported, ${totalErrors} errors from ${enfermarias.length} enfermarias`
+        `[Auto-sync] ✓ Completed: ${totalImported} imported, ${totalErrors} errors from ${enfermarias.length} enfermarias`
       );
 
       setSyncState(prev => ({
@@ -96,10 +119,10 @@ export function useAutoSync(props?: UseAutoSyncProps) {
         totalErrors,
       }));
 
-      // Auto-hide success message after 2 seconds
+      // Auto-hide success message after 3 seconds
       const hideTimer = setTimeout(() => {
         setSyncState(prev => ({ ...prev, syncStatus: "idle" }));
-      }, 2000);
+      }, 3000);
 
       return () => clearTimeout(hideTimer);
     } catch (error) {
@@ -111,10 +134,10 @@ export function useAutoSync(props?: UseAutoSyncProps) {
         totalErrors: totalErrors + 1,
       }));
 
-      // Auto-hide error message after 3 seconds
+      // Auto-hide error message after 4 seconds
       const hideTimer = setTimeout(() => {
         setSyncState(prev => ({ ...prev, syncStatus: "idle" }));
-      }, 3000);
+      }, 4000);
 
       return () => clearTimeout(hideTimer);
     }
@@ -127,7 +150,7 @@ export function useAutoSync(props?: UseAutoSyncProps) {
 
   // Setup interval for periodic sync
   useEffect(() => {
-    if (!enabled || !enfermarias?.length) {
+    if (!enabled) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -135,21 +158,31 @@ export function useAutoSync(props?: UseAutoSyncProps) {
       return;
     }
 
-    // First sync immediately on mount
-    performAutoSync();
+    // First sync immediately on mount (wait a bit for enfermarias to load)
+    const initialSyncTimer = setTimeout(() => {
+      if (enfermarias?.length) {
+        console.log("[Auto-sync] Starting initial sync");
+        performAutoSync();
+      }
+    }, 500);
 
-    // Setup periodic sync
-    intervalRef.current = setInterval(() => {
-      performAutoSync();
-    }, syncInterval);
+    // Setup periodic sync only if enfermarias are loaded
+    if (enfermarias?.length) {
+      intervalRef.current = setInterval(() => {
+        performAutoSync();
+      }, syncInterval);
+
+      console.log(`[Auto-sync] Interval started: sync every ${syncInterval / 1000 / 60} minutes`);
+    }
 
     return () => {
+      clearTimeout(initialSyncTimer);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [enabled, syncInterval, enfermarias?.length]);
+  }, [enabled, syncInterval, enfermarias?.length, enfermarias]);
 
   return {
     ...syncState,

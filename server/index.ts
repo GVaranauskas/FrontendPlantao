@@ -7,6 +7,9 @@ import { setupHelmet, setupRateLimit } from "./security";
 
 const app = express();
 
+// Trust proxy for accurate IP detection (required for rate limiting)
+app.set('trust proxy', 1);
+
 // Apply security middleware first
 setupHelmet(app);
 setupRateLimit(app);
@@ -95,8 +98,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Start periodic import scheduler
-  await importScheduler.startDefaultSchedule();
+  // Auto-sync is now handled by frontend via useAutoSync hook
+  // Backend scheduler disabled to avoid conflicts
+  // await importScheduler.startDefaultSchedule();
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
