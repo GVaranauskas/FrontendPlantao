@@ -12,6 +12,7 @@ import {
   Edit, Loader2, Cloud, Download
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
+import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
@@ -323,6 +324,13 @@ export default function ShiftHandoverPage() {
             </div>
           </Card>
         </div>
+
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">
+            📥 Importar Dados do Sistema Externo (N8N)
+          </h2>
+          <ImportEvolucoes />
+        </section>
 
         {isLoading ? (
           <Card className="p-12 flex items-center justify-center">
