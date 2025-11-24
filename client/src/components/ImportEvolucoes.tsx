@@ -45,9 +45,10 @@ export function ImportEvolucoes() {
 
   const importMutation = useMutation({
     mutationFn: async (enfermaria: string) => {
-      const response = (await apiRequest("POST", "/api/import/evolucoes", {
+      const res = await apiRequest("POST", "/api/import/evolucoes", {
         enfermaria,
-      })) as unknown as ImportResponse;
+      });
+      const response = (await res.json()) as ImportResponse;
       return response;
     },
     onSuccess: (data) => {
