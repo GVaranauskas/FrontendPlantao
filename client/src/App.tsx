@@ -8,6 +8,7 @@ import ModulesPage from "@/pages/modules";
 import ShiftHandoverPage from "@/pages/shift-handover";
 import ImportPage from "@/pages/import";
 import DashboardPage from "@/pages/dashboard";
+import ImportPanelPage from "@/pages/import-panel";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/shift-handover" component={ShiftHandoverPage} />
       <Route path="/import" component={ImportPage} />
       <Route path="/dashboard" component={DashboardPage} />
+      <Route path="/import-panel" component={ImportPanelPage} />
       <Route component={NotFound} />
     </Switch>
   );
