@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings } from "lucide-react";
+import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert } from "lucide-react";
 
 const modules = [
   {
@@ -46,6 +46,20 @@ const modules = [
     icon: Bed,
     status: "coming",
     route: null
+  },
+  {
+    id: "administracao",
+    title: "Painel de Administração",
+    description: "Gerenciamento de importações de dados e sincronização com API N8N.",
+    features: [
+      "Importação de evolucões de pacientes",
+      "Sincronização automática com N8N",
+      "Histórico completo de importações",
+      "Monitoramento de status de API"
+    ],
+    icon: ShieldAlert,
+    status: "active",
+    route: "/import-panel"
   }
 ];
 
