@@ -72,14 +72,29 @@ export class N8NIntegrationService {
       });
 
       if (!response.ok) {
-        console.error(`[N8N] API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[N8N] API error: ${response.status} ${response.statusText} - ${errorText}`);
         return null;
       }
 
-      const data = await response.json();
+      const responseText = await response.text();
+      
+      // Verificar se a resposta está vazia
+      if (!responseText || responseText.trim() === "") {
+        console.warn(`[N8N] Empty response from API for enfermaria: ${enfermaria}`);
+        return [];
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error(`[N8N] Invalid JSON response for ${enfermaria}: ${responseText.substring(0, 200)}`);
+        return null;
+      }
       
       // N8N pode retornar array ou objeto único
-      const resultado = Array.isArray(data) ? data : [data];
+      const resultado = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
       console.log(`[N8N] Received ${resultado.length} record(s) for enfermaria: ${enfermaria}`);
       
       return resultado;
