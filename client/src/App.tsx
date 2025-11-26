@@ -13,6 +13,7 @@ import DebugPage from "@/pages/debug";
 import AnalyticsPage from "@/pages/analytics";
 import TextViewerPage from "@/pages/text-viewer";
 import ToolsPage from "@/pages/tools";
+import AdminTemplatesPage from "@/pages/admin-templates";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/text-viewer" component={TextViewerPage} />
       <Route path="/tools" component={ToolsPage} />
+      <Route path="/admin/templates" component={AdminTemplatesPage} />
       <Route component={NotFound} />
     </Switch>
   );
