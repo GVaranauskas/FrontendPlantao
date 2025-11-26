@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -57,6 +57,17 @@ export const alerts = pgTable("alerts", {
   time: text("time").notNull(),
 });
 
+export const importHistory = pgTable("import_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  enfermaria: text("enfermaria").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  total: integer("total").notNull().default(0),
+  importados: integer("importados").notNull().default(0),
+  erros: integer("erros").notNull().default(0),
+  detalhes: jsonb("detalhes").notNull().default(sql`'[]'::jsonb`),
+  duracao: integer("duracao").notNull().default(0),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -71,9 +82,15 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
   id: true,
 });
 
+export const insertImportHistorySchema = createInsertSchema(importHistory).omit({
+  id: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patients.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
+export type InsertImportHistory = z.infer<typeof insertImportHistorySchema>;
+export type ImportHistory = typeof importHistory.$inferSelect;
