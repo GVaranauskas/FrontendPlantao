@@ -26,4 +26,4 @@ export interface IStorage {
 // Initialize storage based on environment
 const storage: IStorage = process.env.DATABASE_URL ? postgresStorage : new MemStorage();
 
-export { storage, type IStorage };
+export { storage };
