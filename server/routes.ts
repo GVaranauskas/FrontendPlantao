@@ -199,12 +199,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import endpoints
-  app.post("/api/import/evolucoes", async (req, res) => {
+  app.post("/api/import/evolucoes", asyncHandler(async (req, res) => {
     try {
-      const { enfermaria } = req.body;
+      const { enfermaria, templateId } = req.body;
       
       if (!enfermaria || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria is required" });
+      }
+
+      // Load template if provided
+      let template = null;
+      if (templateId) {
+        template = await storage.getTemplate(templateId);
+        if (!template) {
+          throw new AppError(404, "Template not found", { templateId });
+        }
+        console.log(`[Import] Using template: ${template.name} (${templateId})`);
       }
 
       console.log(`[Import] Starting import for enfermaria: ${enfermaria}`);
@@ -315,10 +325,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({
         success: true,
         enfermaria,
+        templateId: template?.id,
         stats,
         mensagem: `Import concluído: ${stats.importados} importados, ${stats.erros} erros`
       });
     } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({ success: false, error: error.message });
+      }
       console.error("[Import] Fatal error:", error);
       res.status(500).json({ 
         success: false, 
