@@ -244,12 +244,6 @@ export function ImportEvolucoes({ autoSync = false, syncInterval = 300000, templ
               </SelectPrimitive.Trigger>
               <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
                 <SelectPrimitive.Viewport className="p-2">
-                  <SelectPrimitive.Item
-                    value=""
-                    className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
-                  >
-                    <SelectPrimitive.ItemText>Nenhum</SelectPrimitive.ItemText>
-                  </SelectPrimitive.Item>
                   {templates?.map((t) => (
                     <SelectPrimitive.Item
                       key={t.id}
