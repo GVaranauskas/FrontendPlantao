@@ -199,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import endpoints
-  app.post("/api/import/evolucoes", asyncHandler(async (req, res) => {
+  app.post("/api/import/evolucoes", async (req, res) => {
     try {
       const { enfermaria, templateId } = req.body;
       
