@@ -68,6 +68,16 @@ export const importHistory = pgTable("import_history", {
   duracao: integer("duracao").notNull().default(0),
 });
 
+export const nursingUnitTemplates = pgTable("nursing_unit_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  fieldsConfiguration: jsonb("fields_configuration").notNull().default(sql`'[]'::jsonb`),
+  specialRules: jsonb("special_rules").notNull().default(sql`'{}'::jsonb`),
+  isActive: integer("is_active").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -86,6 +96,11 @@ export const insertImportHistorySchema = createInsertSchema(importHistory).omit(
   id: true,
 });
 
+export const insertNursingUnitTemplateSchema = createInsertSchema(nursingUnitTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
@@ -94,3 +109,5 @@ export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
 export type InsertImportHistory = z.infer<typeof insertImportHistorySchema>;
 export type ImportHistory = typeof importHistory.$inferSelect;
+export type InsertNursingUnitTemplate = z.infer<typeof insertNursingUnitTemplateSchema>;
+export type NursingUnitTemplate = typeof nursingUnitTemplates.$inferSelect;

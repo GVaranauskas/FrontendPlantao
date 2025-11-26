@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory } from "@shared/schema";
+import { type User, type InsertUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 
@@ -21,6 +21,13 @@ export interface IStorage {
   getAllImportHistory(): Promise<ImportHistory[]>;
   createImportHistory(history: Omit<InsertImportHistory, 'timestamp'>): Promise<ImportHistory>;
   getLastImport(): Promise<ImportHistory | undefined>;
+
+  getAllTemplates(): Promise<NursingUnitTemplate[]>;
+  getTemplate(id: string): Promise<NursingUnitTemplate | undefined>;
+  getTemplateByName(name: string): Promise<NursingUnitTemplate | undefined>;
+  createTemplate(template: InsertNursingUnitTemplate): Promise<NursingUnitTemplate>;
+  updateTemplate(id: string, template: Partial<InsertNursingUnitTemplate>): Promise<NursingUnitTemplate | undefined>;
+  deleteTemplate(id: string): Promise<boolean>;
 }
 
 // Initialize storage based on environment

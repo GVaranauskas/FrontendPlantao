@@ -94,4 +94,39 @@ export class MemStorage implements IStorage {
     const history = await this.getAllImportHistory();
     return history[0];
   }
+
+  async getAllTemplates(): Promise<NursingUnitTemplate[]> {
+    return Array.from(this.templates.values());
+  }
+
+  async getTemplate(id: string): Promise<NursingUnitTemplate | undefined> {
+    return this.templates.get(id);
+  }
+
+  async getTemplateByName(name: string): Promise<NursingUnitTemplate | undefined> {
+    return Array.from(this.templates.values()).find(t => t.name === name);
+  }
+
+  async createTemplate(template: InsertNursingUnitTemplate): Promise<NursingUnitTemplate> {
+    const id = randomUUID();
+    const record: NursingUnitTemplate = {
+      ...template,
+      id,
+      createdAt: new Date(),
+    } as NursingUnitTemplate;
+    this.templates.set(id, record);
+    return record;
+  }
+
+  async updateTemplate(id: string, template: Partial<InsertNursingUnitTemplate>): Promise<NursingUnitTemplate | undefined> {
+    const existing = this.templates.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...template };
+    this.templates.set(id, updated);
+    return updated;
+  }
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    return this.templates.delete(id);
+  }
 }
