@@ -3,11 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import type { NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2, ChevronLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -82,7 +80,7 @@ export default function AdminTemplatesPage() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.name?.trim()) {
       toast({ title: "Nome do template é obrigatório", variant: "destructive" });
@@ -174,14 +172,13 @@ export default function AdminTemplatesPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium">Descrição</label>
-                    <Textarea
+                    <Input
                       placeholder="Descrição do template..."
                       value={formData.description || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, description: e.target.value })
                       }
                       data-testid="input-template-description"
-                      className="resize-none"
                     />
                   </div>
                   <div className="flex gap-2">
