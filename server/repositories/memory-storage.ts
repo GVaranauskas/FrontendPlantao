@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory } from "@shared/schema";
+import type { User, InsertUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class MemStorage implements IStorage {
@@ -7,12 +7,14 @@ export class MemStorage implements IStorage {
   private patients: Map<string, Patient>;
   private alerts: Map<string, Alert>;
   private importHistory: Map<string, ImportHistory>;
+  private templates: Map<string, NursingUnitTemplate>;
 
   constructor() {
     this.users = new Map();
     this.patients = new Map();
     this.alerts = new Map();
     this.importHistory = new Map();
+    this.templates = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {

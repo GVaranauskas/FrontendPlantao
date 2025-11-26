@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
@@ -453,6 +453,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   };
+
+  // Template Management Routes
+  app.get("/api/templates", asyncHandler(async (req, res) => {
+    const templates = await storage.getAllTemplates();
+    res.json(templates);
+  }));
+
+  app.get("/api/templates/:id", asyncHandler(async (req, res) => {
+    const template = await storage.getTemplate(req.params.id);
+    if (!template) {
+      throw new AppError(404, "Template not found", { templateId: req.params.id });
+    }
+    res.json(template);
+  }));
+
+  app.post("/api/templates", asyncHandler(async (req, res) => {
+    try {
+      const validatedData = insertNursingUnitTemplateSchema.parse(req.body);
+      const template = await storage.createTemplate(validatedData);
+      res.status(201).json(template);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Invalid template data", { error: error.message });
+      }
+      throw error;
+    }
+  }));
+
+  app.patch("/api/templates/:id", asyncHandler(async (req, res) => {
+    try {
+      const validatedData = insertNursingUnitTemplateSchema.partial().parse(req.body);
+      const template = await storage.updateTemplate(req.params.id, validatedData);
+      if (!template) {
+        throw new AppError(404, "Template not found", { templateId: req.params.id });
+      }
+      res.json(template);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Invalid template data", { error: error.message });
+      }
+      throw error;
+    }
+  }));
+
+  app.delete("/api/templates/:id", asyncHandler(async (req, res) => {
+    const success = await storage.deleteTemplate(req.params.id);
+    if (!success) {
+      throw new AppError(404, "Template not found", { templateId: req.params.id });
+    }
+    res.status(204).send();
+  }));
 
   return httpServer;
 }

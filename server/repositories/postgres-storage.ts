@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory } from "@shared/schema";
-import type { User, InsertUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
+import type { User, InsertUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class PostgresStorage implements IStorage {
@@ -78,6 +78,35 @@ export class PostgresStorage implements IStorage {
   async getLastImport(): Promise<ImportHistory | undefined> {
     const result = await db.select().from(importHistory).orderBy(desc(importHistory.timestamp)).limit(1);
     return result[0];
+  }
+
+  async getAllTemplates(): Promise<NursingUnitTemplate[]> {
+    return await db.select().from(nursingUnitTemplates).where(eq(nursingUnitTemplates.isActive, 1));
+  }
+
+  async getTemplate(id: string): Promise<NursingUnitTemplate | undefined> {
+    const result = await db.select().from(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getTemplateByName(name: string): Promise<NursingUnitTemplate | undefined> {
+    const result = await db.select().from(nursingUnitTemplates).where(eq(nursingUnitTemplates.name, name)).limit(1);
+    return result[0];
+  }
+
+  async createTemplate(template: InsertNursingUnitTemplate): Promise<NursingUnitTemplate> {
+    const result = await db.insert(nursingUnitTemplates).values(template).returning();
+    return result[0];
+  }
+
+  async updateTemplate(id: string, template: Partial<InsertNursingUnitTemplate>): Promise<NursingUnitTemplate | undefined> {
+    const result = await db.update(nursingUnitTemplates).set(template).where(eq(nursingUnitTemplates.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id));
+    return result.rowCount > 0;
   }
 }
 
