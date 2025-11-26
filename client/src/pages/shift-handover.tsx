@@ -7,20 +7,28 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
-  Edit, Loader2, Cloud, Download, FileSpreadsheet
+  Edit, Loader2, Cloud, Download, FileSpreadsheet, ChevronDown
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 
+interface NursingTemplate {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   
   // Enable automatic sync on page load and every 5 minutes
@@ -35,6 +43,10 @@ export default function ShiftHandoverPage() {
 
   const { data: alerts } = useQuery<Alert[]>({
     queryKey: ["/api/alerts"],
+  });
+
+  const { data: templates } = useQuery<NursingTemplate[]>({
+    queryKey: ["/api/templates"],
   });
 
   const filteredPatients = patients?.filter(p =>
@@ -132,10 +144,46 @@ export default function ShiftHandoverPage() {
                     </SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 space-y-6">
+                    {/* Section: Template Selection */}
+                    <div className="space-y-3 pb-4 border-b">
+                      <label className="text-sm font-medium block">Template da Unidade</label>
+                      <SelectPrimitive.Root 
+                        value={selectedTemplate} 
+                        onValueChange={setSelectedTemplate}
+                      >
+                        <SelectPrimitive.Trigger 
+                          className="flex items-center justify-between w-full px-3 py-2 border rounded-md bg-background"
+                          data-testid="select-template-handover"
+                        >
+                          <SelectPrimitive.Value placeholder="Selecione um template..." />
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </SelectPrimitive.Trigger>
+                        <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
+                          <SelectPrimitive.Viewport className="p-2">
+                            <SelectPrimitive.Item 
+                              value="" 
+                              className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
+                            >
+                              <SelectPrimitive.ItemText>Nenhum</SelectPrimitive.ItemText>
+                            </SelectPrimitive.Item>
+                            {templates?.map((t) => (
+                              <SelectPrimitive.Item 
+                                key={t.id}
+                                value={t.id}
+                                className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
+                              >
+                                <SelectPrimitive.ItemText>{t.name}</SelectPrimitive.ItemText>
+                              </SelectPrimitive.Item>
+                            ))}
+                          </SelectPrimitive.Viewport>
+                        </SelectPrimitive.Content>
+                      </SelectPrimitive.Root>
+                    </div>
+
                     {/* Section: Manual Import */}
                     <div className="space-y-3 pb-4 border-b">
                       <h3 className="text-sm font-semibold">Importar Evolução (N8N)</h3>
-                      <ImportEvolucoes autoSync={false} syncInterval={0} />
+                      <ImportEvolucoes autoSync={false} syncInterval={0} templateId={selectedTemplate} />
                     </div>
 
                     {/* Section: Sync Single Patient */}

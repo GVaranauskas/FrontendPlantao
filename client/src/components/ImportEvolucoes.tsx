@@ -40,10 +40,18 @@ interface ImportResponse {
 interface ImportEvolucoeProps {
   autoSync?: boolean;
   syncInterval?: number;
+  templateId?: string;
 }
 
-export function ImportEvolucoes({ autoSync = false, syncInterval = 300000 }: ImportEvolucoeProps) {
+interface NursingTemplate {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export function ImportEvolucoes({ autoSync = false, syncInterval = 300000, templateId: propTemplateId }: ImportEvolucoeProps) {
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(propTemplateId || "");
   const [result, setResult] = useState<ImportResponse | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(autoSync);
   
@@ -62,10 +70,17 @@ export function ImportEvolucoes({ autoSync = false, syncInterval = 300000 }: Imp
     queryKey: ["/api/enfermarias"],
   });
 
+  const { data: templates, isLoading: isLoadingTemplates } = useQuery<
+    NursingTemplate[]
+  >({
+    queryKey: ["/api/templates"],
+  });
+
   const importMutation = useMutation({
     mutationFn: async (enfermaria: string) => {
       const res = await apiRequest("POST", "/api/import/evolucoes", {
         enfermaria,
+        ...(selectedTemplate && { templateId: selectedTemplate }),
       });
       const response = (await res.json()) as ImportResponse;
       return response;
@@ -204,6 +219,44 @@ export function ImportEvolucoes({ autoSync = false, syncInterval = 300000 }: Imp
                       className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
                     >
                       <SelectPrimitive.ItemText>{e.nome}</SelectPrimitive.ItemText>
+                    </SelectPrimitive.Item>
+                  ))}
+                </SelectPrimitive.Viewport>
+              </SelectPrimitive.Content>
+            </SelectPrimitive.Root>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Template da Unidade (Opcional)
+            </label>
+            <SelectPrimitive.Root
+              value={selectedTemplate}
+              onValueChange={setSelectedTemplate}
+              disabled={isLoadingTemplates}
+            >
+              <SelectPrimitive.Trigger
+                className="flex items-center justify-between w-full px-3 py-2 border rounded-md bg-background"
+                data-testid="select-template"
+              >
+                <SelectPrimitive.Value placeholder="Nenhum template..." />
+                <ChevronDown className="w-4 h-4 opacity-50" />
+              </SelectPrimitive.Trigger>
+              <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
+                <SelectPrimitive.Viewport className="p-2">
+                  <SelectPrimitive.Item
+                    value=""
+                    className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
+                  >
+                    <SelectPrimitive.ItemText>Nenhum</SelectPrimitive.ItemText>
+                  </SelectPrimitive.Item>
+                  {templates?.map((t) => (
+                    <SelectPrimitive.Item
+                      key={t.id}
+                      value={t.id}
+                      className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
+                    >
+                      <SelectPrimitive.ItemText>{t.name}</SelectPrimitive.ItemText>
                     </SelectPrimitive.Item>
                   ))}
                 </SelectPrimitive.Viewport>
