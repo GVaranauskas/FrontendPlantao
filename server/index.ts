@@ -4,6 +4,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
 import { importScheduler } from "./services/import-scheduler";
 import { setupHelmet, setupRateLimit } from "./security";
+import { registerErrorHandler, AppError } from "./middleware/error-handler";
+import { logger } from "./lib/logger";
 
 const app = express();
 
@@ -33,7 +35,8 @@ app.use((req, res, next) => {
         req.rawBody = data;
         next();
       } catch (error) {
-        res.status(400).json({ message: "Invalid TOON format" });
+        logger.warn("Invalid TOON format", { path: req.path });
+        res.status(400).json({ error: { message: "Invalid TOON format", status: 400 } });
       }
     });
   } else {
@@ -51,27 +54,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      logger.http(req.method, path, res.statusCode, duration);
     }
   });
 
@@ -79,39 +66,39 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Register global error handler (MUST be after all other middleware/routes)
+    registerErrorHandler(app);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Auto-sync is now handled by frontend via useAutoSync hook
+    // Backend scheduler disabled to avoid conflicts
+    // await importScheduler.startDefaultSchedule();
+
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      logger.info(`Server is listening on port ${port}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server', error as Error);
+    process.exit(1);
   }
-
-  // Auto-sync is now handled by frontend via useAutoSync hook
-  // Backend scheduler disabled to avoid conflicts
-  // await importScheduler.startDefaultSchedule();
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();

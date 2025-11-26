@@ -6,42 +6,36 @@ import { insertPatientSchema, insertAlertSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
+import { logger } from "./lib/logger";
+import { asyncHandler, AppError } from "./middleware/error-handler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", async (req, res) => {
-    try {
-      const patients = await storage.getAllPatients();
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(patients);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patients);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch patients" });
+  app.get("/api/patients", asyncHandler(async (req, res, next) => {
+    const patients = await storage.getAllPatients();
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patients);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patients);
     }
-  });
+  }));
 
-  app.get("/api/patients/:id", async (req, res) => {
-    try {
-      const patient = await storage.getPatient(req.params.id);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(patient);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patient);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch patient" });
+  app.get("/api/patients/:id", asyncHandler(async (req, res, next) => {
+    const patient = await storage.getPatient(req.params.id);
+    if (!patient) {
+      throw new AppError(404, "Patient not found", { patientId: req.params.id });
     }
-  });
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patient);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patient);
+    }
+  }));
 
-  app.post("/api/patients", async (req, res) => {
+  app.post("/api/patients", asyncHandler(async (req, res, next) => {
     try {
       const validatedData = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validatedData);
@@ -53,9 +47,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(201).json(patient);
       }
     } catch (error) {
-      res.status(400).json({ message: "Invalid patient data" });
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Invalid patient data", { error: error.message });
+      }
+      throw error;
     }
-  });
+  }));
 
   app.patch("/api/patients/:id", async (req, res) => {
     try {
