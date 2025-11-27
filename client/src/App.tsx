@@ -14,6 +14,7 @@ import AnalyticsPage from "@/pages/analytics";
 import TextViewerPage from "@/pages/text-viewer";
 import ToolsPage from "@/pages/tools";
 import AdminTemplatesPage from "@/pages/admin-templates";
+import ImportLogsPage from "@/pages/import-logs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/import" component={ImportPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/import-panel" component={ImportPanelPage} />
+      <Route path="/import-logs" component={ImportLogsPage} />
       <Route path="/debug" component={DebugPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/text-viewer" component={TextViewerPage} />
