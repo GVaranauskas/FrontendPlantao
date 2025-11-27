@@ -10,6 +10,9 @@ import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { registerAuthRoutes } from "./routes/auth";
 
+// Helper to get formatted timestamp
+const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", asyncHandler(async (req, res, next) => {
     const patients = await storage.getAllPatients();
@@ -215,10 +218,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!template) {
           throw new AppError(404, "Template not found", { templateId });
         }
-        console.log(`[Import] Using template: ${template.name} (${templateId})`);
+        logger.info(`[${getTimestamp()}] [Import] Using template: ${template.name} (${templateId})`);
       }
 
-      console.log(`[Import] Starting import for enfermaria: ${enfermaria}`);
+      logger.info(`[${getTimestamp()}] [Import] Starting import for enfermaria: ${enfermaria}`);
       
       const stats = {
         total: 0,
@@ -231,7 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
       
       if (!evolucoes || evolucoes.length === 0) {
-        console.log(`[Import] No evolucoes found for enfermaria: ${enfermaria}`);
+        logger.info(`[${getTimestamp()}] [Import] No evolucoes found for enfermaria: ${enfermaria}`);
         return res.json({
           success: true,
           enfermaria,
@@ -254,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "erro", 
               mensagem: "Leito não encontrado na evolução" 
             });
-            console.warn(`[Import] Leito not found, skipping`);
+            logger.warn(`[${getTimestamp()}] [Import] Leito not found, skipping`);
             continue;
           }
 
@@ -269,7 +272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "erro", 
               mensagem: validacao.errors.join("; ") 
             });
-            console.warn(`[Import] Validation failed for leito ${leito}:`, validacao.errors);
+            logger.warn(`[${getTimestamp()}] [Import] Validation failed for leito ${leito}: ${validacao.errors.join(', ')}`);
             continue;
           }
 
@@ -288,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: "atualizado", 
                 mensagem: processada.pacienteName 
               });
-              console.log(`[Import] Updated patient for leito: ${leito} (${processada.pacienteName})`);
+              logger.info(`[${getTimestamp()}] [Import] Updated patient for leito: ${leito} (${processada.pacienteName})`);
             } else {
               stats.erros++;
               stats.detalhes.push({ 
@@ -296,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: "erro", 
                 mensagem: "Falha ao atualizar paciente" 
               });
-              console.error(`[Import] Failed to update patient for leito: ${leito}`);
+              logger.error(`[${getTimestamp()}] [Import] Failed to update patient for leito: ${leito}`);
             }
           } else {
             // Create new
@@ -307,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "criado", 
               mensagem: processada.pacienteName 
             });
-            console.log(`[Import] Created new patient for leito: ${leito} (${processada.pacienteName})`);
+            logger.info(`[${getTimestamp()}] [Import] Created new patient for leito: ${leito} (${processada.pacienteName})`);
           }
         } catch (error) {
           const leito = evolucao.leito || "DESCONHECIDO";
@@ -317,11 +320,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "erro", 
             mensagem: error instanceof Error ? error.message : "Erro desconhecido" 
           });
-          console.error(`[Import] Error processing leito ${leito}:`, error);
+          logger.error(`[${getTimestamp()}] [Import] Error processing leito ${leito}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      console.log(`[Import] Completed import for enfermaria ${enfermaria}. Stats:`, stats);
+      logger.info(`[${getTimestamp()}] [Import] Completed import for enfermaria ${enfermaria}. Total: ${stats.total}, Importados: ${stats.importados}, Erros: ${stats.erros}`);
 
       return res.json({
         success: true,
@@ -334,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({ success: false, error: error.message });
       }
-      console.error("[Import] Fatal error:", error);
+      logger.error(`[${getTimestamp()}] [Import] Fatal error: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ 
         success: false, 
         message: "Erro fatal ao importar evolucoes",
@@ -373,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const startTime = Date.now();
       
-      console.log("[Status] Testing N8N API connectivity...");
+      logger.info(`[${getTimestamp()}] [Status] Testing N8N API connectivity...`);
       
       // Try to fetch evolucoes for a test enfermaria
       const testEnfermaria = "10A";
@@ -383,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const latency = endTime - startTime;
 
       if (result !== null) {
-        console.log(`[Status] N8N API is online (latency: ${latency}ms)`);
+        logger.info(`[${getTimestamp()}] [Status] N8N API is online (latency: ${latency}ms)`);
         return res.json({
           status: "online",
           latency: `${latency}ms`,
@@ -391,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes"
         });
       } else {
-        console.log(`[Status] N8N API returned null (latency: ${latency}ms)`);
+        logger.info(`[${getTimestamp()}] [Status] N8N API returned null (latency: ${latency}ms)`);
         return res.json({
           status: "offline",
           latency: `${latency}ms`,
@@ -401,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       const latency = 0;
-      console.error("[Status] N8N API test failed:", error);
+      logger.error(`[${getTimestamp()}] [Status] N8N API test failed: ${error instanceof Error ? error.message : String(error)}`);
       
       return res.json({
         status: "offline",
