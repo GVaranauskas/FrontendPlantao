@@ -6,18 +6,35 @@ import { Button } from "@/components/ui/button";
 import { RefreshCcw, Download, Copy } from "lucide-react";
 import type { ImportHistory } from "@shared/schema";
 
-interface ImportLog extends ImportHistory {
+interface ImportLog {
+  id: string;
+  enfermaria: string;
   timestamp: string;
+  total: number;
+  importados: number;
+  erros: number;
+  detalhes: unknown;
+  duracao: number;
 }
 
 export default function ImportLogsPage() {
   const [displayLogs, setDisplayLogs] = useState<ImportLog[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: history, refetch, isLoading } = useQuery<ImportHistory[]>({
     queryKey: ["/api/import/history"],
     refetchInterval: 3600000, // Atualizar a cada 1 hora
     refetchIntervalInBackground: true,
   });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (history) {
@@ -98,13 +115,13 @@ export default function ImportLogsPage() {
         {/* Controls */}
         <div className="flex gap-2 mb-6">
           <Button 
-            onClick={() => refetch()}
-            disabled={isLoading}
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
             variant="outline"
             data-testid="button-refresh-logs"
           >
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            Atualizar
+            <RefreshCcw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Atualizando...' : 'Atualizar'}
           </Button>
           <Button 
             onClick={downloadLogs}
