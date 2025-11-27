@@ -81,7 +81,6 @@ export class ImportScheduler {
       // Salva histórico
       await storage.createImportHistory({
         enfermaria,
-        timestamp: new Date(),
         total,
         importados,
         erros,
@@ -101,7 +100,6 @@ export class ImportScheduler {
       // Salva histórico com erro
       await storage.createImportHistory({
         enfermaria,
-        timestamp: new Date(),
         total: 0,
         importados: 0,
         erros: 1,

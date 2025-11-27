@@ -235,6 +235,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!evolucoes || evolucoes.length === 0) {
         logger.info(`[${getTimestamp()}] [Import] No evolucoes found for enfermaria: ${enfermaria}`);
+        
+        // Save history even with no evolucoes
+        await storage.createImportHistory({
+          enfermaria,
+          total: 0,
+          importados: 0,
+          erros: 0,
+          detalhes: [],
+          duracao: 0
+        });
+        
         return res.json({
           success: true,
           enfermaria,
@@ -325,6 +336,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       logger.info(`[${getTimestamp()}] [Import] Completed import for enfermaria ${enfermaria}. Total: ${stats.total}, Importados: ${stats.importados}, Erros: ${stats.erros}`);
+
+      // Save import history
+      await storage.createImportHistory({
+        enfermaria,
+        total: stats.total,
+        importados: stats.importados,
+        erros: stats.erros,
+        detalhes: stats.detalhes,
+        duracao: 0
+      });
 
       return res.json({
         success: true,
