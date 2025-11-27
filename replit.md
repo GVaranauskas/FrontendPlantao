@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
     - **NursingUnitTemplate**: Defines customizable nursing unit templates with field configuration and special rules.
 - **API Endpoints**:
     - Standard CRUD operations for patients and alerts (`/api/patients`, `/api/alerts`).
-    - N8N integration endpoints: `GET /api/enfermarias`, `POST /api/import/evolucoes`, `GET /api/import/status`, `GET /api/import/history`.
+    - N8N integration endpoints: `GET /api/enfermarias`, `POST /api/import/evolucoes`, `GET /api/import/status`, `GET /api/import/history`, `GET /api/import/stats`, `DELETE /api/import/cleanup`.
     - Template management endpoints: `GET /api/templates`, `GET /api/templates/:id`, `POST /api/templates`, `PATCH /api/templates/:id`, `DELETE /api/templates/:id`.
     - Authentication endpoints: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/refresh`, `GET /api/auth/me`.
     - Real-time WebSocket at `/ws/import` for import event notifications.
@@ -124,6 +124,39 @@ Preferred communication style: Simple, everyday language.
 - Environment secrets: Using Replit Secrets manager
 - Error handling: Integrated with global error handler
 - Logging: Structured JSON logging for security events
+
+### 5. Enhanced Import Logs System (COMPLETED)
+**Implemented Nov 27, 2025**
+
+**New Features:**
+- Consolidated statistics dashboard with 6 stat cards (total, 24h, 7d, importados, erros, taxa sucesso)
+- Statistics by enfermaria section showing per-unit metrics
+- Log retention management with cleanup functionality (DELETE /api/import/cleanup?days=30)
+- Validation: days parameter bounded to 7-365 range with default of 30
+- Enhanced stats endpoint (GET /api/import/stats) returning:
+  - total, last24h, last7d counts
+  - totalImportados, totalErros (patient counts)
+  - runsComSucesso, runsComErro (run counts for success rate)
+  - avgDuracao (average import duration)
+  - byEnfermaria breakdown
+- Timestamps displayed in Brazil timezone (America/Sao_Paulo, UTC-3)
+- Duration column showing import time in milliseconds
+
+**New Storage Methods:**
+- `deleteOldImportHistory(daysToKeep)` - Removes logs older than specified days
+- `getImportStats()` - Returns consolidated statistics
+
+**New API Endpoints:**
+- `GET /api/import/stats` - Consolidated import statistics
+- `DELETE /api/import/cleanup?days=30` - Clean old logs with retention policy
+
+### 6. Templates Enfermaria Binding (COMPLETED)
+**Implemented Nov 27, 2025**
+
+- Added mandatory `enfermariaCodigo` field to nursingUnitTemplates table
+- Templates now require nursing unit selection to avoid "desamarrados" (unbound) templates
+- UI dropdown populated from /api/enfermarias endpoint
+- Database migrated via npm run db:push --force
 
 ## Next Steps - Fase 2 (Pipeline Resilience)
 

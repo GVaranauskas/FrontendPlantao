@@ -454,6 +454,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import stats endpoint - estatísticas consolidadas
+  app.get("/api/import/stats", async (req, res) => {
+    try {
+      const stats = await storage.getImportStats();
+      res.json(stats);
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ message: "Failed to fetch import stats" });
+    }
+  });
+
+  // Cleanup old logs endpoint - retenção de 30 dias por padrão
+  app.delete("/api/import/cleanup", async (req, res) => {
+    try {
+      const rawDays = parseInt(req.query.days as string);
+      const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
+      
+      const deleted = await storage.deleteOldImportHistory(daysToKeep);
+      logger.info(`[${getTimestamp()}] [Cleanup] Deleted ${deleted} old import logs (retention: ${daysToKeep} days)`);
+      res.json({ 
+        success: true, 
+        deleted, 
+        retentionDays: daysToKeep,
+        message: `Removed ${deleted} logs older than ${daysToKeep} days`
+      });
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ message: "Failed to cleanup old logs" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // Setup WebSocket for real-time notifications on specific path

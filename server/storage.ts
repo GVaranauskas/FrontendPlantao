@@ -21,6 +21,18 @@ export interface IStorage {
   getAllImportHistory(): Promise<ImportHistory[]>;
   createImportHistory(history: Omit<InsertImportHistory, 'timestamp'>): Promise<ImportHistory>;
   getLastImport(): Promise<ImportHistory | undefined>;
+  deleteOldImportHistory(daysToKeep: number): Promise<number>;
+  getImportStats(): Promise<{
+    total: number;
+    last24h: number;
+    last7d: number;
+    totalImportados: number;
+    totalErros: number;
+    runsComSucesso: number;
+    runsComErro: number;
+    avgDuracao: number;
+    byEnfermaria: Record<string, { count: number; importados: number; erros: number }>;
+  }>;
 
   getAllTemplates(): Promise<NursingUnitTemplate[]>;
   getTemplate(id: string): Promise<NursingUnitTemplate | undefined>;

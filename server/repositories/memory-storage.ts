@@ -97,6 +97,80 @@ export class MemStorage implements IStorage {
     return history[0];
   }
 
+  async deleteOldImportHistory(daysToKeep: number): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    let deleted = 0;
+    for (const [id, h] of this.importHistory) {
+      if (h.timestamp < cutoffDate) {
+        this.importHistory.delete(id);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  async getImportStats(): Promise<{
+    total: number;
+    last24h: number;
+    last7d: number;
+    totalImportados: number;
+    totalErros: number;
+    runsComSucesso: number;
+    runsComErro: number;
+    avgDuracao: number;
+    byEnfermaria: Record<string, { count: number; importados: number; erros: number }>;
+  }> {
+    const allHistory = await this.getAllImportHistory();
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const byEnfermaria: Record<string, { count: number; importados: number; erros: number }> = {};
+
+    let totalImportados = 0;
+    let totalErros = 0;
+    let totalDuracao = 0;
+    let last24h = 0;
+    let last7d = 0;
+    let runsComSucesso = 0;
+    let runsComErro = 0;
+
+    for (const h of allHistory) {
+      totalImportados += h.importados || 0;
+      totalErros += h.erros || 0;
+      totalDuracao += h.duracao || 0;
+
+      if ((h.erros || 0) === 0) {
+        runsComSucesso++;
+      } else {
+        runsComErro++;
+      }
+
+      if (h.timestamp > dayAgo) last24h++;
+      if (h.timestamp > weekAgo) last7d++;
+
+      if (!byEnfermaria[h.enfermaria]) {
+        byEnfermaria[h.enfermaria] = { count: 0, importados: 0, erros: 0 };
+      }
+      byEnfermaria[h.enfermaria].count++;
+      byEnfermaria[h.enfermaria].importados += h.importados || 0;
+      byEnfermaria[h.enfermaria].erros += h.erros || 0;
+    }
+
+    return {
+      total: allHistory.length,
+      last24h,
+      last7d,
+      totalImportados,
+      totalErros,
+      runsComSucesso,
+      runsComErro,
+      avgDuracao: allHistory.length > 0 ? Math.round(totalDuracao / allHistory.length) : 0,
+      byEnfermaria,
+    };
+  }
+
   async getAllTemplates(): Promise<NursingUnitTemplate[]> {
     return Array.from(this.templates.values());
   }
