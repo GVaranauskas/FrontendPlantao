@@ -23,12 +23,18 @@ interface NursingTemplate {
   description?: string;
 }
 
+interface Enfermaria {
+  codigo: string;
+  nome: string;
+}
+
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   
   // Enable automatic sync on page load and every 5 minutes
@@ -47,6 +53,10 @@ export default function ShiftHandoverPage() {
 
   const { data: templates } = useQuery<NursingTemplate[]>({
     queryKey: ["/api/templates"],
+  });
+
+  const { data: enfermarias } = useQuery<Enfermaria[]>({
+    queryKey: ["/api/enfermarias"],
   });
 
   const filteredPatients = patients?.filter(p =>
@@ -85,8 +95,36 @@ export default function ShiftHandoverPage() {
                   Passagem de Plantão (SBAR)
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm text-muted-foreground">UNIDADE:</span>
+                    <SelectPrimitive.Root 
+                      value={selectedEnfermaria} 
+                      onValueChange={setSelectedEnfermaria}
+                    >
+                      <SelectPrimitive.Trigger 
+                        className="flex items-center justify-between px-2 py-1 text-xs sm:text-sm border rounded-md bg-background h-8"
+                        data-testid="select-enfermaria"
+                      >
+                        <SelectPrimitive.Value placeholder="Selecione..." />
+                        <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
+                      </SelectPrimitive.Trigger>
+                      <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
+                        <SelectPrimitive.Viewport className="p-2">
+                          {enfermarias?.map((e) => (
+                            <SelectPrimitive.Item 
+                              key={e.codigo}
+                              value={e.codigo}
+                              className="px-3 py-2 hover:bg-accent rounded cursor-pointer text-sm"
+                            >
+                              <SelectPrimitive.ItemText>{e.nome}</SelectPrimitive.ItemText>
+                            </SelectPrimitive.Item>
+                          ))}
+                        </SelectPrimitive.Viewport>
+                      </SelectPrimitive.Content>
+                    </SelectPrimitive.Root>
+                  </div>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    UNIDADE: 10 A - DAR | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
+                    | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
                   </p>
                   {isAutoSyncing && (
                     <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary">
