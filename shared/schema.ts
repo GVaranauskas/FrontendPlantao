@@ -72,6 +72,7 @@ export const nursingUnitTemplates = pgTable("nursing_unit_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
+  enfermariaCodigo: text("enfermaria_codigo").notNull(),
   fieldsConfiguration: jsonb("fields_configuration").notNull().default(sql`'[]'::jsonb`),
   specialRules: jsonb("special_rules").notNull().default(sql`'{}'::jsonb`),
   isActive: integer("is_active").notNull().default(1),

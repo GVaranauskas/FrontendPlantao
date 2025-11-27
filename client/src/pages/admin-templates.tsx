@@ -7,10 +7,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { Plus, Edit2, Trash2, ChevronLeft, Check } from "lucide-react";
+import * as SelectPrimitive from "@radix-ui/react-select";
+import { Plus, Edit2, Trash2, ChevronLeft, Check, ChevronDown } from "lucide-react";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+interface Enfermaria {
+  codigo: string;
+  nome: string;
+}
 
 const PATIENT_FIELDS = [
   { id: "leito", label: "Leito" },
@@ -45,6 +51,7 @@ export default function AdminTemplatesPage() {
   const [formData, setFormData] = useState<Partial<InsertNursingUnitTemplate>>({
     name: "",
     description: "",
+    enfermariaCodigo: "",
     fieldsConfiguration: [],
     specialRules: {},
     isActive: 1,
@@ -52,6 +59,10 @@ export default function AdminTemplatesPage() {
 
   const { data: templates = [], isLoading, refetch } = useQuery<NursingUnitTemplate[]>({
     queryKey: ["/api/templates"],
+  });
+
+  const { data: enfermarias = [] } = useQuery<Enfermaria[]>({
+    queryKey: ["/api/enfermarias"],
   });
 
   const createMutation = useMutation({
@@ -62,6 +73,7 @@ export default function AdminTemplatesPage() {
       setFormData({
         name: "",
         description: "",
+        enfermariaCodigo: "",
         fieldsConfiguration: [],
         specialRules: {},
         isActive: 1,
@@ -83,6 +95,7 @@ export default function AdminTemplatesPage() {
       setFormData({
         name: "",
         description: "",
+        enfermariaCodigo: "",
         fieldsConfiguration: [],
         specialRules: {},
         isActive: 1,
@@ -129,10 +142,15 @@ export default function AdminTemplatesPage() {
       toast({ title: "Nome do template é obrigatório", variant: "destructive" });
       return;
     }
+    if (!formData.enfermariaCodigo?.trim()) {
+      toast({ title: "Enfermaria é obrigatória", variant: "destructive" });
+      return;
+    }
 
     const submitData = {
       name: formData.name,
       description: formData.description || "",
+      enfermariaCodigo: formData.enfermariaCodigo,
       fieldsConfiguration: formData.fieldsConfiguration || [],
       specialRules: formData.specialRules || {},
       isActive: formData.isActive ?? 1,
@@ -150,6 +168,7 @@ export default function AdminTemplatesPage() {
     setFormData({
       name: template.name,
       description: template.description || "",
+      enfermariaCodigo: template.enfermariaCodigo,
       fieldsConfiguration: template.fieldsConfiguration as any,
       specialRules: template.specialRules as any,
       isActive: template.isActive,
@@ -162,6 +181,7 @@ export default function AdminTemplatesPage() {
     setFormData({
       name: "",
       description: "",
+      enfermariaCodigo: "",
       fieldsConfiguration: [],
       specialRules: {},
       isActive: 1,
@@ -226,6 +246,34 @@ export default function AdminTemplatesPage() {
                       }
                       data-testid="input-template-description"
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Enfermaria *</label>
+                    <SelectPrimitive.Root 
+                      value={formData.enfermariaCodigo || ""} 
+                      onValueChange={(value) => setFormData({ ...formData, enfermariaCodigo: value })}
+                    >
+                      <SelectPrimitive.Trigger 
+                        className="flex items-center justify-between w-full px-3 py-2 border rounded-md bg-background"
+                        data-testid="select-template-enfermaria"
+                      >
+                        <SelectPrimitive.Value placeholder="Selecione a enfermaria..." />
+                        <ChevronDown className="w-4 h-4 opacity-50" />
+                      </SelectPrimitive.Trigger>
+                      <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
+                        <SelectPrimitive.Viewport className="p-2">
+                          {enfermarias.map((e) => (
+                            <SelectPrimitive.Item 
+                              key={e.codigo}
+                              value={e.codigo}
+                              className="px-3 py-2 hover:bg-accent rounded cursor-pointer"
+                            >
+                              <SelectPrimitive.ItemText>{e.nome}</SelectPrimitive.ItemText>
+                            </SelectPrimitive.Item>
+                          ))}
+                        </SelectPrimitive.Viewport>
+                      </SelectPrimitive.Content>
+                    </SelectPrimitive.Root>
                   </div>
 
                   <div className="space-y-3 border-t pt-4">
@@ -346,9 +394,12 @@ export default function AdminTemplatesPage() {
                       </Badge>
                     </div>
 
-                    <div className="bg-muted/50 p-2 rounded text-xs">
+                    <div className="bg-muted/50 p-2 rounded text-xs space-y-1">
                       <p className="text-muted-foreground">
                         <span className="font-semibold text-foreground">{templateFieldsCount}</span> campos configurados
+                      </p>
+                      <p className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">Enfermaria:</span> {enfermarias.find(e => e.codigo === template.enfermariaCodigo)?.nome || "N/A"}
                       </p>
                     </div>
 
