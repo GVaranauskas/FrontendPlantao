@@ -7,6 +7,7 @@ import {
   FileText,
   Home,
   ArrowRight,
+  Activity,
 } from "lucide-react";
 
 const tools = [
@@ -18,6 +19,15 @@ const tools = [
     url: "/analytics",
     features: ["Gráficos de Pizza", "Gráficos de Barras", "Análise de Campos", "Tabela Interativa"],
     color: "from-primary/10 to-primary/5",
+  },
+  {
+    id: "import-logs",
+    name: "Painel de Logs de Importação",
+    description: "Monitore em tempo real todas as sincronizações de dados com timestamps",
+    icon: Activity,
+    url: "/import-logs",
+    features: ["Atualização em Tempo Real", "Timestamps UTC", "Download JSON", "Copiar Detalhes"],
+    color: "from-green-500/10 to-green-500/5",
   },
   {
     id: "debug",
@@ -116,9 +126,12 @@ export default function ToolsPage() {
         {/* Quick Links */}
         <Card className="p-6 bg-muted/30 border-muted">
           <h3 className="font-semibold mb-3">Links Rápidos (URLs Diretas):</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
             <code className="bg-black text-green-400 p-3 rounded font-mono text-xs">
               /analytics
+            </code>
+            <code className="bg-black text-green-400 p-3 rounded font-mono text-xs">
+              /import-logs
             </code>
             <code className="bg-black text-green-400 p-3 rounded font-mono text-xs">
               /debug
