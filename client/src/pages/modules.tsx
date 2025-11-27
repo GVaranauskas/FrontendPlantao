@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert, Download } from "lucide-react";
+import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert, Download, Layout } from "lucide-react";
 
 const modules = [
   {
@@ -60,6 +60,20 @@ const modules = [
     icon: ShieldAlert,
     status: "active",
     route: "/import-panel"
+  },
+  {
+    id: "templates-enfermarias",
+    title: "Templates de Enfermarias",
+    description: "Configure os campos personalizados para cada enfermaria conforme suas necessidades.",
+    features: [
+      "Criar e editar templates por enfermaria",
+      "Selecionar campos customizados para exibição",
+      "Gerenciar regras especiais e filtros",
+      "Sincronizar com N8N automaticamente"
+    ],
+    icon: Layout,
+    status: "active",
+    route: "/admin/templates"
   }
 ];
 
