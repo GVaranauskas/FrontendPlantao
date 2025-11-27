@@ -1,10 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
 import { importScheduler } from "./services/import-scheduler";
 import { setupHelmet, setupRateLimit } from "./security";
 import { registerErrorHandler, AppError } from "./middleware/error-handler";
+import { setupCSRF, csrfErrorHandler } from "./middleware/csrf";
+import { optionalAuthMiddleware } from "./middleware/auth";
 import { logger } from "./lib/logger";
 
 const app = express();
@@ -15,6 +18,12 @@ app.set('trust proxy', 1);
 // Apply security middleware first
 setupHelmet(app);
 setupRateLimit(app);
+
+// Cookie parser middleware
+app.use(cookieParser());
+
+// CSRF protection setup
+setupCSRF(app);
 
 declare module 'http' {
   interface IncomingMessage {
@@ -51,6 +60,9 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Optional authentication middleware (doesn't fail if token missing)
+app.use(optionalAuthMiddleware);
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -68,6 +80,9 @@ app.use((req, res, next) => {
 (async () => {
   try {
     const server = await registerRoutes(app);
+
+    // CSRF error handler (before global error handler)
+    app.use(csrfErrorHandler);
 
     // Register global error handler (MUST be after all other middleware/routes)
     registerErrorHandler(app);

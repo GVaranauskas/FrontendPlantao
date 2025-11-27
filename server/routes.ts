@@ -8,6 +8,7 @@ import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEv
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
+import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", asyncHandler(async (req, res, next) => {
@@ -518,6 +519,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     res.status(204).send();
   }));
+
+  // Register authentication routes
+  registerAuthRoutes(app);
 
   return httpServer;
 }

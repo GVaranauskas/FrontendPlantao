@@ -33,16 +33,18 @@ Preferred communication style: Simple, everyday language.
 - **Storage**: PostgreSQL with Drizzle ORM for data persistence, with automatic fallback to MemStorage if DATABASE_URL not set.
 - **Development**: Vite middleware integration, Replit-specific plugins, separate static file serving for production.
 - **Data Models**:
-    - **User**: Authentication and role-based access.
+    - **User**: Authentication and role-based access with role field (admin, enfermeiro, visualizador).
     - **Patient**: Comprehensive 18-column data (leito, nome, mobilidade, etc.) plus 9 extended N8N-specific fields (idEvolucao, dsEnfermaria, dsEspecialidade, etc.). Includes alert status.
     - **ImportHistory**: Records details of import events with timestamps and statistics.
-    - **NursingUnitTemplate**: Defines customizable nursing unit templates with field configuration and special rules (new).
+    - **NursingUnitTemplate**: Defines customizable nursing unit templates with field configuration and special rules.
 - **API Endpoints**:
     - Standard CRUD operations for patients and alerts (`/api/patients`, `/api/alerts`).
     - N8N integration endpoints: `GET /api/enfermarias`, `POST /api/import/evolucoes`, `GET /api/import/status`, `GET /api/import/history`.
-    - Template management endpoints: `GET /api/templates`, `GET /api/templates/:id`, `POST /api/templates`, `PATCH /api/templates/:id`, `DELETE /api/templates/:id` (new).
+    - Template management endpoints: `GET /api/templates`, `GET /api/templates/:id`, `POST /api/templates`, `PATCH /api/templates/:id`, `DELETE /api/templates/:id`.
+    - Authentication endpoints: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/refresh`, `GET /api/auth/me`.
     - Real-time WebSocket at `/ws/import` for import event notifications.
-- **N8N Integration Service**: Dedicated service for fetching, processing, validating, and storing patient evolution data from the N8N API. Features automatic field mapping (e.g., `ds_especialidade` to `especialidadeRamal`), data extraction (patient name, registration, care codes), date formatting, mobility normalization, and storage of raw N8N JSON for audit trails.
+    - CSRF token endpoint: `GET /api/csrf-token`.
+- **N8N Integration Service**: Dedicated service for fetching, processing, validating, and storing patient evolution data from the N8N API. Features automatic field mapping, data extraction (patient name, registration, care codes), date formatting, mobility normalization, and storage of raw N8N JSON for audit trails.
 - **Periodic Sync Scheduler**: Cron-based automation (node-cron) for automatic patient data synchronization at predefined intervals (e.g., 10A at top of hour, 10B at 30 minutes). Records history and statistics automatically.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware catches all errors without crashing server, automatic logging of request context and errors.
 
@@ -52,13 +54,14 @@ Preferred communication style: Simple, everyday language.
 - **UI & Styling**: Radix UI, Tailwind CSS, PostCSS, class-variance-authority, Lucide React (iconography).
 - **Form & Validation**: React Hook Form, Zod, @hookform/resolvers, drizzle-zod.
 - **Data Format**: @toon-format/toon for TOON encoding/decoding, offering compact, human-readable data transmission compatible with JSON data models.
+- **Security**: jsonwebtoken (JWT), bcryptjs (password hashing), csurf (CSRF protection), cookie-parser (cookie handling).
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **Development Tools**: tsx, esbuild, Replit-specific plugins (dev banners, cartographer, error overlays).
 - **External API**: N8N API (`https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes`) for patient evolution data.
 
 ## Recent Implementations
 
-### 1. Nursing Unit Templates System (In Progress)
+### 1. Nursing Unit Templates System
 - Created `nursingUnitTemplates` table in PostgreSQL with fields for name, description, fieldsConfiguration (JSON), specialRules (JSON), isActive flag, and createdAt timestamp
 - Implemented storage interface methods for full CRUD operations
 - Added backend API endpoints for template management (`/api/templates/*`)
@@ -72,39 +75,70 @@ Preferred communication style: Simple, everyday language.
 - AppError class for consistent error responses with context
 
 ### 3. Analytics Dashboard
-**Created**: `/analytics` page for comprehensive visual data analysis
+- Created `/analytics` page for comprehensive visual data analysis
+- Stats cards: Total Patients, Complete Records, Pending Records, Overall Completion %
+- Visual charts: Specialty distribution (pie chart), Mobility distribution (bar chart)
+- Interactive patient table with search, filtering, sorting
+- Field-by-field completion analysis with progress bars
+- JSON export functionality
 
-**Features**:
-- 📊 **Top Stats Cards**: 
-  - Total de Pacientes
-  - Registros Completos
-  - Registros Pendentes
-  - % Preenchimento Geral
+### 4. FASE 1 - Security Implementation (COMPLETED)
+**Implemented Nov 27, 2025**
 
-- 🥧 **Gráficos Visuais**:
-  - Pizza chart: Distribuição de especialidades
-  - Bar chart: Distribuição de mobilidade
+**Infrastructure Added:**
+- JWT authentication system with access/refresh tokens
+- Role-based access control (RBAC) with 3 roles: admin, enfermeiro, visualizador
+- CSRF protection using csurf middleware
+- Secure cookie handling (HttpOnly, Secure, SameSite=strict)
+- N8N webhook validation (signature verification, IP allowlist)
+- Optional authentication middleware for public endpoints
 
-- 📈 **Análise de Preenchimento por Campo**:
-  - 14 campos principais analisados
-  - Barra de progresso visual com %
-  - Quantidade preenchida vs vazia
+**New Files Created:**
+- `server/security/jwt.ts` - JWT token generation and verification
+- `server/security/n8n-validation.ts` - N8N webhook validation and IP whitelisting
+- `server/middleware/auth.ts` - JWT authentication middleware
+- `server/middleware/rbac.ts` - Role-based access control with permission system
+- `server/middleware/csrf.ts` - CSRF protection setup and token endpoints
+- `server/middleware/cookies.ts` - Secure cookie utilities
+- `server/middleware/n8n-validation.ts` - N8N request validation
+- `server/routes/auth.ts` - Authentication routes (login, logout, refresh, me)
 
-- 🔍 **Tabela Interativa de Pacientes**:
-  - Buscar por: leito, nome, especialidade
-  - Filtrar por: status (completo/pendente)
-  - Ordenar por: leito, nome, especialidade
-  - Mostrar % de campos preenchidos por paciente
+**Dependencies Installed:**
+- jsonwebtoken (JWT handling)
+- bcryptjs (password hashing)
+- csurf (CSRF protection)
+- cookie-parser (cookie parsing)
+- @types/jsonwebtoken, @types/csurf, @types/bcryptjs (TypeScript definitions)
 
-- 📥 **Exportar Análise**: Baixar JSON completo com dados e estatísticas
-- 🧹 **Limpar Filtros**: Reset rápido da busca
+**Features:**
+- Secure user authentication with JWT
+- Token refresh mechanism (24h access, 7d refresh)
+- Role hierarchy system (admin > enfermeiro > visualizador)
+- Permission-based endpoint access
+- Protected N8N webhook endpoints
+- CSRF token endpoint for frontend protection
+- Secure session cookies
 
-**URL**: `http://localhost:5000/analytics`
+**Production Readiness:**
+- HTTPS/TLS: Replit auto-configures for deployed apps
+- Environment secrets: Using Replit Secrets manager
+- Error handling: Integrated with global error handler
+- Logging: Structured JSON logging for security events
 
-## Next Steps
+## Next Steps - Fase 2 (Pipeline Resilience)
 
-1. Build admin UI for template management page (`/admin/templates`)
-2. Integrate templates into patient import and display logic
-3. Create frontend components to manage custom fields per nursing unit
-4. Add template selection in handover page
-5. Test end-to-end template workflow with actual data
+1. Implement job queue system (Bull/BullMQ) for background import processing
+2. Add idempotent upserts with composite keys (enfermaria, leito, evolucaoId)
+3. Implement retry logic with exponential backoff
+4. Add circuit breaker for N8N API failures
+5. Setup Redis cache layer for frequently accessed data
+6. Add database indices on performance-critical columns
+
+## Next Steps - Fase 3 (Infrastructure)
+
+1. Docker containerization
+2. CI/CD pipeline (GitHub Actions)
+3. Kubernetes/ECS deployment
+4. Prometheus + Grafana monitoring
+5. ELK Stack centralized logging
+6. Blue-green deployment strategy
