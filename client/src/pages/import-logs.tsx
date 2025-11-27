@@ -15,7 +15,7 @@ export default function ImportLogsPage() {
 
   const { data: history, refetch, isLoading } = useQuery<ImportHistory[]>({
     queryKey: ["/api/import/history"],
-    refetchInterval: 5000, // Atualizar a cada 5 segundos
+    refetchInterval: 3600000, // Atualizar a cada 1 hora
     refetchIntervalInBackground: true,
   });
 
