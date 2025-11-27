@@ -25,7 +25,7 @@ export default function ImportLogsPage() {
         ...item,
         timestamp: item.timestamp 
           ? new Date(item.timestamp).toLocaleString("pt-BR", { 
-              timeZone: "UTC",
+              timeZone: "America/Sao_Paulo",
               year: "numeric",
               month: "2-digit",
               day: "2-digit",
