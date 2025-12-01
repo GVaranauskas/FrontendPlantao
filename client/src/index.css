@@ -289,6 +289,12 @@
 
 /* Print Styles - Passagem de Plantão */
 @media print {
+  /* Print-friendly page size - MUST be first */
+  @page {
+    size: A4 landscape;
+    margin: 0.3cm;
+  }
+
   /* Hide non-essential elements */
   header,
   .container > div:nth-child(2),
@@ -300,7 +306,9 @@
   [data-testid="button-sync"],
   [data-testid="button-sync-external"],
   [data-testid="button-filter"],
-  [data-testid="button-alerts"] {
+  [data-testid="button-alerts"],
+  .mb-4,
+  .grid {
     display: none !important;
   }
 
@@ -309,108 +317,107 @@
     box-sizing: border-box;
   }
 
-  body {
-    margin: 0;
-    padding: 0;
-    background: white;
-    color: black;
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
   }
 
   /* Main container */
   .min-h-screen {
-    min-height: auto;
-    padding: 0.5rem;
+    min-height: auto !important;
+    padding: 0.3rem !important;
+    margin: 0 !important;
   }
 
-  /* Stats cards - keep visible but compact */
-  .grid.grid-cols-2 {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+  .container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     page-break-inside: avoid;
-  }
-
-  .grid > div {
-    padding: 0.5rem !important;
-    border: 0.5px solid #999 !important;
-    font-size: 11px !important;
-  }
-
-  .grid > div > div:first-child {
-    font-size: 18px !important;
-    margin-bottom: 0.25rem !important;
-  }
-
-  .grid > div > div:last-child {
-    font-size: 10px !important;
-  }
-
-  /* Search and legend */
-  .mb-4 {
-    page-break-inside: avoid;
-  }
-
-  input[type="search"] {
-    display: none !important;
-  }
-
-  .legend {
-    display: none !important;
   }
 
   /* Card container */
   .overflow-hidden {
     page-break-inside: avoid;
-    border: 1px solid #999;
+    border: 1px solid #333;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Table styling */
+  /* Remove scroll wrapper */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Table styling - Critical for landscape fit */
   table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 8px !important;
-    page-break-inside: avoid;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 7px !important;
+    line-height: 1 !important;
+    page-break-inside: auto;
   }
 
+  /* Table head */
   thead {
     background: #0056b3 !important;
     color: white !important;
-    page-break-inside: avoid;
-    display: table-header-group;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    display: table-header-group !important;
   }
 
   thead tr {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
+  /* Table body */
   tbody {
-    display: table-row-group;
+    display: table-row-group !important;
   }
 
   tbody tr {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
   }
 
-  /* Table headers */
+  /* Table headers - ultra compact */
   th {
-    padding: 0.3rem !important;
+    padding: 0.15rem 0.1rem !important;
     border: 0.5px solid #333 !important;
-    text-align: center;
-    font-weight: bold;
-    font-size: 8px !important;
+    text-align: center !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
     white-space: normal !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    height: auto !important;
+    vertical-align: middle !important;
+    line-height: 0.9 !important;
   }
 
-  /* Table cells */
+  /* Table cells - ultra compact */
   td {
-    padding: 0.3rem !important;
-    border: 0.5px solid #ccc !important;
-    font-size: 8px !important;
-    overflow-wrap: break-word;
-    word-wrap: break-word;
+    padding: 0.1rem !important;
+    border: 0.5px solid #999 !important;
+    font-size: 7px !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    height: auto !important;
+    vertical-align: top !important;
+    line-height: 0.95 !important;
+  }
+
+  /* Remove all inline min-width styles */
+  th, td {
+    min-width: auto !important;
+    width: auto !important;
+    max-width: none !important;
   }
 
   /* Sticky LEITO column - remove sticky for printing */
@@ -420,6 +427,15 @@
     left: auto !important;
     z-index: auto !important;
     background: inherit !important;
+  }
+
+  /* LEITO column - make it stand out */
+  td:first-child,
+  th:first-child {
+    font-weight: bold !important;
+    background: #e8f0ff !important;
+    min-width: 35px !important;
+    width: auto !important;
   }
 
   /* Alternating row colors */
@@ -440,37 +456,19 @@
     background: #fff3e0 !important;
   }
 
-  /* Ensure text is black */
-  td, th, tr {
+  /* Ensure text is black for all */
+  td, th, tr, thead, tbody {
     color: black !important;
   }
 
-  /* LEITO column - make it stand out */
-  td:first-child,
-  th:first-child {
-    font-weight: bold;
-    background: #e8f0ff !important;
+  /* Remove display:flex and other display properties that break tables */
+  div {
+    page-break-inside: auto;
   }
 
-  /* Remove minimum widths to fit on page */
-  th[style*="min-w"],
-  td[style*="min-w"] {
-    min-width: auto !important;
-  }
-
-  /* Page breaks */
-  .container {
-    page-break-inside: avoid;
-  }
-
-  /* Ensure content fits */
-  .overflow-x-auto {
-    overflow: visible !important;
-  }
-
-  /* Print-friendly page size */
-  @page {
-    size: A4 landscape;
-    margin: 0.5cm;
+  /* Optimize for landscape fit */
+  body {
+    width: 279mm;
+    height: 215mm;
   }
 }
