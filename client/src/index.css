@@ -286,3 +286,191 @@
     inset: -1px;
   }
 }
+
+/* Print Styles - Passagem de Plantão */
+@media print {
+  /* Hide non-essential elements */
+  header,
+  .container > div:nth-child(2),
+  button,
+  input[type="search"],
+  .breadcrumb,
+  [data-testid="button-print"],
+  [data-testid="button-export-excel"],
+  [data-testid="button-sync"],
+  [data-testid="button-sync-external"],
+  [data-testid="button-filter"],
+  [data-testid="button-alerts"] {
+    display: none !important;
+  }
+
+  /* Page setup */
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  /* Main container */
+  .min-h-screen {
+    min-height: auto;
+    padding: 0.5rem;
+  }
+
+  /* Stats cards - keep visible but compact */
+  .grid.grid-cols-2 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    page-break-inside: avoid;
+  }
+
+  .grid > div {
+    padding: 0.5rem !important;
+    border: 0.5px solid #999 !important;
+    font-size: 11px !important;
+  }
+
+  .grid > div > div:first-child {
+    font-size: 18px !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .grid > div > div:last-child {
+    font-size: 10px !important;
+  }
+
+  /* Search and legend */
+  .mb-4 {
+    page-break-inside: avoid;
+  }
+
+  input[type="search"] {
+    display: none !important;
+  }
+
+  .legend {
+    display: none !important;
+  }
+
+  /* Card container */
+  .overflow-hidden {
+    page-break-inside: avoid;
+    border: 1px solid #999;
+  }
+
+  /* Table styling */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8px !important;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    background: #0056b3 !important;
+    color: white !important;
+    page-break-inside: avoid;
+    display: table-header-group;
+  }
+
+  thead tr {
+    page-break-inside: avoid;
+  }
+
+  tbody {
+    display: table-row-group;
+  }
+
+  tbody tr {
+    page-break-inside: avoid;
+  }
+
+  /* Table headers */
+  th {
+    padding: 0.3rem !important;
+    border: 0.5px solid #333 !important;
+    text-align: center;
+    font-weight: bold;
+    font-size: 8px !important;
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Table cells */
+  td {
+    padding: 0.3rem !important;
+    border: 0.5px solid #ccc !important;
+    font-size: 8px !important;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+
+  /* Sticky LEITO column - remove sticky for printing */
+  td.sticky,
+  th.sticky {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    background: inherit !important;
+  }
+
+  /* Alternating row colors */
+  tbody tr:nth-child(even) {
+    background: #f9f9f9 !important;
+  }
+
+  tbody tr:nth-child(odd) {
+    background: white !important;
+  }
+
+  /* Alert rows */
+  tbody tr[class*="destructive"] {
+    background: #ffebee !important;
+  }
+
+  tbody tr[class*="chart-3"] {
+    background: #fff3e0 !important;
+  }
+
+  /* Ensure text is black */
+  td, th, tr {
+    color: black !important;
+  }
+
+  /* LEITO column - make it stand out */
+  td:first-child,
+  th:first-child {
+    font-weight: bold;
+    background: #e8f0ff !important;
+  }
+
+  /* Remove minimum widths to fit on page */
+  th[style*="min-w"],
+  td[style*="min-w"] {
+    min-width: auto !important;
+  }
+
+  /* Page breaks */
+  .container {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure content fits */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Print-friendly page size */
+  @page {
+    size: A4 landscape;
+    margin: 0.5cm;
+  }
+}

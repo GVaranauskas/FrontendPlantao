@@ -343,7 +343,11 @@ export default function ShiftHandoverPage() {
                   </div>
                 </SheetContent>
               </Sheet>
-              <Button className="hidden sm:flex" data-testid="button-print">
+              <Button 
+                className="hidden sm:flex" 
+                data-testid="button-print"
+                onClick={() => window.print()}
+              >
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir
               </Button>
