@@ -16,6 +16,7 @@ import ToolsPage from "@/pages/tools";
 import AdminTemplatesPage from "@/pages/admin-templates";
 import ImportLogsPage from "@/pages/import-logs";
 import ReportPage from "@/pages/report";
+import DatabaseViewerPage from "@/pages/database-viewer";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/import-panel" component={ImportPanelPage} />
       <Route path="/import-logs" component={ImportLogsPage} />
       <Route path="/report" component={ReportPage} />
+      <Route path="/database" component={DatabaseViewerPage} />
       <Route path="/debug" component={DebugPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/text-viewer" component={TextViewerPage} />
