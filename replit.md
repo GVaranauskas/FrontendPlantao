@@ -158,6 +158,35 @@ Preferred communication style: Simple, everyday language.
 - UI dropdown populated from /api/enfermarias endpoint
 - Database migrated via npm run db:push --force
 
+### 7. Print Functionality for Shift Handover (COMPLETED)
+**Implemented Dec 01, 2025**
+
+**Features:**
+- Full-page print capability for SBAR shift handover reports
+- Landscape A4 format optimization with 0.3cm margins
+- Automatic hiding of non-essential UI elements (header, buttons, stats cards, search)
+- Ultra-compact table styling for printing (7px font, minimal padding)
+- Complete 18-column patient table fits entire page horizontally
+- Responsive table column widths auto-adjust for landscape printing
+- Color-coded row highlighting preserved (alert rows, critical rows)
+- LEITO column emphasized with light blue background (#e8f0ff)
+- Print-friendly color scheme with black text on white background
+- Page break management to keep table rows and headers intact
+
+**Implementation:**
+- Added `onClick={() => window.print()}` handler to Print button
+- Comprehensive `@media print` CSS rules in client/src/index.css
+- Page setup defined as A4 landscape with minimal margins
+- All table styling optimized for narrow columns and small fonts
+- Print styles hide stats dashboard, search input, and all interactive buttons
+
+**Print Workflow:**
+1. User clicks "Imprimir" button in shift handover page
+2. Browser print dialog opens (Ctrl+P or CMD+P)
+3. User selects "Landscape" orientation if needed (usually pre-selected)
+4. User chooses "Print to PDF" or printer
+5. Complete 18-column table renders on single page in landscape A4 format
+
 ## Next Steps - Fase 2 (Pipeline Resilience)
 
 1. Implement job queue system (Bull/BullMQ) for background import processing
