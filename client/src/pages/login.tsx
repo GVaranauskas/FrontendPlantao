@@ -1,42 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/auth/login", credentials);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Login realizado com sucesso!",
-        description: `Bem-vindo, ${data.user?.name || data.user?.username}`,
-      });
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
       setLocation("/modules");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro no login",
-        description: error.message || "Usuário ou senha inválidos",
-        variant: "destructive",
-      });
-    },
-  });
+    }
+  }, [authLoading, isAuthenticated, setLocation]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       toast({
@@ -46,8 +32,39 @@ export default function LoginPage() {
       });
       return;
     }
-    loginMutation.mutate({ username: username.trim(), password });
+
+    setIsSubmitting(true);
+    try {
+      await login(username.trim(), password);
+      toast({
+        title: "Login realizado com sucesso!",
+      });
+      setLocation("/modules");
+    } catch (error: any) {
+      toast({
+        title: "Erro no login",
+        description: error.message || "Usuário ou senha inválidos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div 
@@ -96,7 +113,7 @@ export default function LoginPage() {
                   data-testid="input-username"
                   maxLength={100}
                   required
-                  disabled={loginMutation.isPending}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -114,7 +131,7 @@ export default function LoginPage() {
                   data-testid="input-password"
                   maxLength={255}
                   required
-                  disabled={loginMutation.isPending}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -122,9 +139,9 @@ export default function LoginPage() {
                 type="submit" 
                 className="w-full h-12 text-base font-semibold"
                 data-testid="button-login"
-                disabled={loginMutation.isPending}
+                disabled={isSubmitting}
               >
-                {loginMutation.isPending ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Entrando...

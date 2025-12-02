@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Shield } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 const modules = [
   {
@@ -51,6 +52,11 @@ const modules = [
 
 export default function ModulesPage() {
   const [, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -65,16 +71,16 @@ export default function ModulesPage() {
               />
               <div>
                 <h1 className="text-2xl font-bold text-primary mb-1" data-testid="text-welcome">
-                  Bem-vindo, Enfermeiro(a)
+                  Bem-vindo, {user?.name || "Usuário"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  UNIDADE DE INTERNAÇÃO: 10 A - DAR
+                  Perfil: {user?.role === "admin" ? "Administrador" : "Enfermagem"}
                 </p>
               </div>
             </div>
             <Button 
               variant="outline"
-              onClick={() => setLocation("/")}
+              onClick={handleLogout}
               data-testid="button-logout"
             >
               <LogOut className="w-4 h-4 mr-2" />
