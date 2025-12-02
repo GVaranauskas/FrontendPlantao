@@ -1,11 +1,15 @@
-import { type User, type InsertUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 
 export interface IStorage {
+  getAllUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, user: UpdateUser): Promise<User | undefined>;
+  deactivateUser(id: string): Promise<boolean>;
+  updateLastLogin(id: string): Promise<void>;
   
   getAllPatients(): Promise<Patient[]>;
   getPatient(id: string): Promise<Patient | undefined>;

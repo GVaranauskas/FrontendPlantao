@@ -9,6 +9,7 @@ import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { registerAuthRoutes } from "./routes/auth";
+import { registerUserRoutes } from "./routes/users";
 
 // Helper to get formatted timestamp
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
@@ -577,6 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register authentication routes
   registerAuthRoutes(app);
+  registerUserRoutes(app);
 
   return httpServer;
 }

@@ -1,22 +1,52 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const response = await apiRequest("POST", "/api/auth/login", credentials);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Login realizado com sucesso!",
+        description: `Bem-vindo, ${data.user?.name || data.user?.username}`,
+      });
+      setLocation("/modules");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro no login",
+        description: error.message || "Usuário ou senha inválidos",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Security: Never log credentials
     if (!username.trim() || !password.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha usuário e senha",
+        variant: "destructive",
+      });
       return;
     }
-    setLocation("/modules");
+    loginMutation.mutate({ username: username.trim(), password });
   };
 
   return (
@@ -66,6 +96,7 @@ export default function LoginPage() {
                   data-testid="input-username"
                   maxLength={100}
                   required
+                  disabled={loginMutation.isPending}
                 />
               </div>
 
@@ -83,6 +114,7 @@ export default function LoginPage() {
                   data-testid="input-password"
                   maxLength={255}
                   required
+                  disabled={loginMutation.isPending}
                 />
               </div>
 
@@ -90,8 +122,16 @@ export default function LoginPage() {
                 type="submit" 
                 className="w-full h-12 text-base font-semibold"
                 data-testid="button-login"
+                disabled={loginMutation.isPending}
               >
-                Entrar
+                {loginMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  "Entrar"
+                )}
               </Button>
             </div>
           </form>

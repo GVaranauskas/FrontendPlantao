@@ -1,10 +1,14 @@
 import { eq, desc, lt, gte, sql } from "drizzle-orm";
 import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
-import type { User, InsertUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class PostgresStorage implements IStorage {
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
@@ -18,6 +22,20 @@ export class PostgresStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(users).values(user).returning();
     return result[0];
+  }
+
+  async updateUser(id: string, user: UpdateUser): Promise<User | undefined> {
+    const result = await db.update(users).set(user).where(eq(users.id, id)).returning();
+    return result[0];
+  }
+
+  async deactivateUser(id: string): Promise<boolean> {
+    const result = await db.update(users).set({ isActive: false }).where(eq(users.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async updateLastLogin(id: string): Promise<void> {
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, id));
   }
 
   async getAllPatients(): Promise<Patient[]> {

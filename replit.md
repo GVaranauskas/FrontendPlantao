@@ -173,6 +173,51 @@ Preferred communication style: Simple, everyday language.
 - Print-friendly color scheme with black text on white background
 - Page break management to keep table rows and headers intact
 
+### 8. User Management System (COMPLETED)
+**Implemented Dec 02, 2025**
+
+**Features:**
+- Complete CRUD API for user administration at `/api/users/*`
+- Role-based access control (admin required for user management)
+- Admin Users page at `/admin/users` with:
+  - User list with search functionality
+  - Stats cards (Total, Active, Inactive users)
+  - Create new user via Sheet modal form
+  - Edit user information (name, username, email, role, password)
+  - Deactivate user accounts (soft delete)
+- Two roles: "admin" (full access) and "enfermagem" (operational access)
+
+**User Schema:**
+- id (UUID), username (unique), password (hashed with bcryptjs)
+- name, email (optional), role (admin/enfermagem)
+- isActive (boolean), createdAt, lastLogin timestamps
+
+**Seeded Users:**
+- admin / admin123 (Admin role)
+- enfermeiro / enf123 (Enfermagem role)
+
+**New Files:**
+- `client/src/pages/admin-users.tsx` - Admin interface for user management
+- `server/routes/users.ts` - User CRUD API endpoints
+- `server/scripts/seed-users.ts` - Database seeding script for initial users
+
+### 9. Login Authentication Implementation (COMPLETED)
+**Implemented Dec 02, 2025**
+
+**Features:**
+- Login page now properly authenticates via `/api/auth/login`
+- JWT tokens stored in HttpOnly cookies (accessToken, refreshToken)
+- Credentials automatically included in all API requests
+- Toast notifications for login success/error
+- Loading state during authentication
+- Automatic redirect to /modules after successful login
+
+**Security:**
+- Passwords hashed with bcryptjs (10 rounds)
+- HttpOnly cookies prevent XSS access to tokens
+- SameSite=strict prevents CSRF attacks
+- Secure flag enabled in production
+
 **Implementation:**
 - Added `onClick={() => window.print()}` handler to Print button
 - Comprehensive `@media print` CSS rules in client/src/index.css

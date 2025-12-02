@@ -1,14 +1,21 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+export const userRoles = ["admin", "enfermagem"] as const;
+export type UserRole = typeof userRoles[number];
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
+  email: text("email"),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull(),
+  role: text("role").notNull().default("enfermagem"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastLogin: timestamp("last_login"),
 });
 
 export const patients = pgTable("patients", {
@@ -81,6 +88,15 @@ export const nursingUnitTemplates = pgTable("nursing_unit_templates", {
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  createdAt: true,
+  lastLogin: true,
+}).extend({
+  role: z.enum(userRoles).default("enfermagem"),
+  email: z.string().email().optional().or(z.literal("")),
+});
+
+export const updateUserSchema = insertUserSchema.partial().extend({
+  password: z.string().min(6).optional(),
 });
 
 export const insertPatientSchema = createInsertSchema(patients).omit({
@@ -103,6 +119,7 @@ export const insertNursingUnitTemplateSchema = createInsertSchema(nursingUnitTem
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 export type Patient = typeof patients.$inferSelect;
