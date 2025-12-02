@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Database, ShieldAlert, Download, Layout } from "lucide-react";
+import { ClipboardList, Calendar, Bed, LogOut, FileText, Settings, Shield } from "lucide-react";
 
 const modules = [
   {
@@ -46,34 +46,6 @@ const modules = [
     icon: Bed,
     status: "coming",
     route: null
-  },
-  {
-    id: "administracao",
-    title: "Painel de Administração",
-    description: "Gerenciamento de importações de dados e sincronização com API N8N.",
-    features: [
-      "Importação de evolucões de pacientes",
-      "Sincronização automática com N8N",
-      "Histórico completo de importações",
-      "Monitoramento de status de API"
-    ],
-    icon: ShieldAlert,
-    status: "active",
-    route: "/import-panel"
-  },
-  {
-    id: "templates-enfermarias",
-    title: "Templates de Enfermarias",
-    description: "Configure os campos personalizados para cada enfermaria conforme suas necessidades.",
-    features: [
-      "Criar e editar templates por enfermaria",
-      "Selecionar campos customizados para exibição",
-      "Gerenciar regras especiais e filtros",
-      "Sincronizar com N8N automaticamente"
-    ],
-    icon: Layout,
-    status: "active",
-    route: "/admin/templates"
   }
 ];
 
@@ -175,22 +147,33 @@ export default function ModulesPage() {
           })}
         </div>
 
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation("/import-panel")}
-            data-testid="button-import-evolucoes"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Importar Evoluções
-          </Button>
+        <Card className="p-6 border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-primary/10">
+                <Shield className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-primary">Painel de Administração</h3>
+                <p className="text-sm text-muted-foreground">
+                  Gerenciar usuários, templates, importações e logs do sistema
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setLocation("/admin")}
+              data-testid="button-admin-panel"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Acessar Administração
+            </Button>
+          </div>
+        </Card>
+
+        <div className="flex items-center justify-center gap-4 flex-wrap mt-6">
           <Button variant="outline" data-testid="button-reports">
             <FileText className="w-4 h-4 mr-2" />
             Relatórios Diários
-          </Button>
-          <Button variant="outline" data-testid="button-settings">
-            <Settings className="w-4 h-4 mr-2" />
-            Configurações
           </Button>
         </div>
       </div>
