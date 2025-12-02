@@ -90,14 +90,17 @@ export function useAuth() {
 }
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    console.log("RequireAuth - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user);
+    
     if (!isLoading && !isAuthenticated) {
+      console.log("RequireAuth - Redirecting to login");
       setLocation("/");
     }
-  }, [isLoading, isAuthenticated, setLocation]);
+  }, [isLoading, isAuthenticated, setLocation, user]);
 
   // Block rendering completely until auth check completes
   if (isLoading) {
