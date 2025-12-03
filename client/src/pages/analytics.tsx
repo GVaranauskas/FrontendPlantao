@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
   CheckCircle2,
   Filter,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import {
   BarChart,
@@ -34,6 +36,7 @@ import type { Patient } from "@shared/schema";
 const COLORS = ["#0056b3", "#007bff", "#28a745", "#dc3545", "#ffc107", "#17a2b8"];
 
 export default function AnalyticsPage() {
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"leito" | "nome" | "especialidade">("leito");
   const [filterStatus, setFilterStatus] = useState<"all" | "complete" | "pending">("all");
@@ -195,16 +198,26 @@ export default function AnalyticsPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <BarChart3 className="w-8 h-8 text-primary" />
-              Análise Visual de Dados
-            </h1>
-            <p className="text-muted-foreground">
-              Dashboard completo para análise dos dados de pacientes
-            </p>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => setLocation("/modules")}
+              data-testid="button-back-home"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <BarChart3 className="w-8 h-8 text-primary" />
+                Análise Visual de Dados
+              </h1>
+              <p className="text-muted-foreground">
+                Dashboard completo para análise dos dados de pacientes
+              </p>
+            </div>
           </div>
-          <Button onClick={exportData} className="gap-2">
+          <Button onClick={exportData} className="gap-2" data-testid="button-export">
             <Download className="w-4 h-4" />
             Exportar Análise
           </Button>
