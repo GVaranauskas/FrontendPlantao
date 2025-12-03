@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Copy, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, RefreshCw, ArrowLeft } from "lucide-react";
 import type { Patient, Alert } from "@shared/schema";
 
 interface Enfermaria {
@@ -12,6 +13,7 @@ interface Enfermaria {
 }
 
 export default function DebugPage() {
+  const [, setLocation] = useLocation();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     patients: true,
     alerts: true,
@@ -48,11 +50,21 @@ export default function DebugPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">🔍 Debug - Verificar Dados da API</h1>
-          <p className="text-muted-foreground">
-            Visualize todos os campos e informações que a API está enviando
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => setLocation("/modules")}
+            data-testid="button-back-home"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Visualizador JSON - Debug</h1>
+            <p className="text-muted-foreground">
+              Visualize todos os campos e informações que a API está enviando
+            </p>
+          </div>
         </div>
 
         {/* Quick Actions */}
