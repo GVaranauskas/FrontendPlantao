@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Download, Copy, Trash2, Clock, CheckCircle, XCircle, Activity } from "lucide-react";
+import { RefreshCcw, Download, Copy, Trash2, Clock, CheckCircle, XCircle, Activity, ArrowLeft } from "lucide-react";
 import type { ImportHistory } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,7 @@ interface ImportStats {
 }
 
 export default function ImportLogsPage() {
+  const [, setLocation] = useLocation();
   const [displayLogs, setDisplayLogs] = useState<ImportLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
@@ -115,11 +117,21 @@ export default function ImportLogsPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Logs de Importação</h1>
-          <p className="text-muted-foreground">
-            Monitore todas as sincronizações de dados com estatísticas consolidadas
-          </p>
+        <div className="mb-8 flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => setLocation("/modules")}
+            data-testid="button-back-home"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Logs de Importação</h1>
+            <p className="text-muted-foreground">
+              Monitore todas as sincronizações de dados com estatísticas consolidadas
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
