@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
   Download,
   Eye,
   FileText,
+  ArrowLeft,
 } from "lucide-react";
 import type { Patient } from "@shared/schema";
 
@@ -25,6 +27,7 @@ interface TextFieldItem {
 }
 
 export default function TextViewerPage() {
+  const [, setLocation] = useLocation();
   const [selectedText, setSelectedText] = useState<TextFieldItem | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -211,16 +214,26 @@ export default function TextViewerPage() {
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <FileText className="w-8 h-8 text-primary" />
-                Visualizador de Textos Grandes
-              </h1>
-              <p className="text-muted-foreground">
-                Explore campos de texto grandes da API
-              </p>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => setLocation("/modules")}
+                data-testid="button-back-home"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  <FileText className="w-8 h-8 text-primary" />
+                  Visualizador de Textos Grandes
+                </h1>
+                <p className="text-muted-foreground">
+                  Explore campos de texto grandes da API
+                </p>
+              </div>
             </div>
-            <Button onClick={exportTexts} className="gap-2">
+            <Button onClick={exportTexts} className="gap-2" data-testid="button-export">
               <Download className="w-4 h-4" />
               Exportar Todos ({textFields.length})
             </Button>
