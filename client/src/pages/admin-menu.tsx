@@ -12,6 +12,8 @@ import {
   History,
   Settings,
   Shield,
+  Code,
+  FileJson,
 } from "lucide-react";
 
 interface AdminModule {
@@ -68,6 +70,22 @@ const adminModules: AdminModule[] = [
     description: "Estatísticas consolidadas, histórico de importações e métricas por enfermaria.",
     icon: History,
     route: "/dashboard",
+  },
+  {
+    id: "debug",
+    title: "Visualizador JSON",
+    description: "Visualize o JSON completo de cada paciente importado. Ideal para debug e verificação de dados.",
+    icon: FileJson,
+    route: "/debug",
+    badge: "Dev",
+    badgeVariant: "secondary",
+  },
+  {
+    id: "text-viewer",
+    title: "Textos e Evoluções",
+    description: "Visualize textos longos extraídos das evoluções, diagnósticos e observações dos pacientes.",
+    icon: Code,
+    route: "/text-viewer",
   },
 ];
 
