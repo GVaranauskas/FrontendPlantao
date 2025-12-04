@@ -4,6 +4,27 @@ import { n8nIntegrationService } from "./services/n8n-integration-service";
 import type { Patient } from "@shared/schema";
 
 /**
+ * Get flowId for an enfermaria from database
+ * Falls back to undefined if not found (which will use N8N default)
+ */
+async function getFlowIdForEnfermaria(enfermariaCodigo: string): Promise<string | undefined> {
+  try {
+    const enfermariaConfig = await storage.getEnfermariaByCodigo(enfermariaCodigo);
+    if (enfermariaConfig && enfermariaConfig.ativo) {
+      console.log(`[Sync] Found enfermaria config: ${enfermariaConfig.nome} (flowId: ${enfermariaConfig.flowId})`);
+      return enfermariaConfig.flowId || undefined;
+    }
+    if (enfermariaConfig && !enfermariaConfig.ativo) {
+      console.log(`[Sync] Enfermaria ${enfermariaCodigo} is inactive, using default flowId`);
+    }
+    return undefined;
+  } catch (error) {
+    console.warn(`[Sync] Could not get flowId for enfermaria ${enfermariaCodigo}:`, error);
+    return undefined;
+  }
+}
+
+/**
  * Sync a patient from external API and store/update in our system
  */
 export async function syncPatientFromExternalAPI(leito: string): Promise<Patient | null> {
@@ -62,16 +83,19 @@ export async function syncMultiplePatientsFromExternalAPI(leitos: string[]): Pro
 /**
  * Sync evolucoes from N8N for a specific enfermaria
  * @param enfermaria Código da enfermaria
- * @param flowId FlowId customizado (opcional)
+ * @param flowId FlowId customizado (opcional - se não fornecido, busca do database)
  */
 export async function syncEvolucoesByEnfermaria(enfermaria: string, flowId?: string): Promise<Patient[]> {
   const results: Patient[] = [];
   
   try {
-    console.log(`[Sync] Starting sync for enfermaria: ${enfermaria} (flowId: ${flowId || 'default'})`);
+    // If flowId not provided, look it up from database
+    const effectiveFlowId = flowId ?? await getFlowIdForEnfermaria(enfermaria);
     
-    // Fetch raw evolucoes from N8N with optional flowId
-    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria, flowId);
+    console.log(`[Sync] Starting sync for enfermaria: ${enfermaria} (flowId: ${effectiveFlowId || 'default'})`);
+    
+    // Fetch raw evolucoes from N8N with effective flowId
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria, effectiveFlowId);
     
     if (!evolucoes || evolucoes.length === 0) {
       console.log(`[Sync] No evolucoes found for enfermaria: ${enfermaria}`);
