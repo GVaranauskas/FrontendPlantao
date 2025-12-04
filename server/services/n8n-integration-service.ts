@@ -24,12 +24,15 @@ interface ProcessedEvolucao {
 }
 
 const N8N_API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes";
+const DEFAULT_FLOW_ID = "1a2b3c";
 
 export class N8NIntegrationService {
   /**
    * Busca dados de evolução da API N8N para uma enfermaria
+   * @param enfermaria Código da enfermaria
+   * @param flowId FlowId customizado (opcional, usa default se não fornecido)
    */
-  async fetchEvolucoes(enfermaria: string): Promise<N8NRawData[] | null> {
+  async fetchEvolucoes(enfermaria: string, flowId?: string): Promise<N8NRawData[] | null> {
     try {
       // Validate enfermaria parameter to prevent injection
       if (!validateEnfermaria(enfermaria)) {
@@ -37,8 +40,10 @@ export class N8NIntegrationService {
         return null;
       }
 
+      const effectiveFlowId = flowId || DEFAULT_FLOW_ID;
+
       const payload: N8NRequest = {
-        flowId: "1a2b3c",
+        flowId: effectiveFlowId,
         forceUpdate: false,
         meta: {
           params: [enfermaria],
@@ -61,7 +66,7 @@ export class N8NIntegrationService {
         }
       };
 
-      console.log(`[N8N] Fetching evolucoes for enfermaria: ${enfermaria}`);
+      console.log(`[N8N] Fetching evolucoes for enfermaria: ${enfermaria} (flowId: ${effectiveFlowId})`);
       
       const response = await fetch(N8N_API_URL, {
         method: "POST",

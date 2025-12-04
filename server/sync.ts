@@ -61,15 +61,17 @@ export async function syncMultiplePatientsFromExternalAPI(leitos: string[]): Pro
 
 /**
  * Sync evolucoes from N8N for a specific enfermaria
+ * @param enfermaria Código da enfermaria
+ * @param flowId FlowId customizado (opcional)
  */
-export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Patient[]> {
+export async function syncEvolucoesByEnfermaria(enfermaria: string, flowId?: string): Promise<Patient[]> {
   const results: Patient[] = [];
   
   try {
-    console.log(`[Sync] Starting sync for enfermaria: ${enfermaria}`);
+    console.log(`[Sync] Starting sync for enfermaria: ${enfermaria} (flowId: ${flowId || 'default'})`);
     
-    // Fetch raw evolucoes from N8N
-    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
+    // Fetch raw evolucoes from N8N with optional flowId
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria, flowId);
     
     if (!evolucoes || evolucoes.length === 0) {
       console.log(`[Sync] No evolucoes found for enfermaria: ${enfermaria}`);

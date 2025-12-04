@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertEnfermariaSchema, updateEnfermariaSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
@@ -189,7 +189,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "enfermaria parameter is required" });
       }
 
-      const patients = await syncEvolucoesByEnfermaria(enfermaria);
+      // Look up enfermaria config for flowId
+      const enfermariaConfig = await storage.getEnfermariaByCodigo(enfermaria);
+      const flowId = enfermariaConfig?.flowId;
+
+      const patients = await syncEvolucoesByEnfermaria(enfermaria, flowId);
       
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
@@ -212,6 +216,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "enfermaria is required" });
       }
 
+      // Look up enfermaria config for flowId
+      const enfermariaConfig = await storage.getEnfermariaByCodigo(enfermaria);
+      const flowId = enfermariaConfig?.flowId;
+      
+      if (enfermariaConfig) {
+        logger.info(`[${getTimestamp()}] [Import] Found enfermaria config: ${enfermariaConfig.nome} (flowId: ${flowId})`);
+      } else {
+        logger.info(`[${getTimestamp()}] [Import] No enfermaria config found, using default flowId`);
+      }
+
       // Load template if provided
       let template = null;
       if (templateId) {
@@ -231,8 +245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         detalhes: [] as Array<{ leito: string; status: string; mensagem?: string }>
       };
 
-      // Fetch evolucoes from N8N
-      const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
+      // Fetch evolucoes from N8N with dynamic flowId
+      const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria, flowId);
       
       if (!evolucoes || evolucoes.length === 0) {
         logger.info(`[${getTimestamp()}] [Import] No evolucoes found for enfermaria: ${enfermaria}`);
@@ -368,30 +382,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // List enfermarias endpoint
-  app.get("/api/enfermarias", async (req, res) => {
-    try {
-      // Predefined list of enfermarias
-      const enfermarias = [
-        { codigo: "10A02", nome: "Enfermaria 10A02" },
-        { codigo: "10A03", nome: "Enfermaria 10A03" },
-        { codigo: "10A04", nome: "Enfermaria 10A04" },
-        { codigo: "10B01", nome: "Enfermaria 10B01" },
-        { codigo: "10B02", nome: "Enfermaria 10B02" },
-        { codigo: "10C01", nome: "Enfermaria 10C01" },
-      ];
-
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(enfermarias);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(enfermarias);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch enfermarias" });
+  // ===== ENFERMARIAS CRUD =====
+  
+  // List all enfermarias
+  app.get("/api/enfermarias", asyncHandler(async (req, res) => {
+    const { ativo } = req.query;
+    let enfermarias;
+    
+    if (ativo === "true") {
+      enfermarias = await storage.getActiveEnfermarias();
+    } else {
+      enfermarias = await storage.getAllEnfermarias();
     }
-  });
+    
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(enfermarias);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(enfermarias);
+    }
+  }));
+
+  // Get enfermaria by ID
+  app.get("/api/enfermarias/:id", asyncHandler(async (req, res) => {
+    const enfermaria = await storage.getEnfermaria(req.params.id);
+    if (!enfermaria) {
+      throw new AppError(404, "Enfermaria not found", { enfermariaId: req.params.id });
+    }
+    res.json(enfermaria);
+  }));
+
+  // Create new enfermaria
+  app.post("/api/enfermarias", asyncHandler(async (req, res) => {
+    const validatedData = insertEnfermariaSchema.parse(req.body);
+    
+    // Check if codigo already exists
+    const existing = await storage.getEnfermariaByCodigo(validatedData.codigo);
+    if (existing) {
+      throw new AppError(400, "Código de enfermaria já existe", { codigo: validatedData.codigo });
+    }
+    
+    const enfermaria = await storage.createEnfermaria(validatedData);
+    res.status(201).json(enfermaria);
+  }));
+
+  // Update enfermaria
+  app.patch("/api/enfermarias/:id", asyncHandler(async (req, res) => {
+    const validatedData = updateEnfermariaSchema.parse(req.body);
+    
+    // If changing codigo, check for duplicates
+    if (validatedData.codigo) {
+      const existing = await storage.getEnfermariaByCodigo(validatedData.codigo);
+      if (existing && existing.id !== req.params.id) {
+        throw new AppError(400, "Código de enfermaria já existe", { codigo: validatedData.codigo });
+      }
+    }
+    
+    const enfermaria = await storage.updateEnfermaria(req.params.id, validatedData);
+    if (!enfermaria) {
+      throw new AppError(404, "Enfermaria not found", { enfermariaId: req.params.id });
+    }
+    res.json(enfermaria);
+  }));
+
+  // Delete enfermaria
+  app.delete("/api/enfermarias/:id", asyncHandler(async (req, res) => {
+    const success = await storage.deleteEnfermaria(req.params.id);
+    if (!success) {
+      throw new AppError(404, "Enfermaria not found", { enfermariaId: req.params.id });
+    }
+    res.status(204).send();
+  }));
+
+  // Get enfermaria by codigo
+  app.get("/api/enfermarias/codigo/:codigo", asyncHandler(async (req, res) => {
+    const enfermaria = await storage.getEnfermariaByCodigo(req.params.codigo);
+    if (!enfermaria) {
+      throw new AppError(404, "Enfermaria not found", { codigo: req.params.codigo });
+    }
+    res.json(enfermaria);
+  }));
 
   // Import status endpoint - test N8N connectivity
   app.get("/api/import/status", async (req, res) => {
