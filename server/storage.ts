@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type Enfermaria, type InsertEnfermaria, type UpdateEnfermaria } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 
@@ -44,6 +44,15 @@ export interface IStorage {
   createTemplate(template: InsertNursingUnitTemplate): Promise<NursingUnitTemplate>;
   updateTemplate(id: string, template: Partial<InsertNursingUnitTemplate>): Promise<NursingUnitTemplate | undefined>;
   deleteTemplate(id: string): Promise<boolean>;
+
+  getAllEnfermarias(): Promise<Enfermaria[]>;
+  getEnfermaria(id: string): Promise<Enfermaria | undefined>;
+  getEnfermariaByCodigo(codigo: string): Promise<Enfermaria | undefined>;
+  getActiveEnfermarias(): Promise<Enfermaria[]>;
+  createEnfermaria(enfermaria: InsertEnfermaria): Promise<Enfermaria>;
+  updateEnfermaria(id: string, enfermaria: UpdateEnfermaria): Promise<Enfermaria | undefined>;
+  deleteEnfermaria(id: string): Promise<boolean>;
+  updateEnfermariaLastSync(id: string): Promise<void>;
 }
 
 // Initialize storage based on environment
