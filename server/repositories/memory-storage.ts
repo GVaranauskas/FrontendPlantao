@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, Enfermaria, InsertEnfermaria, UpdateEnfermaria } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class MemStorage implements IStorage {
@@ -8,7 +8,6 @@ export class MemStorage implements IStorage {
   private alerts: Map<string, Alert>;
   private importHistory: Map<string, ImportHistory>;
   private templates: Map<string, NursingUnitTemplate>;
-  private enfermarias: Map<string, Enfermaria>;
 
   constructor() {
     this.users = new Map();
@@ -16,7 +15,6 @@ export class MemStorage implements IStorage {
     this.alerts = new Map();
     this.importHistory = new Map();
     this.templates = new Map();
-    this.enfermarias = new Map();
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -242,58 +240,5 @@ export class MemStorage implements IStorage {
 
   async deleteTemplate(id: string): Promise<boolean> {
     return this.templates.delete(id);
-  }
-
-  async getAllEnfermarias(): Promise<Enfermaria[]> {
-    return Array.from(this.enfermarias.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }
-
-  async getEnfermaria(id: string): Promise<Enfermaria | undefined> {
-    return this.enfermarias.get(id);
-  }
-
-  async getEnfermariaByCodigo(codigo: string): Promise<Enfermaria | undefined> {
-    return Array.from(this.enfermarias.values()).find(e => e.codigo === codigo);
-  }
-
-  async getActiveEnfermarias(): Promise<Enfermaria[]> {
-    return Array.from(this.enfermarias.values())
-      .filter(e => e.ativo)
-      .sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }
-
-  async createEnfermaria(enfermaria: InsertEnfermaria): Promise<Enfermaria> {
-    const id = randomUUID();
-    const record: Enfermaria = {
-      ...enfermaria,
-      id,
-      flowId: enfermaria.flowId || "1a2b3c",
-      descricao: enfermaria.descricao || null,
-      ativo: enfermaria.ativo ?? true,
-      ultimaSync: null,
-      createdAt: new Date(),
-    };
-    this.enfermarias.set(id, record);
-    return record;
-  }
-
-  async updateEnfermaria(id: string, enfermaria: UpdateEnfermaria): Promise<Enfermaria | undefined> {
-    const existing = this.enfermarias.get(id);
-    if (!existing) return undefined;
-    const updated = { ...existing, ...enfermaria };
-    this.enfermarias.set(id, updated);
-    return updated;
-  }
-
-  async deleteEnfermaria(id: string): Promise<boolean> {
-    return this.enfermarias.delete(id);
-  }
-
-  async updateEnfermariaLastSync(id: string): Promise<void> {
-    const existing = this.enfermarias.get(id);
-    if (existing) {
-      existing.ultimaSync = new Date();
-      this.enfermarias.set(id, existing);
-    }
   }
 }

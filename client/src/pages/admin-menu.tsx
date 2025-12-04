@@ -14,7 +14,6 @@ import {
   Shield,
   Code,
   FileJson,
-  Building2,
 } from "lucide-react";
 
 interface AdminModule {
@@ -30,20 +29,11 @@ interface AdminModule {
 const adminModules: AdminModule[] = [
   {
     id: "users",
-    title: "Gerenciamento de Usuarios",
-    description: "Criar, editar e gerenciar usuarios do sistema. Controle de acessos e permissoes.",
+    title: "Gerenciamento de Usuários",
+    description: "Criar, editar e gerenciar usuários do sistema. Controle de acessos e permissões.",
     icon: Users,
     route: "/admin/users",
     badge: "Admin",
-    badgeVariant: "default",
-  },
-  {
-    id: "enfermarias",
-    title: "Gerenciamento de Enfermarias",
-    description: "Cadastrar e configurar enfermarias do hospital, incluindo Flow ID para integracao N8N.",
-    icon: Building2,
-    route: "/admin/enfermarias",
-    badge: "Novo",
     badgeVariant: "default",
   },
   {

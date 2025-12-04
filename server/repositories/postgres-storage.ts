@@ -1,7 +1,7 @@
 import { eq, desc, lt, gte, sql } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates, enfermarias } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, Enfermaria, InsertEnfermaria, UpdateEnfermaria } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class PostgresStorage implements IStorage {
@@ -194,43 +194,6 @@ export class PostgresStorage implements IStorage {
   async deleteTemplate(id: string): Promise<boolean> {
     const result = await db.delete(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id));
     return result.rowCount > 0;
-  }
-
-  async getAllEnfermarias(): Promise<Enfermaria[]> {
-    return await db.select().from(enfermarias).orderBy(enfermarias.codigo);
-  }
-
-  async getEnfermaria(id: string): Promise<Enfermaria | undefined> {
-    const result = await db.select().from(enfermarias).where(eq(enfermarias.id, id)).limit(1);
-    return result[0];
-  }
-
-  async getEnfermariaByCodigo(codigo: string): Promise<Enfermaria | undefined> {
-    const result = await db.select().from(enfermarias).where(eq(enfermarias.codigo, codigo)).limit(1);
-    return result[0];
-  }
-
-  async getActiveEnfermarias(): Promise<Enfermaria[]> {
-    return await db.select().from(enfermarias).where(eq(enfermarias.ativo, true)).orderBy(enfermarias.codigo);
-  }
-
-  async createEnfermaria(enfermaria: InsertEnfermaria): Promise<Enfermaria> {
-    const result = await db.insert(enfermarias).values(enfermaria).returning();
-    return result[0];
-  }
-
-  async updateEnfermaria(id: string, enfermaria: UpdateEnfermaria): Promise<Enfermaria | undefined> {
-    const result = await db.update(enfermarias).set(enfermaria).where(eq(enfermarias.id, id)).returning();
-    return result[0];
-  }
-
-  async deleteEnfermaria(id: string): Promise<boolean> {
-    const result = await db.delete(enfermarias).where(eq(enfermarias.id, id));
-    return result.rowCount > 0;
-  }
-
-  async updateEnfermariaLastSync(id: string): Promise<void> {
-    await db.update(enfermarias).set({ ultimaSync: new Date() }).where(eq(enfermarias.id, id));
   }
 }
 
