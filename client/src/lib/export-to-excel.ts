@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import ExcelJS from "exceljs/dist/exceljs.min.js";
 import type { Patient } from "@shared/schema";
 
 export async function exportPatientsToExcel(patients: Patient[]) {
