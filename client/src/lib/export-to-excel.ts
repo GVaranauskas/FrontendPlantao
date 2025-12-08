@@ -1,67 +1,79 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { Patient } from "@shared/schema";
 
-export function exportPatientsToExcel(patients: Patient[]) {
-  // Preparar dados para exportação
-  const data = patients.map((p) => ({
-    LEITO: p.leito,
-    "ESPECIALIDADE/RAMAL": p.especialidadeRamal || "-",
-    NOME: p.nome,
-    REGISTRO: p.registro || "-",
-    "DATA NASCIMENTO": p.dataNascimento || "-",
-    "DATA INTERNAÇÃO": p.dataInternacao || "-",
-    "RQ BRADEN SCP": p.rqBradenScp || "-",
-    "DIAGNÓSTICO/COMORBIDADES": p.diagnosticoComorbidades || "-",
-    ALERGIAS: p.alergias || "-",
-    MOBILIDADE: p.mobilidade || "-",
-    DIETA: p.dieta || "-",
-    ELIMINAÇÕES: p.eliminacoes || "-",
-    DISPOSITIVOS: p.dispositivos || "-",
-    ATB: p.atb || "-",
-    CURATIVOS: p.curativos || "-",
-    "APORTE E SATURAÇÃO": p.aporteSaturacao || "-",
-    "EXAMES REALIZADOS/PENDENTES": p.examesRealizadosPendentes || "-",
-    "DATA PROGRAMAÇÃO CIRÚRGICA": p.dataProgramacaoCirurgica || "-",
-    "OBSERVAÇÕES/INTERCORRÊNCIAS": p.observacoesIntercorrencias || "-",
-    "PREVISÃO DE ALTA": p.previsaoAlta || "-",
-    STATUS: p.status || "-",
-  }));
+export async function exportPatientsToExcel(patients: Patient[]) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Pacientes");
 
-  // Criar workbook
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Pacientes");
-
-  // Ajustar largura das colunas
-  const columnWidths = [
-    { wch: 8 }, // LEITO
-    { wch: 20 }, // ESPECIALIDADE
-    { wch: 25 }, // NOME
-    { wch: 12 }, // REGISTRO
-    { wch: 15 }, // DATA NASCIMENTO
-    { wch: 15 }, // DATA INTERNAÇÃO
-    { wch: 15 }, // RQ BRADEN
-    { wch: 25 }, // DIAGNÓSTICO
-    { wch: 20 }, // ALERGIAS
-    { wch: 12 }, // MOBILIDADE
-    { wch: 15 }, // DIETA
-    { wch: 15 }, // ELIMINAÇÕES
-    { wch: 20 }, // DISPOSITIVOS
-    { wch: 10 }, // ATB
-    { wch: 15 }, // CURATIVOS
-    { wch: 20 }, // APORTE
-    { wch: 25 }, // EXAMES
-    { wch: 20 }, // PROGRAMAÇÃO
-    { wch: 30 }, // OBSERVAÇÕES
-    { wch: 20 }, // PREVISÃO
-    { wch: 12 }, // STATUS
+  worksheet.columns = [
+    { header: "LEITO", key: "leito", width: 8 },
+    { header: "ESPECIALIDADE/RAMAL", key: "especialidadeRamal", width: 20 },
+    { header: "NOME", key: "nome", width: 25 },
+    { header: "REGISTRO", key: "registro", width: 12 },
+    { header: "DATA NASCIMENTO", key: "dataNascimento", width: 15 },
+    { header: "DATA INTERNAÇÃO", key: "dataInternacao", width: 15 },
+    { header: "RQ BRADEN SCP", key: "rqBradenScp", width: 15 },
+    { header: "DIAGNÓSTICO/COMORBIDADES", key: "diagnosticoComorbidades", width: 25 },
+    { header: "ALERGIAS", key: "alergias", width: 20 },
+    { header: "MOBILIDADE", key: "mobilidade", width: 12 },
+    { header: "DIETA", key: "dieta", width: 15 },
+    { header: "ELIMINAÇÕES", key: "eliminacoes", width: 15 },
+    { header: "DISPOSITIVOS", key: "dispositivos", width: 20 },
+    { header: "ATB", key: "atb", width: 10 },
+    { header: "CURATIVOS", key: "curativos", width: 15 },
+    { header: "APORTE E SATURAÇÃO", key: "aporteSaturacao", width: 20 },
+    { header: "EXAMES REALIZADOS/PENDENTES", key: "examesRealizadosPendentes", width: 25 },
+    { header: "DATA PROGRAMAÇÃO CIRÚRGICA", key: "dataProgramacaoCirurgica", width: 20 },
+    { header: "OBSERVAÇÕES/INTERCORRÊNCIAS", key: "observacoesIntercorrencias", width: 30 },
+    { header: "PREVISÃO DE ALTA", key: "previsaoAlta", width: 20 },
+    { header: "STATUS", key: "status", width: 12 },
   ];
-  ws["!cols"] = columnWidths;
 
-  // Gerar nome do arquivo
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF0056B3" },
+  };
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+
+  patients.forEach((p) => {
+    worksheet.addRow({
+      leito: p.leito,
+      especialidadeRamal: p.especialidadeRamal || "-",
+      nome: p.nome,
+      registro: p.registro || "-",
+      dataNascimento: p.dataNascimento || "-",
+      dataInternacao: p.dataInternacao || "-",
+      rqBradenScp: p.rqBradenScp || "-",
+      diagnosticoComorbidades: p.diagnosticoComorbidades || "-",
+      alergias: p.alergias || "-",
+      mobilidade: p.mobilidade || "-",
+      dieta: p.dieta || "-",
+      eliminacoes: p.eliminacoes || "-",
+      dispositivos: p.dispositivos || "-",
+      atb: p.atb || "-",
+      curativos: p.curativos || "-",
+      aporteSaturacao: p.aporteSaturacao || "-",
+      examesRealizadosPendentes: p.examesRealizadosPendentes || "-",
+      dataProgramacaoCirurgica: p.dataProgramacaoCirurgica || "-",
+      observacoesIntercorrencias: p.observacoesIntercorrencias || "-",
+      previsaoAlta: p.previsaoAlta || "-",
+      status: p.status || "-",
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
   const timestamp = new Date().toISOString().split("T")[0];
-  const filename = `passagem-plantao-${timestamp}.xlsx`;
-
-  // Download
-  XLSX.writeFile(wb, filename);
+  a.download = `passagem-plantao-${timestamp}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
 }

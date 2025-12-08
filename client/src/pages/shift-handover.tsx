@@ -155,7 +155,7 @@ export default function ShiftHandoverPage() {
                 size="icon" 
                 onClick={() => {
                   if (patients?.length) {
-                    exportPatientsToExcel(patients);
+                    void exportPatientsToExcel(patients);
                   }
                 }}
                 disabled={!patients?.length}
