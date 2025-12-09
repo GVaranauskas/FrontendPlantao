@@ -288,9 +288,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Check if patient exists
+          // Check if patient exists by leito AND enfermaria
           const existingPatients = await storage.getAllPatients();
-          const existingPatient = existingPatients.find(p => p.leito === leito);
+          const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || enfermaria;
+          const existingPatient = existingPatients.find(p => 
+            p.leito === leito && p.dsEnfermaria === patientEnfermaria
+          );
 
           let patient;
           if (existingPatient) {
@@ -376,6 +379,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { codigo: "10A02", nome: "Enfermaria 10A02" },
         { codigo: "10A03", nome: "Enfermaria 10A03" },
         { codigo: "10A04", nome: "Enfermaria 10A04" },
+        { codigo: "10A05", nome: "Enfermaria 10A05" },
+        { codigo: "10A06", nome: "Enfermaria 10A06" },
         { codigo: "10B01", nome: "Enfermaria 10B01" },
         { codigo: "10B02", nome: "Enfermaria 10B02" },
         { codigo: "10C01", nome: "Enfermaria 10C01" },

@@ -98,9 +98,12 @@ export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Pat
           continue;
         }
 
-        // Check if patient exists
+        // Check if patient exists by leito AND enfermaria
         const existingPatients = await storage.getAllPatients();
-        const existingPatient = existingPatients.find(p => p.leito === leito);
+        const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || enfermaria;
+        const existingPatient = existingPatients.find(p => 
+          p.leito === leito && p.dsEnfermaria === patientEnfermaria
+        );
 
         let patient: Patient;
         if (existingPatient) {
