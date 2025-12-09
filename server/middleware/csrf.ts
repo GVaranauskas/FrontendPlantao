@@ -22,11 +22,23 @@ const csrfProtection = csrf({
   },
 });
 
+// Paths that don't require CSRF protection (login is entry point)
+const csrfExemptPaths = [
+  '/api/auth/login',
+  '/api/auth/refresh',
+];
+
 /**
- * CSRF protection middleware
+ * CSRF protection middleware with exemptions for auth endpoints
  */
 export function setupCSRF(app: any) {
-  app.use(csrfProtection);
+  // Apply CSRF conditionally - skip for exempt paths
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (csrfExemptPaths.some(path => req.path === path) && req.method === 'POST') {
+      return next();
+    }
+    csrfProtection(req, res, next);
+  });
 
   // Provide CSRF token endpoint for frontend
   app.get('/api/csrf-token', (req: Request, res: Response) => {
