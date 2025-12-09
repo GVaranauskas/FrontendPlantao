@@ -185,4 +185,43 @@
 
 ---
 
+## Criptografia de Dados Sensíveis (LGPD Art. 46)
+
+**Implementado em**: 2025-12-09
+
+### Algoritmo
+- **AES-256-GCM** (Galois/Counter Mode)
+- Salt único por registro (64 bytes)
+- IV único por criptografia (16 bytes)
+- AuthTag para verificação de integridade (16 bytes)
+
+### Campos Criptografados (Pacientes)
+| Campo | Descrição |
+|-------|-----------|
+| nome | Nome do paciente |
+| registro | Número de registro |
+| dataNascimento | Data de nascimento |
+| diagnosticoComorbidades | Diagnóstico e comorbidades |
+| alergias | Alergias conhecidas |
+| observacoesIntercorrencias | Observações e intercorrências |
+| dsEvolucaoCompleta | Evolução completa do N8N |
+
+### Arquivos Relacionados
+- `server/services/encryption.service.ts` - Serviço de criptografia
+- `server/repositories/postgres-storage.ts` - Integração com PostgreSQL
+- `server/scripts/generate-encryption-key.ts` - Gerador de chaves
+
+### Variável de Ambiente
+| Variável | Descrição |
+|----------|-----------|
+| ENCRYPTION_KEY | Chave Base64 de 32 bytes (AES-256) |
+
+### Comportamento
+- Se ENCRYPTION_KEY não estiver definida, criptografia é desabilitada (fallback)
+- Dados legados em texto plano são retornados sem erro (compatibilidade)
+- Novos dados são sempre criptografados quando serviço está ativo
+
+---
+
 *Backup gerado automaticamente em 2025-12-09*
+*Atualizado com implementação de criptografia em 2025-12-09*
