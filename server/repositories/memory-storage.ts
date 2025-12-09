@@ -137,7 +137,8 @@ export class MemStorage implements IStorage {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
     let deleted = 0;
-    for (const [id, h] of this.importHistory) {
+    const entries = Array.from(this.importHistory.entries());
+    for (const [id, h] of entries) {
       if (h.timestamp < cutoffDate) {
         this.importHistory.delete(id);
         deleted++;
