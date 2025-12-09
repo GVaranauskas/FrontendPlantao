@@ -3,6 +3,7 @@ import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import type { IStorage } from "../storage";
+import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
 export class PostgresStorage implements IStorage {
   async getAllUsers(): Promise<User[]> {
@@ -38,23 +39,37 @@ export class PostgresStorage implements IStorage {
     await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, id));
   }
 
+  private encryptPatientData(patient: InsertPatient): InsertPatient {
+    return encryptionService.encryptFields(patient, SENSITIVE_PATIENT_FIELDS as unknown as Array<keyof InsertPatient>);
+  }
+
+  private decryptPatientData(patient: Patient): Patient {
+    return encryptionService.decryptFields(patient, SENSITIVE_PATIENT_FIELDS as unknown as Array<keyof Patient>);
+  }
+
   async getAllPatients(): Promise<Patient[]> {
-    return await db.select().from(patients);
+    const result = await db.select().from(patients);
+    return result.map(p => this.decryptPatientData(p));
   }
 
   async getPatient(id: string): Promise<Patient | undefined> {
     const result = await db.select().from(patients).where(eq(patients.id, id)).limit(1);
-    return result[0];
+    return result[0] ? this.decryptPatientData(result[0]) : undefined;
   }
 
   async createPatient(patient: InsertPatient): Promise<Patient> {
-    const result = await db.insert(patients).values(patient).returning();
-    return result[0];
+    const encryptedPatient = this.encryptPatientData(patient);
+    const result = await db.insert(patients).values(encryptedPatient).returning();
+    return this.decryptPatientData(result[0]);
   }
 
   async updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined> {
-    const result = await db.update(patients).set(patient).where(eq(patients.id, id)).returning();
-    return result[0];
+    const encryptedPatient = encryptionService.encryptFields(
+      patient as Record<string, unknown>, 
+      SENSITIVE_PATIENT_FIELDS as unknown as Array<keyof typeof patient>
+    ) as Partial<InsertPatient>;
+    const result = await db.update(patients).set(encryptedPatient).where(eq(patients.id, id)).returning();
+    return result[0] ? this.decryptPatientData(result[0]) : undefined;
   }
 
   async deletePatient(id: string): Promise<boolean> {
