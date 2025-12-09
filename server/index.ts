@@ -8,6 +8,7 @@ import { setupHelmet, setupRateLimit } from "./security";
 import { registerErrorHandler, AppError } from "./middleware/error-handler";
 import { setupCSRF, csrfErrorHandler } from "./middleware/csrf";
 import { optionalAuthMiddleware } from "./middleware/auth";
+import { auditMiddleware } from "./middleware/audit";
 import { logger } from "./lib/logger";
 
 const app = express();
@@ -62,6 +63,9 @@ app.use(express.urlencoded({ extended: false }));
 
 // Optional authentication middleware (doesn't fail if token missing)
 app.use(optionalAuthMiddleware);
+
+// Audit middleware (logs all API requests for LGPD Art. 37 compliance)
+app.use(auditMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();

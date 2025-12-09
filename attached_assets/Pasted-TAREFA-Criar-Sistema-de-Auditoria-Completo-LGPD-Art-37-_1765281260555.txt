@@ -1,0 +1,213 @@
+TAREFA: Criar Sistema de Auditoria Completo (LGPD Art. 37)
+
+CONTEXTO:
+Sistema atual só registra importações. Precisamos registrar TODAS as operações: quem acessou o quê, quando, de onde.
+
+EXECUTAR:
+
+1. Adicionar nova tabela ao shared/schema.ts (DEPOIS de importHistory):
+```typescript
+export const auditLog = pgTable("audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  
+  userId: varchar("user_id").references(() => users.id),
+  userName: text("user_name").notNull(),
+  userRole: text("user_role").notNull(),
+  
+  action: text("action").notNull(),
+  resource: text("resource").notNull(),
+  resourceId: varchar("resource_id"),
+  
+  changes: jsonb("changes"),
+  metadata: jsonb("metadata"),
+  
+  ipAddress: text("ip_address").notNull(),
+  userAgent: text("user_agent"),
+  endpoint: text("endpoint").notNull(),
+  
+  statusCode: integer("status_code").notNull(),
+  errorMessage: text("error_message"),
+  duration: integer("duration"),
+});
+
+export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertAuditLog = typeof auditLog.$inferInsert;
+```
+
+2. Criar server/services/audit.service.ts:
+```typescript
+import { db } from '../lib/database';
+import { auditLog, type InsertAuditLog } from '@shared/schema';
+import { Request } from 'express';
+
+interface AuditLogOptions {
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT' | 'IMPORT';
+  resource: string;
+  resourceId?: string;
+  changes?: { before?: any; after?: any };
+  metadata?: Record<string, any>;
+  req: Request;
+  statusCode: number;
+  errorMessage?: string;
+  startTime: number;
+}
+
+class AuditService {
+  async log(options: AuditLogOptions): Promise<void> {
+    try {
+      const duration = Date.now() - options.startTime;
+
+      const logEntry: InsertAuditLog = {
+        userId: options.user.id,
+        userName: options.user.name,
+        userRole: options.user.role,
+        action: options.action,
+        resource: options.resource,
+        resourceId: options.resourceId,
+        changes: options.changes ? JSON.stringify(options.changes) : null,
+        metadata: options.metadata ? JSON.stringify(options.metadata) : null,
+        ipAddress: this.getClientIp(options.req),
+        userAgent: options.req.headers['user-agent'] || null,
+        endpoint: `${options.req.method} ${options.req.path}`,
+        statusCode: options.statusCode,
+        errorMessage: options.errorMessage,
+        duration,
+      };
+
+      await db.insert(auditLog).values(logEntry);
+      
+      if (options.statusCode >= 400) {
+        console.warn('[Audit]', {
+          user: options.user.name,
+          action: options.action,
+          resource: options.resource,
+          status: options.statusCode,
+        });
+      }
+    } catch (error) {
+      console.error('[Audit] Failed to log:', error);
+    }
+  }
+
+  private getClientIp(req: Request): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+    if (Array.isArray(forwarded) && forwarded.length > 0) return forwarded[0].trim();
+    return req.socket.remoteAddress || 'unknown';
+  }
+}
+
+export const auditService = new AuditService();
+```
+
+3. Criar middleware server/middleware/audit.ts:
+```typescript
+import { Request, Response, NextFunction } from 'express';
+import { auditService } from '../services/audit.service';
+
+export function auditMiddleware(req: Request, res: Response, next: NextFunction) {
+  const startTime = Date.now();
+  const originalJson = res.json.bind(res);
+  
+  res.json = function(body: any) {
+    const result = originalJson(body);
+    
+    if (req.user && shouldAudit(req)) {
+      const action = determineAction(req);
+      const resource = extractResource(req);
+      const resourceId = extractResourceId(req, body);
+      
+      auditService.log({
+        user: {
+          id: req.user.userId,
+          name: req.user.username,
+          role: req.user.role,
+        },
+        action,
+        resource,
+        resourceId,
+        metadata: { query: req.query, params: req.params },
+        req,
+        statusCode: res.statusCode,
+        startTime,
+      }).catch(error => {
+        console.error('[Audit Middleware] Failed:', error);
+      });
+    }
+    
+    return result;
+  };
+  
+  next();
+}
+
+function shouldAudit(req: Request): boolean {
+  const path = req.path;
+  if (path === '/health') return false;
+  if (path.startsWith('/static')) return false;
+  if (path === '/api/csrf-token') return false;
+  return path.startsWith('/api/');
+}
+
+function determineAction(req: Request): string {
+  const method = req.method;
+  const path = req.path;
+  
+  if (path.includes('/login')) return 'LOGIN';
+  if (path.includes('/logout')) return 'LOGOUT';
+  if (path.includes('/export')) return 'EXPORT';
+  if (path.includes('/import')) return 'IMPORT';
+  
+  switch (method) {
+    case 'POST': return 'CREATE';
+    case 'GET': return 'READ';
+    case 'PUT':
+    case 'PATCH': return 'UPDATE';
+    case 'DELETE': return 'DELETE';
+    default: return method;
+  }
+}
+
+function extractResource(req: Request): string {
+  const path = req.path;
+  if (path.includes('/patients')) return 'patients';
+  if (path.includes('/users')) return 'users';
+  if (path.includes('/templates')) return 'templates';
+  if (path.includes('/alerts')) return 'alerts';
+  if (path.includes('/auth')) return 'sessions';
+  const match = path.match(/\/api\/([^\/]+)/);
+  return match ? match[1] : 'unknown';
+}
+
+function extractResourceId(req: Request, body: any): string | undefined {
+  if (req.params.id) return req.params.id;
+  if (req.params.patientId) return req.params.patientId;
+  if (body && body.id) return body.id;
+  return undefined;
+}
+```
+
+4. Integrar middleware no server/index.ts:
+   - Localizar linha: app.use(optionalAuthMiddleware);
+   - ADICIONAR LOGO DEPOIS:
+```typescript
+import { auditMiddleware } from './middleware/audit';
+app.use(auditMiddleware);
+```
+
+5. Aplicar migration do banco:
+```bash
+npm run db:push
+```
+
+VALIDAÇÃO:
+- Schema compilado com nova tabela
+- Serviços criados sem erros
+- Middleware integrado
+- Migration aplicada
