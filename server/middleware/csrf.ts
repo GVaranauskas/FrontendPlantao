@@ -1,11 +1,9 @@
 import csrf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 
-declare global {
-  namespace Express {
-    interface Request {
-      csrfToken?: () => string;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    csrfToken?: () => string;
   }
 }
 
