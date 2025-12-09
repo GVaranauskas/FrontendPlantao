@@ -39,6 +39,10 @@ localPort = 43045
 externalPort = 5000
 
 [[ports]]
+localPort = 43801
+externalPort = 8000
+
+[[ports]]
 localPort = 44043
 externalPort = 4200
 
@@ -76,3 +80,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+LOG_DIR = "./logs"
