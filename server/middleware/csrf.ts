@@ -10,10 +10,15 @@ declare module 'express-serve-static-core' {
 // Configure CSRF protection with cookie storage
 const csrfProtection = csrf({
   cookie: {
+    key: '_csrf',
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax', // lax allows GET requests from other sites
     maxAge: 3600000, // 1 hour
+    signed: false, // Don't sign the cookie for simplicity
+  },
+  value: (req: Request) => {
+    return req.headers['x-csrf-token'] as string || req.body?._csrf || req.query?._csrf;
   },
 });
 
