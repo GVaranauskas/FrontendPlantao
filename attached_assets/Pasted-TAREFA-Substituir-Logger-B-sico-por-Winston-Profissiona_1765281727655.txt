@@ -1,0 +1,96 @@
+TAREFA: Substituir Logger Básico por Winston Profissional
+
+CONTEXTO:
+Logs atuais usam apenas console.log e não persistem. Precisamos de logs estruturados em arquivos rotativos.
+
+EXECUTAR:
+
+1. Instalar dependências:
+```bash
+npm install winston winston-daily-rotate-file
+```
+
+2. Substituir COMPLETAMENTE o arquivo server/lib/logger.ts por:
+```typescript
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
+
+const logDir = process.env.LOG_DIR || './logs';
+
+const customFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
+
+const fileRotateTransport = new DailyRotateFile({
+  filename: `${logDir}/app-%DATE%.log`,
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '90d',
+  format: customFormat,
+  level: 'info',
+});
+
+const errorFileRotateTransport = new DailyRotateFile({
+  filename: `${logDir}/error-%DATE%.log`,
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '90d',
+  format: customFormat,
+  level: 'error',
+});
+
+export const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: customFormat,
+  transports: [
+    fileRotateTransport,
+    errorFileRotateTransport,
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    ),
+  }));
+}
+
+export function logError(message: string, error: Error, context?: Record<string, any>) {
+  logger.error(message, {
+    error: {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    },
+    ...context,
+  });
+}
+
+export function logInfo(message: string, context?: Record<string, any>) {
+  logger.info(message, context);
+}
+
+export function logWarn(message: string, context?: Record<string, any>) {
+  logger.warn(message, context);
+}
+
+export function logHttp(method: string, path: string, statusCode: number, duration: number, userId?: string) {
+  logger.http('HTTP Request', {
+    method,
+    path,
+    statusCode,
+    duration: `${duration}ms`,
+    userId,
+  });
+}
+```
+
+3. Criar diretório de logs:
+   - Criar pasta /logs na raiz do projeto
+   - Adicionar /logs ao .gitignore
+
+4. Adicionar ao .env:

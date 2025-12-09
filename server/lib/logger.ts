@@ -1,94 +1,130 @@
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  context?: Record<string, any>;
-  error?: {
-    name: string;
-    message: string;
-    stack?: string;
-    statusCode?: number;
-  };
+const logDir = process.env.LOG_DIR || './logs';
+
+const customLevels = {
+  levels: {
+    error: 0,
+    warn: 1,
+    info: 2,
+    http: 3,
+    debug: 4,
+  },
+  colors: {
+    error: 'red',
+    warn: 'yellow',
+    info: 'green',
+    http: 'magenta',
+    debug: 'blue',
+  },
+};
+
+winston.addColors(customLevels.colors);
+
+const customFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
+
+const fileRotateTransport = new DailyRotateFile({
+  filename: `${logDir}/app-%DATE%.log`,
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '90d',
+  format: customFormat,
+  level: 'http',
+});
+
+const errorFileRotateTransport = new DailyRotateFile({
+  filename: `${logDir}/error-%DATE%.log`,
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '90d',
+  format: customFormat,
+  level: 'error',
+});
+
+const winstonLogger = winston.createLogger({
+  levels: customLevels.levels,
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: customFormat,
+  transports: [
+    fileRotateTransport,
+    errorFileRotateTransport,
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  winstonLogger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    ),
+  }));
 }
 
-class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
+interface Logger {
+  info: (message: string, context?: Record<string, unknown>) => void;
+  warn: (message: string, context?: Record<string, unknown>) => void;
+  error: (message: string, error?: Error, context?: Record<string, unknown>) => void;
+  debug: (message: string, context?: Record<string, unknown>) => void;
+  http: (method: string, path: string, statusCode: number, duration: number, message?: string) => void;
+}
 
-  private formatEntry(entry: LogEntry): string {
-    if (this.isDevelopment) {
-      // Development: simple format
-      let output = `[${entry.level.toUpperCase()}] ${entry.message}`;
-      if (entry.error) {
-        output += ` | Error: ${entry.error.name}: ${entry.error.message}`;
-      }
-      if (entry.context && Object.keys(entry.context).length > 0) {
-        output += ` | Context: ${JSON.stringify(entry.context)}`;
-      }
-      return output;
-    } else {
-      // Production: structured JSON
-      return JSON.stringify(entry);
-    }
-  }
+export const logger: Logger = {
+  info(message: string, context?: Record<string, unknown>) {
+    winstonLogger.info(message, context);
+  },
 
-  private log(level: LogLevel, message: string, context?: Record<string, any>, error?: Error) {
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      context,
+  warn(message: string, context?: Record<string, unknown>) {
+    winstonLogger.warn(message, context);
+  },
+
+  error(message: string, error?: Error, context?: Record<string, unknown>) {
+    winstonLogger.error(message, {
       error: error ? {
         name: error.name,
         message: error.message,
-        stack: this.isDevelopment ? error.stack : undefined,
-        statusCode: (error as any).statusCode,
+        stack: error.stack,
       } : undefined,
-    };
+      ...context,
+    });
+  },
 
-    const formatted = this.formatEntry(entry);
-
-    switch (level) {
-      case 'debug':
-        if (this.isDevelopment) console.debug(formatted);
-        break;
-      case 'info':
-        console.log(formatted);
-        break;
-      case 'warn':
-        console.warn(formatted);
-        break;
-      case 'error':
-        console.error(formatted);
-        break;
-    }
-  }
-
-  debug(message: string, context?: Record<string, any>) {
-    this.log('debug', message, context);
-  }
-
-  info(message: string, context?: Record<string, any>) {
-    this.log('info', message, context);
-  }
-
-  warn(message: string, context?: Record<string, any>) {
-    this.log('warn', message, context);
-  }
-
-  error(message: string, error?: Error, context?: Record<string, any>) {
-    this.log('error', message, context, error);
-  }
+  debug(message: string, context?: Record<string, unknown>) {
+    winstonLogger.debug(message, context);
+  },
 
   http(method: string, path: string, statusCode: number, duration: number, message?: string) {
     const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
-    this.log(level, `${method} ${path}`, {
+    winstonLogger.log(level, `${method} ${path}`, {
       statusCode,
       duration: `${duration}ms`,
       message,
     });
-  }
+  },
+};
+
+export function logError(message: string, error: Error, context?: Record<string, unknown>) {
+  logger.error(message, error, context);
 }
 
-export const logger = new Logger();
+export function logInfo(message: string, context?: Record<string, unknown>) {
+  logger.info(message, context);
+}
+
+export function logWarn(message: string, context?: Record<string, unknown>) {
+  logger.warn(message, context);
+}
+
+export function logHttp(method: string, path: string, statusCode: number, duration: number, userId?: string) {
+  winstonLogger.log('http', 'HTTP Request', {
+    method,
+    path,
+    statusCode,
+    duration: `${duration}ms`,
+    userId,
+  });
+}
