@@ -39,7 +39,7 @@ export class N8NIntegrationService {
 
       const payload: N8NRequest = {
         flowId: "1a2b3c",
-        forceUpdate: false,
+        forceUpdate: true,
         meta: {
           params: [enfermaria],
           formJson: JSON.stringify({
