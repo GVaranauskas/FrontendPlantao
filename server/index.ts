@@ -23,8 +23,8 @@ setupRateLimit(app);
 // Cookie parser middleware
 app.use(cookieParser());
 
-// CSRF protection setup - desabilitar por enquanto para endpoints públicos
-// setupCSRF(app);
+// CSRF protection setup
+setupCSRF(app);
 
 declare module 'http' {
   interface IncomingMessage {
@@ -85,8 +85,8 @@ app.use((req, res, next) => {
   try {
     const server = await registerRoutes(app);
 
-    // CSRF error handler desabilitado temporariamente
-    // app.use(csrfErrorHandler);
+    // CSRF error handler
+    app.use(csrfErrorHandler);
 
     // Register global error handler (MUST be after all other middleware/routes)
     registerErrorHandler(app);

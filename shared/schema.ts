@@ -117,6 +117,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
 }).extend({
   role: z.enum(userRoles).default("enfermagem"),
   email: z.string().email().optional().or(z.literal("")),
+  password: z.string()
+    .min(8, 'Senha deve ter no mínimo 8 caracteres')
+    .regex(/[A-Z]/, 'Senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[a-z]/, 'Senha deve conter pelo menos uma letra minúscula')
+    .regex(/[0-9]/, 'Senha deve conter pelo menos um número')
+    .regex(/[^A-Za-z0-9]/, 'Senha deve conter pelo menos um caractere especial'),
 });
 
 export const updateUserSchema = insertUserSchema.partial().extend({
