@@ -22,10 +22,12 @@ const csrfProtection = csrf({
   },
 });
 
-// Paths that don't require CSRF protection (login is entry point)
+// Paths that don't require CSRF protection
 const csrfExemptPaths = [
   '/api/auth/login',
   '/api/auth/refresh',
+  '/api/import/evolucoes',
+  '/api/sync/evolucoes',
 ];
 
 /**
@@ -34,7 +36,10 @@ const csrfExemptPaths = [
 export function setupCSRF(app: any) {
   // Apply CSRF conditionally - skip for exempt paths
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (csrfExemptPaths.some(path => req.path === path) && req.method === 'POST') {
+    const isExempt = csrfExemptPaths.some(path => 
+      req.path === path || req.path.startsWith(path + '/')
+    );
+    if (isExempt && req.method === 'POST') {
       return next();
     }
     csrfProtection(req, res, next);
