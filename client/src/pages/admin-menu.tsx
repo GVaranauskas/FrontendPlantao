@@ -14,6 +14,7 @@ import {
   Shield,
   Code,
   FileJson,
+  Building2,
 } from "lucide-react";
 
 interface AdminModule {
@@ -42,6 +43,15 @@ const adminModules: AdminModule[] = [
     description: "Configurar campos personalizados e regras especiais para cada unidade de enfermagem.",
     icon: Layout,
     route: "/admin/templates",
+  },
+  {
+    id: "nursing-units",
+    title: "Gerenciar Enfermarias",
+    description: "Cadastrar, sincronizar e gerenciar unidades de enfermagem. Aprovação de alterações pendentes.",
+    icon: Building2,
+    route: "/admin/nursing-units",
+    badge: "Novo",
+    badgeVariant: "default",
   },
   {
     id: "import-logs",
