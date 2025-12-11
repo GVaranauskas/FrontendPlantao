@@ -86,41 +86,6 @@ export const nursingUnitTemplates = pgTable("nursing_unit_templates", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Enfermarias (Nursing Units) - stored locally with sync from external API
-export const enfermarias = pgTable("enfermarias", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  idExterno: integer("id_externo").notNull().unique(), // ID from N8N API
-  codigo: text("codigo").notNull().unique(),
-  nome: text("nome").notNull(),
-  descricao: text("descricao"),
-  ramal: text("ramal"),
-  localizacao: text("localizacao"),
-  responsavel: text("responsavel"),
-  capacidadeLeitos: integer("capacidade_leitos"),
-  observacoes: text("observacoes"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  lastSyncAt: timestamp("last_sync_at"),
-});
-
-// Pending sync changes for enfermarias (requires approval)
-export const pendingEnfermariaSync = pgTable("pending_enfermaria_sync", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  idExterno: integer("id_externo").notNull(),
-  codigo: text("codigo").notNull(),
-  nome: text("nome").notNull(),
-  changeType: text("change_type").notNull(), // 'insert' | 'update'
-  changesJson: jsonb("changes_json"), // Details of what changed
-  originalDataJson: jsonb("original_data_json"), // Original data before change
-  newDataJson: jsonb("new_data_json"), // New data from API
-  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  reviewedAt: timestamp("reviewed_at"),
-  reviewedBy: varchar("reviewed_by").references(() => users.id),
-  reviewNotes: text("review_notes"),
-});
-
 export const auditLog = pgTable("audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
@@ -188,22 +153,6 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
   timestamp: true,
 });
 
-export const insertEnfermariaSchema = createInsertSchema(enfermarias).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const updateEnfermariaSchema = insertEnfermariaSchema.partial().omit({
-  idExterno: true,
-  codigo: true,
-});
-
-export const insertPendingEnfermariaSyncSchema = createInsertSchema(pendingEnfermariaSync).omit({
-  id: true,
-  createdAt: true,
-});
-
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -217,8 +166,3 @@ export type InsertNursingUnitTemplate = z.infer<typeof insertNursingUnitTemplate
 export type NursingUnitTemplate = typeof nursingUnitTemplates.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLog.$inferSelect;
-export type InsertEnfermaria = z.infer<typeof insertEnfermariaSchema>;
-export type UpdateEnfermaria = z.infer<typeof updateEnfermariaSchema>;
-export type Enfermaria = typeof enfermarias.$inferSelect;
-export type InsertPendingEnfermariaSync = z.infer<typeof insertPendingEnfermariaSyncSchema>;
-export type PendingEnfermariaSync = typeof pendingEnfermariaSync.$inferSelect;
