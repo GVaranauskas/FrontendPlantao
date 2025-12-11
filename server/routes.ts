@@ -10,6 +10,7 @@ import { unidadesInternacaoService } from "./services/unidades-internacao.servic
 import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
+import { requireRole } from "./middleware/rbac";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 
@@ -624,7 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Create nursing unit manually (admin)
-  app.post("/api/nursing-units", asyncHandler(async (req, res) => {
+  app.post("/api/nursing-units", requireRole('admin'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitSchema.parse(req.body);
       
@@ -654,7 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Update nursing unit (admin)
-  app.patch("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+  app.patch("/api/nursing-units/:id", requireRole('admin'), asyncHandler(async (req, res) => {
     try {
       const validatedData = updateNursingUnitSchema.parse(req.body);
       const unit = await storage.updateNursingUnit(req.params.id, validatedData);
@@ -673,7 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Delete nursing unit (admin)
-  app.delete("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+  app.delete("/api/nursing-units/:id", requireRole('admin'), asyncHandler(async (req, res) => {
     const success = await storage.deleteNursingUnit(req.params.id);
     if (!success) {
       throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
@@ -686,8 +687,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Nursing Units Sync & Changes Management
   // =====================================================
 
-  // Trigger manual sync with external API
-  app.post("/api/nursing-units/sync", asyncHandler(async (req, res) => {
+  // Trigger manual sync with external API (admin only)
+  app.post("/api/nursing-units/sync", requireRole('admin'), asyncHandler(async (req, res) => {
     const { autoApprove } = req.body;
     logger.info(`[${getTimestamp()}] [NursingUnitsSync] Manual sync triggered (autoApprove: ${autoApprove || false})`);
     
@@ -713,8 +714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(changes);
   }));
 
-  // Approve a change
-  app.post("/api/nursing-unit-changes/:id/approve", asyncHandler(async (req, res) => {
+  // Approve a change (admin only)
+  app.post("/api/nursing-unit-changes/:id/approve", requireRole('admin'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -729,8 +730,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
-  // Reject a change
-  app.post("/api/nursing-unit-changes/:id/reject", asyncHandler(async (req, res) => {
+  // Reject a change (admin only)
+  app.post("/api/nursing-unit-changes/:id/reject", requireRole('admin'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -745,8 +746,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
-  // Approve all pending changes
-  app.post("/api/nursing-unit-changes/approve-all", asyncHandler(async (req, res) => {
+  // Approve all pending changes (admin only)
+  app.post("/api/nursing-unit-changes/approve-all", requireRole('admin'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");

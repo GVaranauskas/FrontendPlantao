@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   Code,
   FileJson,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 
 interface AdminModule {
@@ -102,6 +104,22 @@ const adminModules: AdminModule[] = [
 export default function AdminMenuPage() {
   const [, setLocation] = useLocation();
 
+  const { data: pendingCount } = useQuery<{ count: number }>({
+    queryKey: ["/api/nursing-unit-changes/count"],
+    refetchInterval: 30000,
+  });
+
+  const modulesWithPendingCount = adminModules.map((module) => {
+    if (module.id === "nursing-units" && (pendingCount?.count || 0) > 0) {
+      return {
+        ...module,
+        badge: `${pendingCount?.count} pendências`,
+        badgeVariant: "destructive" as const,
+      };
+    }
+    return module;
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b-4 border-primary shadow-md">
@@ -142,7 +160,7 @@ export default function AdminMenuPage() {
 
       <div className="container mx-auto px-5 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {adminModules.map((module) => {
+          {modulesWithPendingCount.map((module) => {
             const Icon = module.icon;
             return (
               <Card

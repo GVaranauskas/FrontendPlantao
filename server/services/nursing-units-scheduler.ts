@@ -1,5 +1,6 @@
 import * as cron from 'node-cron';
 import { NursingUnitsSyncService } from './nursing-units-sync.service';
+import { logger } from '../lib/logger';
 
 export class NursingUnitsScheduler {
   private syncTask: ReturnType<typeof cron.schedule> | null = null;
@@ -12,17 +13,21 @@ export class NursingUnitsScheduler {
 
   async startDailySync(cronExpression: string = "0 6 * * *"): Promise<void> {
     if (this.enabled) {
-      console.log("[NursingUnitsScheduler] Already running");
+      logger.warn("[NursingUnitsScheduler] Already running");
       return;
     }
 
     this.enabled = true;
 
     this.syncTask = cron.schedule(cronExpression, async () => {
-      await this.runSync();
+      try {
+        await this.runSync();
+      } catch (error) {
+        logger.error("[NursingUnitsScheduler] Cron job failed", error instanceof Error ? error : undefined);
+      }
     });
 
-    console.log(`[NursingUnitsScheduler] Daily sync scheduled with cron: ${cronExpression}`);
+    logger.info(`[NursingUnitsScheduler] Daily sync scheduled with cron: ${cronExpression}`);
   }
 
   stop(): void {
@@ -31,28 +36,29 @@ export class NursingUnitsScheduler {
       this.syncTask = null;
     }
     this.enabled = false;
-    console.log("[NursingUnitsScheduler] Stopped");
+    logger.info("[NursingUnitsScheduler] Stopped");
   }
 
   private async runSync(): Promise<void> {
     const startTime = Date.now();
-    console.log("[NursingUnitsScheduler] Starting automatic nursing units sync");
+    logger.info("[NursingUnitsScheduler] Starting automatic nursing units sync");
 
     try {
       const result = await this.syncService.syncUnits(false);
       const duration = Date.now() - startTime;
 
-      console.log(
+      logger.info(
         `[NursingUnitsScheduler] Sync completed in ${duration}ms: ` +
         `${result.created} created, ${result.updated} updated, ` +
         `${result.pendingApproval} pending, ${result.unchanged} unchanged`
       );
 
       if (result.errors.length > 0) {
-        console.error("[NursingUnitsScheduler] Errors:", result.errors);
+        logger.warn("[NursingUnitsScheduler] Sync completed with errors", { errors: result.errors });
       }
     } catch (error) {
-      console.error("[NursingUnitsScheduler] Sync failed:", error);
+      logger.error("[NursingUnitsScheduler] Sync failed", error instanceof Error ? error : undefined);
+      throw error;
     }
   }
 
