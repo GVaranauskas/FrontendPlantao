@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "online",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes"
+          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes"
         });
       } else {
         logger.info(`[${getTimestamp()}] [Status] N8N API returned null (latency: ${latency}ms)`);
@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "offline",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes"
+          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes"
         });
       }
     } catch (error) {
@@ -437,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "offline",
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
-        api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes",
+        api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes",
         erro: error instanceof Error ? error.message : "Connection timeout"
       });
     }
