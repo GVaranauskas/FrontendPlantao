@@ -4,7 +4,7 @@ import { WebSocketServer } from "ws";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
-import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
+import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria, syncEvolucoesByUnitIds, syncAllEvolucoes } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { unidadesInternacaoService } from "./services/unidades-internacao.service";
 import { logger } from "./lib/logger";
@@ -181,7 +181,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // N8N Evolucoes sync endpoint
+  // N8N Evolucoes sync endpoint - all units (params: [""])
+  app.post("/api/sync/evolucoes", async (req, res) => {
+    try {
+      const { unitIds } = req.body;
+      // unitIds can be empty string for all units, or comma-separated IDs like "22,23"
+      const params = unitIds !== undefined ? unitIds : "";
+      
+      logger.info(`[${getTimestamp()}] [Sync] Syncing evolucoes with params: ["${params}"]`);
+      const patients = await syncEvolucoesByUnitIds(params);
+      
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patients);
+      }
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
+      res.status(500).json({ message: "Failed to sync evolucoes" });
+    }
+  });
+
+  // N8N Evolucoes sync endpoint - specific unit (legacy)
   app.post("/api/sync/evolucoes/:enfermaria", async (req, res) => {
     try {
       const enfermaria = req.params.enfermaria;

@@ -45,7 +45,7 @@ export const validatePatientDataLength = (patient: InsertPatient): boolean => {
     curativos: 500,
     aporteSaturacao: 500,
     examesRealizadosPendentes: 1000,
-    dataProgramacaoCirurgica: 20,
+    dataProgramacaoCirurgica: 500,
     observacoesIntercorrencias: 2000,
     previsaoAlta: 500,
     codigoAtendimento: 50,

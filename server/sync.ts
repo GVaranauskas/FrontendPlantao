@@ -60,19 +60,20 @@ export async function syncMultiplePatientsFromExternalAPI(leitos: string[]): Pro
 }
 
 /**
- * Sync evolucoes from N8N for a specific enfermaria
+ * Sync evolucoes from N8N for specific unit IDs or all units
+ * @param unitIds - IDs das unidades de internação (ex: "22,23") ou vazio para todas
  */
-export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Patient[]> {
+export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Patient[]> {
   const results: Patient[] = [];
   
   try {
-    console.log(`[Sync] Starting sync for enfermaria: ${enfermaria}`);
+    console.log(`[Sync] Starting sync with params: ["${unitIds}"]`);
     
     // Fetch raw evolucoes from N8N
-    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(unitIds);
     
     if (!evolucoes || evolucoes.length === 0) {
-      console.log(`[Sync] No evolucoes found for enfermaria: ${enfermaria}`);
+      console.log(`[Sync] No evolucoes found`);
       return results;
     }
 
@@ -80,7 +81,7 @@ export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Pat
     for (const evolucao of evolucoes) {
       try {
         // Extract leito if available
-        const leito = evolucao.leito || evolucao.ds_leito_completo || evolucao.leito_completo || "";
+        const leito = evolucao.leito || evolucao.dsLeito || evolucao.ds_leito_completo || evolucao.leito_completo || "";
         
         if (!leito) {
           console.warn("[Sync] Leito not found in evolução, skipping");
@@ -100,7 +101,7 @@ export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Pat
 
         // Check if patient exists by leito AND enfermaria
         const existingPatients = await storage.getAllPatients();
-        const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || enfermaria;
+        const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
         const existingPatient = existingPatients.find(p => 
           p.leito === leito && p.dsEnfermaria === patientEnfermaria
         );
@@ -129,10 +130,24 @@ export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Pat
       }
     }
 
-    console.log(`[Sync] Completed sync for enfermaria ${enfermaria}. Processed: ${results.length} patients`);
+    console.log(`[Sync] Completed sync. Processed: ${results.length} patients`);
   } catch (error) {
-    console.error(`[Sync] Error syncing evolucoes by enfermaria:`, error);
+    console.error(`[Sync] Error syncing evolucoes:`, error);
   }
 
   return results;
+}
+
+/**
+ * Sync all evolucoes from N8N (params: [""])
+ */
+export async function syncAllEvolucoes(): Promise<Patient[]> {
+  return syncEvolucoesByUnitIds("");
+}
+
+/**
+ * Legacy alias for backward compatibility
+ */
+export async function syncEvolucoesByEnfermaria(enfermaria: string): Promise<Patient[]> {
+  return syncEvolucoesByUnitIds(enfermaria);
 }

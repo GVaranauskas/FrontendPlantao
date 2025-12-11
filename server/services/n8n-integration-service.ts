@@ -27,41 +27,21 @@ const N8N_API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes";
 
 export class N8NIntegrationService {
   /**
-   * Busca dados de evolução da API N8N para uma enfermaria
+   * Busca dados de evolução da API N8N
+   * @param unitIds - IDs das unidades de internação (ex: "22,23") ou vazio para todas
    */
-  async fetchEvolucoes(enfermaria: string): Promise<N8NRawData[] | null> {
+  async fetchEvolucoes(unitIds: string = ""): Promise<N8NRawData[] | null> {
     try {
-      // Validate enfermaria parameter to prevent injection
-      if (!validateEnfermaria(enfermaria)) {
-        console.error(`[N8N] Invalid enfermaria parameter: ${enfermaria}`);
-        return null;
-      }
-
       const payload: N8NRequest = {
         flowId: "1a2b3c4d5e",
         forceUpdate: false,
         meta: {
-          params: [enfermaria],
-          formJson: JSON.stringify({
-            braden: "escala braden",
-            diagnostico: "diagnostico do paciente",
-            alergias: "alergias reportadas",
-            mobilidade: "questoes relacionadas à mobilidade do paciente",
-            dieta: "questoes referentes a alimentação do paciente",
-            eliminacoes: "questões referentes a eliminações do paciente",
-            dispositivos: "dispositivos em uso pelo paciente",
-            atb: "antibioticos em uso",
-            curativos: "informações sobre curativos",
-            aporteSaturacao: "informações sobre aporte e saturação",
-            exames: "informaçoes sobre exames realizados e pendentes",
-            cirurgia: "informações sobre cirurgia programada e data da programação cirurgica",
-            observacoes: "informações sobre observações e intercorrencias",
-            previsaoAlta: "informações sobre previsão de alta"
-          })
+          params: [unitIds],
+          formJson: "{\"braden\": \"escala braden\", \"diagnostico\": \"diagnostico do paciente\", \"alergias\": \"alergias reportadas\", \"mobilidade\": \"questoes relacionadas à mobilidade do paciente\", \"dieta\": \"questoes referentes a alimentação do paciente\", \"eliminacoes\": \"questões referentes a eliminações do paciente\", \"dispositivos\": \"dispositivos em uso pelo paciente\", \"atb\": \"antibioticos em uso\", \"curativos\": \"informações sobre curativos\", \"aporteSaturacao\": \"informações sobre aporte e saturação\", \"exames\": \"informaçoes sobre exames realizados e pendentes\", \"cirurgia\": \"informações sobre cirurgia programada e data da programação cirurgica\", \"observacoes\": \"informações sobre observações e intercorrencias\", \"previsaoAlta\": \"informações sobre previsão de alta\"}"
         }
       };
 
-      console.log(`[N8N] Fetching evolucoes for enfermaria: ${enfermaria}`);
+      console.log(`[N8N] Fetching evolucoes with params: ["${unitIds}"]`);
       
       const response = await fetch(N8N_API_URL, {
         method: "POST",
@@ -81,7 +61,7 @@ export class N8NIntegrationService {
       
       // Verificar se a resposta está vazia
       if (!responseText || responseText.trim() === "") {
-        console.warn(`[N8N] Empty response from API for enfermaria: ${enfermaria}`);
+        console.warn(`[N8N] Empty response from API`);
         return [];
       }
 
@@ -89,17 +69,17 @@ export class N8NIntegrationService {
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error(`[N8N] Invalid JSON response for ${enfermaria}: ${responseText.substring(0, 200)}`);
+        console.error(`[N8N] Invalid JSON response: ${responseText.substring(0, 200)}`);
         return null;
       }
       
       // N8N pode retornar array ou objeto único
       const resultado = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
-      console.log(`[N8N] Received ${resultado.length} record(s) for enfermaria: ${enfermaria}`);
+      console.log(`[N8N] Received ${resultado.length} record(s)`);
       
       return resultado;
     } catch (error) {
-      console.error(`[N8N] Error fetching evolucoes for ${enfermaria}:`, error);
+      console.error(`[N8N] Error fetching evolucoes:`, error);
       return null;
     }
   }
@@ -241,7 +221,7 @@ export class N8NIntegrationService {
    * Exemplo: "PACIENTE NOME PT: 123456 AT: 78901" -> "PACIENTE NOME"
    */
   private extractNomePaciente(dados: N8NRawData): string {
-    let nome = dados.nome_paciente || dados.nome || dados.paciente || "";
+    let nome = dados.nomePaciente || dados.nome_paciente || dados.nome || dados.paciente || "";
     
     if (!nome) return "";
 
@@ -259,7 +239,7 @@ export class N8NIntegrationService {
     if (dados.registro) return dados.registro;
     if (dados.pt) return dados.pt;
 
-    const nome = dados.nome_paciente || dados.nome || "";
+    const nome = dados.nomePaciente || dados.nome_paciente || dados.nome || "";
     const match = nome.match(/PT:\s*(\d+)/);
     
     return match ? match[1] : "";
@@ -273,7 +253,7 @@ export class N8NIntegrationService {
     if (dados.codigo_atendimento) return dados.codigo_atendimento;
     if (dados.at) return dados.at;
 
-    const nome = dados.nome_paciente || dados.nome || "";
+    const nome = dados.nomePaciente || dados.nome_paciente || dados.nome || "";
     const match = nome.match(/AT:\s*(\d+)/);
     
     return match ? match[1] : "";
@@ -324,14 +304,28 @@ export class N8NIntegrationService {
 
   /**
    * Formata data para DD/MM/YYYY
+   * Aceita formatos: DD/MM/YYYY, ISO 8601, ou outros formatos parseáveis
    */
   private formatDateToDDMMYYYY(dateString: string): string {
     if (!dateString) return "";
 
     try {
+      // Se já está no formato DD/MM/YYYY, retornar como está
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+        return dateString;
+      }
+
+      // Tentar parsear e converter
       const date = new Date(dateString);
       
-      if (isNaN(date.getTime())) return "";
+      if (isNaN(date.getTime())) {
+        // Se não parseou, usar data atual como fallback
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, "0");
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const year = now.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
 
       const day = String(date.getDate()).padStart(2, "0");
       const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -339,7 +333,12 @@ export class N8NIntegrationService {
 
       return `${day}/${month}/${year}`;
     } catch {
-      return "";
+      // Fallback para data atual
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = now.getFullYear();
+      return `${day}/${month}/${year}`;
     }
   }
 
