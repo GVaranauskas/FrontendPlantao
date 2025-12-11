@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 
@@ -44,6 +44,27 @@ export interface IStorage {
   createTemplate(template: InsertNursingUnitTemplate): Promise<NursingUnitTemplate>;
   updateTemplate(id: string, template: Partial<InsertNursingUnitTemplate>): Promise<NursingUnitTemplate | undefined>;
   deleteTemplate(id: string): Promise<boolean>;
+
+  // Nursing Units (Enfermarias)
+  getAllNursingUnits(): Promise<NursingUnit[]>;
+  getActiveNursingUnits(): Promise<NursingUnit[]>;
+  getNursingUnit(id: string): Promise<NursingUnit | undefined>;
+  getNursingUnitByExternalId(externalId: number): Promise<NursingUnit | undefined>;
+  getNursingUnitByCodigo(codigo: string): Promise<NursingUnit | undefined>;
+  createNursingUnit(unit: InsertNursingUnit): Promise<NursingUnit>;
+  updateNursingUnit(id: string, unit: UpdateNursingUnit): Promise<NursingUnit | undefined>;
+  deleteNursingUnit(id: string): Promise<boolean>;
+
+  // Nursing Unit Changes (Pendências de Aprovação)
+  getAllNursingUnitChanges(): Promise<NursingUnitChange[]>;
+  getPendingNursingUnitChanges(): Promise<NursingUnitChange[]>;
+  getNursingUnitChange(id: string): Promise<NursingUnitChange | undefined>;
+  getPendingChangeByExternalId(externalId: number, changeType: string): Promise<NursingUnitChange | undefined>;
+  createNursingUnitChange(change: InsertNursingUnitChange): Promise<NursingUnitChange>;
+  approveNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined>;
+  rejectNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined>;
+  deleteNursingUnitChange(id: string): Promise<boolean>;
+  getPendingChangesCount(): Promise<number>;
 }
 
 // Initialize storage based on environment

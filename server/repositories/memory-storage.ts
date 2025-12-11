@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class MemStorage implements IStorage {
@@ -8,6 +8,8 @@ export class MemStorage implements IStorage {
   private alerts: Map<string, Alert>;
   private importHistory: Map<string, ImportHistory>;
   private templates: Map<string, NursingUnitTemplate>;
+  private nursingUnits: Map<string, NursingUnit>;
+  private nursingUnitChanges: Map<string, NursingUnitChange>;
 
   constructor() {
     this.users = new Map();
@@ -15,6 +17,8 @@ export class MemStorage implements IStorage {
     this.alerts = new Map();
     this.importHistory = new Map();
     this.templates = new Map();
+    this.nursingUnits = new Map();
+    this.nursingUnitChanges = new Map();
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -241,5 +245,122 @@ export class MemStorage implements IStorage {
 
   async deleteTemplate(id: string): Promise<boolean> {
     return this.templates.delete(id);
+  }
+
+  // Nursing Units CRUD
+  async getAllNursingUnits(): Promise<NursingUnit[]> {
+    return Array.from(this.nursingUnits.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async getActiveNursingUnits(): Promise<NursingUnit[]> {
+    return Array.from(this.nursingUnits.values())
+      .filter(u => u.ativo)
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async getNursingUnit(id: string): Promise<NursingUnit | undefined> {
+    return this.nursingUnits.get(id);
+  }
+
+  async getNursingUnitByExternalId(externalId: number): Promise<NursingUnit | undefined> {
+    return Array.from(this.nursingUnits.values()).find(u => u.externalId === externalId);
+  }
+
+  async getNursingUnitByCodigo(codigo: string): Promise<NursingUnit | undefined> {
+    return Array.from(this.nursingUnits.values()).find(u => u.codigo === codigo);
+  }
+
+  async createNursingUnit(unit: InsertNursingUnit): Promise<NursingUnit> {
+    const id = randomUUID();
+    const record: NursingUnit = {
+      ...unit,
+      id,
+      localizacao: unit.localizacao || null,
+      descricao: unit.descricao || null,
+      observacoes: unit.observacoes || null,
+      ramal: unit.ramal || null,
+      ativo: unit.ativo ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.nursingUnits.set(id, record);
+    return record;
+  }
+
+  async updateNursingUnit(id: string, unit: UpdateNursingUnit): Promise<NursingUnit | undefined> {
+    const existing = this.nursingUnits.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...unit, updatedAt: new Date() };
+    this.nursingUnits.set(id, updated);
+    return updated;
+  }
+
+  async deleteNursingUnit(id: string): Promise<boolean> {
+    return this.nursingUnits.delete(id);
+  }
+
+  // Nursing Unit Changes (Pendências de Aprovação)
+  async getAllNursingUnitChanges(): Promise<NursingUnitChange[]> {
+    return Array.from(this.nursingUnitChanges.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getPendingNursingUnitChanges(): Promise<NursingUnitChange[]> {
+    return Array.from(this.nursingUnitChanges.values())
+      .filter(c => c.status === "pending")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getNursingUnitChange(id: string): Promise<NursingUnitChange | undefined> {
+    return this.nursingUnitChanges.get(id);
+  }
+
+  async getPendingChangeByExternalId(externalId: number, changeType: string): Promise<NursingUnitChange | undefined> {
+    return Array.from(this.nursingUnitChanges.values()).find(
+      c => c.externalId === externalId && c.changeType === changeType && c.status === "pending"
+    );
+  }
+
+  async createNursingUnitChange(change: InsertNursingUnitChange): Promise<NursingUnitChange> {
+    const id = randomUUID();
+    const record: NursingUnitChange = {
+      ...change,
+      id,
+      unitId: change.unitId || null,
+      fieldChanged: change.fieldChanged || null,
+      oldValue: change.oldValue || null,
+      newValue: change.newValue || null,
+      newData: change.newData || null,
+      status: change.status || "pending",
+      reviewedBy: change.reviewedBy || null,
+      reviewedAt: change.reviewedAt || null,
+      createdAt: new Date(),
+    };
+    this.nursingUnitChanges.set(id, record);
+    return record;
+  }
+
+  async approveNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined> {
+    const change = this.nursingUnitChanges.get(id);
+    if (!change) return undefined;
+    const updated = { ...change, status: "approved" as const, reviewedBy, reviewedAt: new Date() };
+    this.nursingUnitChanges.set(id, updated);
+    return updated;
+  }
+
+  async rejectNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined> {
+    const change = this.nursingUnitChanges.get(id);
+    if (!change) return undefined;
+    const updated = { ...change, status: "rejected" as const, reviewedBy, reviewedAt: new Date() };
+    this.nursingUnitChanges.set(id, updated);
+    return updated;
+  }
+
+  async deleteNursingUnitChange(id: string): Promise<boolean> {
+    return this.nursingUnitChanges.delete(id);
+  }
+
+  async getPendingChangesCount(): Promise<number> {
+    return Array.from(this.nursingUnitChanges.values()).filter(c => c.status === "pending").length;
   }
 }

@@ -86,6 +86,42 @@ export const nursingUnitTemplates = pgTable("nursing_unit_templates", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Gestão de Enfermarias/Unidades de Internação
+export const nursingUnits = pgTable("nursing_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  externalId: integer("external_id").notNull().unique(), // idUnidadeInternacao da API
+  codigo: text("codigo").notNull(), // dsUnidadeInternacao
+  nome: text("nome").notNull(),
+  localizacao: text("localizacao"),
+  descricao: text("descricao"),
+  observacoes: text("observacoes"),
+  ramal: text("ramal"),
+  ativo: boolean("ativo").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const nursingUnitChangeTypes = ["create", "update"] as const;
+export type NursingUnitChangeType = typeof nursingUnitChangeTypes[number];
+
+export const nursingUnitChangeStatuses = ["pending", "approved", "rejected"] as const;
+export type NursingUnitChangeStatus = typeof nursingUnitChangeStatuses[number];
+
+export const nursingUnitChanges = pgTable("nursing_unit_changes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  unitId: varchar("unit_id").references(() => nursingUnits.id), // null para novas unidades
+  externalId: integer("external_id").notNull(), // idUnidadeInternacao da API
+  changeType: text("change_type").notNull(), // 'create' ou 'update'
+  fieldChanged: text("field_changed"), // campo que mudou (para updates)
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  newData: jsonb("new_data"), // dados completos da API para criação
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const auditLog = pgTable("audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
@@ -153,6 +189,27 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
   timestamp: true,
 });
 
+export const insertNursingUnitSchema = createInsertSchema(nursingUnits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateNursingUnitSchema = insertNursingUnitSchema.partial().extend({
+  descricao: z.string().optional(),
+  observacoes: z.string().optional(),
+  ramal: z.string().optional(),
+  ativo: z.boolean().optional(),
+});
+
+export const insertNursingUnitChangeSchema = createInsertSchema(nursingUnitChanges).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  changeType: z.enum(nursingUnitChangeTypes),
+  status: z.enum(nursingUnitChangeStatuses).default("pending"),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -166,3 +223,8 @@ export type InsertNursingUnitTemplate = z.infer<typeof insertNursingUnitTemplate
 export type NursingUnitTemplate = typeof nursingUnitTemplates.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertNursingUnit = z.infer<typeof insertNursingUnitSchema>;
+export type UpdateNursingUnit = z.infer<typeof updateNursingUnitSchema>;
+export type NursingUnit = typeof nursingUnits.$inferSelect;
+export type InsertNursingUnitChange = z.infer<typeof insertNursingUnitChangeSchema>;
+export type NursingUnitChange = typeof nursingUnitChanges.$inferSelect;

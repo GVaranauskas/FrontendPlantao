@@ -1,7 +1,7 @@
-import { eq, desc, lt, gte, sql } from "drizzle-orm";
+import { eq, desc, lt, gte, sql, and } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
 import type { IStorage } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
@@ -209,6 +209,110 @@ export class PostgresStorage implements IStorage {
   async deleteTemplate(id: string): Promise<boolean> {
     const result = await db.delete(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id));
     return result.rowCount > 0;
+  }
+
+  // Nursing Units CRUD
+  async getAllNursingUnits(): Promise<NursingUnit[]> {
+    return await db.select().from(nursingUnits).orderBy(nursingUnits.nome);
+  }
+
+  async getActiveNursingUnits(): Promise<NursingUnit[]> {
+    return await db.select().from(nursingUnits).where(eq(nursingUnits.ativo, true)).orderBy(nursingUnits.nome);
+  }
+
+  async getNursingUnit(id: string): Promise<NursingUnit | undefined> {
+    const result = await db.select().from(nursingUnits).where(eq(nursingUnits.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getNursingUnitByExternalId(externalId: number): Promise<NursingUnit | undefined> {
+    const result = await db.select().from(nursingUnits).where(eq(nursingUnits.externalId, externalId)).limit(1);
+    return result[0];
+  }
+
+  async getNursingUnitByCodigo(codigo: string): Promise<NursingUnit | undefined> {
+    const result = await db.select().from(nursingUnits).where(eq(nursingUnits.codigo, codigo)).limit(1);
+    return result[0];
+  }
+
+  async createNursingUnit(unit: InsertNursingUnit): Promise<NursingUnit> {
+    const result = await db.insert(nursingUnits).values(unit).returning();
+    return result[0];
+  }
+
+  async updateNursingUnit(id: string, unit: UpdateNursingUnit): Promise<NursingUnit | undefined> {
+    const result = await db.update(nursingUnits).set({
+      ...unit,
+      updatedAt: new Date(),
+    }).where(eq(nursingUnits.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteNursingUnit(id: string): Promise<boolean> {
+    const result = await db.delete(nursingUnits).where(eq(nursingUnits.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Nursing Unit Changes (Pendências de Aprovação)
+  async getAllNursingUnitChanges(): Promise<NursingUnitChange[]> {
+    return await db.select().from(nursingUnitChanges).orderBy(desc(nursingUnitChanges.createdAt));
+  }
+
+  async getPendingNursingUnitChanges(): Promise<NursingUnitChange[]> {
+    return await db.select().from(nursingUnitChanges)
+      .where(eq(nursingUnitChanges.status, "pending"))
+      .orderBy(desc(nursingUnitChanges.createdAt));
+  }
+
+  async getNursingUnitChange(id: string): Promise<NursingUnitChange | undefined> {
+    const result = await db.select().from(nursingUnitChanges).where(eq(nursingUnitChanges.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPendingChangeByExternalId(externalId: number, changeType: string): Promise<NursingUnitChange | undefined> {
+    const result = await db.select().from(nursingUnitChanges)
+      .where(and(
+        eq(nursingUnitChanges.externalId, externalId),
+        eq(nursingUnitChanges.changeType, changeType),
+        eq(nursingUnitChanges.status, "pending")
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async createNursingUnitChange(change: InsertNursingUnitChange): Promise<NursingUnitChange> {
+    const result = await db.insert(nursingUnitChanges).values(change).returning();
+    return result[0];
+  }
+
+  async approveNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined> {
+    const result = await db.update(nursingUnitChanges).set({
+      status: "approved",
+      reviewedBy,
+      reviewedAt: new Date(),
+    }).where(eq(nursingUnitChanges.id, id)).returning();
+    return result[0];
+  }
+
+  async rejectNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined> {
+    const result = await db.update(nursingUnitChanges).set({
+      status: "rejected",
+      reviewedBy,
+      reviewedAt: new Date(),
+    }).where(eq(nursingUnitChanges.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteNursingUnitChange(id: string): Promise<boolean> {
+    const result = await db.delete(nursingUnitChanges).where(eq(nursingUnitChanges.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getPendingChangesCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(nursingUnitChanges)
+      .where(eq(nursingUnitChanges.status, "pending"));
+    return Number(result[0]?.count || 0);
   }
 }
 
