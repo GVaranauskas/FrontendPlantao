@@ -28,7 +28,6 @@ const csrfExemptPaths = [
   '/api/auth/refresh',
   '/api/import/evolucoes',
   '/api/sync/evolucoes',
-  '/api/nursing-units/sync',
 ];
 
 /**
