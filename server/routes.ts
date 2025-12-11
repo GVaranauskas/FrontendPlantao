@@ -6,6 +6,7 @@ import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
+import { unidadesInternacaoService } from "./services/unidades-internacao.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { registerAuthRoutes } from "./routes/auth";
@@ -374,17 +375,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List enfermarias endpoint
   app.get("/api/enfermarias", async (req, res) => {
     try {
-      // Predefined list of enfermarias
-      const enfermarias = [
-        { codigo: "10A02", nome: "Enfermaria 10A02" },
-        { codigo: "10A03", nome: "Enfermaria 10A03" },
-        { codigo: "10A04", nome: "Enfermaria 10A04" },
-        { codigo: "10A05", nome: "Enfermaria 10A05" },
-        { codigo: "10A06", nome: "Enfermaria 10A06" },
-        { codigo: "10B01", nome: "Enfermaria 10B01" },
-        { codigo: "10B02", nome: "Enfermaria 10B02" },
-        { codigo: "10C01", nome: "Enfermaria 10C01" },
-      ];
+      // Fetch enfermarias from external API
+      const enfermarias = await unidadesInternacaoService.fetchUnidades();
 
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
@@ -394,6 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(enfermarias);
       }
     } catch (error) {
+      logger.error(`[${getTimestamp()}] [Enfermarias] Failed to fetch: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ message: "Failed to fetch enfermarias" });
     }
   });
