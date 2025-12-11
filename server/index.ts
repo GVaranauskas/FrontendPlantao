@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
 import { importScheduler } from "./services/import-scheduler";
+import { nursingUnitsScheduler } from "./services/nursing-units-scheduler";
 import { setupHelmet, setupRateLimit } from "./security";
 import { registerErrorHandler, AppError } from "./middleware/error-handler";
 import { setupCSRF, csrfErrorHandler } from "./middleware/csrf";
@@ -103,6 +104,9 @@ app.use((req, res, next) => {
     // Auto-sync is now handled by frontend via useAutoSync hook
     // Backend scheduler disabled to avoid conflicts
     // await importScheduler.startDefaultSchedule();
+
+    // Start daily nursing units sync (runs at 6:00 AM)
+    await nursingUnitsScheduler.startDailySync("0 6 * * *");
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
     // Other ports are firewalled. Default to 5000 if not specified.
