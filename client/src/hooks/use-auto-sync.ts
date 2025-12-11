@@ -1,11 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
 
 interface AutoSyncState {
   isSyncing: boolean;
@@ -17,11 +11,11 @@ interface AutoSyncState {
 
 interface UseAutoSyncProps {
   enabled?: boolean;
-  syncInterval?: number; // milliseconds, default 300000 = 5 min
+  syncInterval?: number; // milliseconds, default 900000 = 15 min
 }
 
 export function useAutoSync(props?: UseAutoSyncProps) {
-  const { enabled = false, syncInterval = 300000 } = props || {};
+  const { enabled = false, syncInterval = 900000 } = props || {}; // Default 15 minutes
 
   const [syncState, setSyncState] = useState<AutoSyncState>({
     isSyncing: false,
@@ -32,157 +26,118 @@ export function useAutoSync(props?: UseAutoSyncProps) {
   });
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isPageVisibleRef = useRef(true);
+  const initialSyncDoneRef = useRef(false);
+  const isSyncingRef = useRef(false);
 
-  // Fetch enfermarias list for sync
-  const { data: enfermarias, isLoading: isLoadingEnfermarias } = useQuery<Enfermaria[]>({
-    queryKey: ["/api/enfermarias"],
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour
-    gcTime: 1000 * 60 * 60, // Keep in garbage collection for 1 hour
-    retry: 2,
-  });
-
-  // Detect page visibility changes
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      isPageVisibleRef.current = !document.hidden;
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  // Function to sync all enfermarias sequentially
-  const performAutoSync = async () => {
-    if (!isPageVisibleRef.current) {
-      console.log("[Auto-sync] Page not visible, skipping sync");
+  // Function to sync all units using the new endpoint
+  const performAutoSync = useCallback(async () => {
+    // Prevent concurrent syncs
+    if (isSyncingRef.current) {
+      console.log("[Auto-sync] Already syncing, skipping");
       return;
     }
 
-    if (!enfermarias?.length) {
-      console.log("[Auto-sync] Enfermarias not loaded yet, skipping sync");
-      return;
-    }
-
+    isSyncingRef.current = true;
     setSyncState(prev => ({ ...prev, isSyncing: true, syncStatus: "syncing" }));
-    let totalImported = 0;
-    let totalErrors = 0;
 
     try {
-      // Process each enfermaria sequentially with delays
-      for (const enfermaria of enfermarias) {
-        try {
-          const res = await apiRequest("POST", "/api/import/evolucoes", {
-            enfermaria: enfermaria.codigo,
-          });
-          
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-          }
-          
-          const data = (await res.json()) as {
-            success: boolean;
-            stats: { total: number; importados: number; erros: number };
-          };
-
-          if (data.success) {
-            totalImported += data.stats.importados;
-            totalErrors += data.stats.erros;
-            console.log(`[Auto-sync] ✓ ${enfermaria.codigo}: ${data.stats.importados} imported`);
-          } else {
-            totalErrors++;
-            console.warn(`[Auto-sync] ✗ ${enfermaria.codigo}: sync failed`);
-          }
-        } catch (error) {
-          console.error(`[Auto-sync] Error syncing ${enfermaria.codigo}:`, error);
-          totalErrors++;
-        }
-        
-        // Small delay between requests to avoid hammering the API
-        await new Promise(resolve => setTimeout(resolve, 200));
+      console.log("[Auto-sync] Starting sync for all units...");
+      
+      // Use the new unified sync endpoint with empty unitIds for all units
+      const res = await apiRequest("POST", "/api/sync/evolucoes", {
+        unitIds: "", // Empty string = all units
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
+      
+      const data = (await res.json()) as {
+        success: boolean;
+        message: string;
+        stats?: { total: number; imported: number; updated: number; errors: number };
+      };
 
       // Invalidate patient cache to refresh UI
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
 
-      // Log summary
-      console.log(
-        `[Auto-sync] ✓ Completed: ${totalImported} imported, ${totalErrors} errors from ${enfermarias.length} enfermarias`
-      );
+      const imported = data.stats?.imported || 0;
+      const updated = data.stats?.updated || 0;
+      const errors = data.stats?.errors || 0;
 
-      setSyncState(prev => ({
-        ...prev,
+      console.log(`[Auto-sync] ✓ Completed: ${imported} new, ${updated} updated, ${errors} errors`);
+
+      setSyncState({
         isSyncing: false,
         syncStatus: "success",
         lastSyncTime: new Date(),
-        totalImported,
-        totalErrors,
-      }));
+        totalImported: imported + updated,
+        totalErrors: errors,
+      });
 
-      // Auto-hide success message after 3 seconds
-      const hideTimer = setTimeout(() => {
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
         setSyncState(prev => ({ ...prev, syncStatus: "idle" }));
-      }, 3000);
+      }, 5000);
 
-      return () => clearTimeout(hideTimer);
     } catch (error) {
-      console.error("[Auto-sync] Critical error:", error);
+      console.error("[Auto-sync] Error:", error);
       setSyncState(prev => ({
         ...prev,
         isSyncing: false,
         syncStatus: "error",
-        totalErrors: totalErrors + 1,
+        totalErrors: prev.totalErrors + 1,
       }));
 
-      // Auto-hide error message after 4 seconds
-      const hideTimer = setTimeout(() => {
+      // Auto-hide error message after 5 seconds
+      setTimeout(() => {
         setSyncState(prev => ({ ...prev, syncStatus: "idle" }));
-      }, 4000);
-
-      return () => clearTimeout(hideTimer);
+      }, 5000);
+    } finally {
+      isSyncingRef.current = false;
     }
-  };
+  }, []);
 
   // Manual sync trigger
-  const triggerSync = async () => {
+  const triggerSync = useCallback(async () => {
     await performAutoSync();
-  };
+  }, [performAutoSync]);
 
-  // Setup interval for periodic sync
+  // Initial sync on mount + periodic sync every 15 minutes
   useEffect(() => {
     if (!enabled) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      initialSyncDoneRef.current = false;
       return;
     }
 
-    // First sync immediately on mount (wait a bit for enfermarias to load)
-    const initialSyncTimer = setTimeout(() => {
-      if (enfermarias?.length) {
-        console.log("[Auto-sync] Starting initial sync");
-        performAutoSync();
-      }
-    }, 500);
+    // Initial sync only once on mount
+    if (!initialSyncDoneRef.current) {
+      initialSyncDoneRef.current = true;
+      console.log("[Auto-sync] Performing initial sync on page load");
+      performAutoSync();
+    }
 
-    // Setup periodic sync only if enfermarias are loaded
-    if (enfermarias?.length) {
+    // Setup periodic sync interval (15 minutes by default)
+    if (!intervalRef.current) {
       intervalRef.current = setInterval(() => {
+        console.log(`[Auto-sync] Periodic sync triggered (every ${syncInterval / 1000 / 60} minutes)`);
         performAutoSync();
       }, syncInterval);
-
-      console.log(`[Auto-sync] Interval started: sync every ${syncInterval / 1000 / 60} minutes`);
+      
+      console.log(`[Auto-sync] Interval configured: sync every ${syncInterval / 1000 / 60} minutes`);
     }
 
     return () => {
-      clearTimeout(initialSyncTimer);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [enabled, syncInterval, enfermarias?.length, enfermarias]);
+  }, [enabled, syncInterval, performAutoSync]);
 
   return {
     ...syncState,

@@ -37,10 +37,10 @@ export default function ShiftHandoverPage() {
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   
-  // Enable automatic sync on page load and every 5 minutes
-  const { isSyncing: isAutoSyncing, lastSyncTimeAgo } = useAutoSync({
+  // Enable automatic sync on page load and every 15 minutes
+  const { isSyncing: isAutoSyncing, lastSyncTimeAgo, triggerSync } = useAutoSync({
     enabled: true,
-    syncInterval: 300000, // 5 minutes
+    syncInterval: 900000, // 15 minutes
   });
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
@@ -145,10 +145,12 @@ export default function ShiftHandoverPage() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => refetch()}
+                onClick={() => triggerSync()}
+                disabled={isAutoSyncing}
                 data-testid="button-sync"
+                title="Sincronizar dados do N8N"
               >
-                <RefreshCcw className="w-5 h-5" />
+                <RefreshCcw className={`w-5 h-5 ${isAutoSyncing ? 'animate-spin' : ''}`} />
               </Button>
               <Button 
                 variant="ghost" 
