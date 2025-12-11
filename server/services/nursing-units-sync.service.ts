@@ -215,6 +215,20 @@ export class NursingUnitsSyncService {
 
       if (change.changeType === "create" && change.newData) {
         const newUnitData = change.newData as InsertNursingUnit;
+        
+        // Check if unit already exists (may have been created by another process)
+        if (newUnitData.externalId) {
+          const existingUnits = await storage.getAllNursingUnits();
+          const alreadyExists = existingUnits.find(u => u.externalId === newUnitData.externalId);
+          
+          if (alreadyExists) {
+            // Unit already exists, just mark the change as approved without creating duplicate
+            await storage.approveNursingUnitChange(changeId, reviewerId);
+            logger.info(`[NursingUnitsSync] Unit already exists, marking as approved: ${newUnitData.nome}`);
+            return { success: true, message: `Unidade "${newUnitData.nome}" já existe, pendência marcada como aprovada` };
+          }
+        }
+        
         await storage.createNursingUnit(newUnitData);
         await storage.approveNursingUnitChange(changeId, reviewerId);
         logger.info(`[NursingUnitsSync] Approved creation of unit: ${newUnitData.nome}`);
