@@ -23,7 +23,7 @@ export class ExternalAPIService {
   async fetchPatientData(leito: string): Promise<InsertPatient | null> {
     try {
       const payload: ExternalAPIRequest = {
-        flowId: "1a2b3c",
+        flowId: "1a2b3c4d5e",
         forceUpdate: false,
         meta: {
           params: [leito],
