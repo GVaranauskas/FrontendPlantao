@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getCsrfToken, fetchCsrfToken } from "./csrf";
+import { getAccessToken } from "./auth-token";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -19,15 +19,9 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
   
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    let token = getCsrfToken();
-    if (!token) {
-      await fetchCsrfToken();
-      token = getCsrfToken();
-    }
-    if (token) {
-      headers["X-CSRF-Token"] = token;
-    }
+  const token = getAccessToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
   
   const res = await fetch(url, {
@@ -47,8 +41,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers: Record<string, string> = {};
+    const token = getAccessToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

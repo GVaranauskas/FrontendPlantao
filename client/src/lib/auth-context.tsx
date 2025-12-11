@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "./queryClient";
-import { fetchCsrfToken } from "./csrf";
+import { setAccessToken, clearAccessToken } from "./auth-token";
 
 interface User {
   id: string;
@@ -51,10 +51,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [checkAuth]);
 
   const login = async (username: string, password: string) => {
-    const response = await apiRequest("POST", "/api/auth/login", { username, password });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Login failed");
+    }
     const data = await response.json();
+    setAccessToken(data.accessToken);
     setUser(data.user);
-    await fetchCsrfToken();
   };
 
   const logout = async () => {
@@ -63,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore errors on logout
     }
+    clearAccessToken();
     setUser(null);
     setLocation("/");
   };

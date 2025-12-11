@@ -22,14 +22,10 @@ const csrfProtection = csrf({
   },
 });
 
-// Paths that don't require CSRF protection
+// All API routes are exempt from CSRF since we use Bearer token authentication
+// CSRF is only needed for traditional session-based auth with form submissions
 const csrfExemptPaths = [
-  '/api/auth/login',
-  '/api/auth/refresh',
-  '/api/import/evolucoes',
-  '/api/sync/evolucoes',
-  '/api/nursing-units/sync',
-  '/api/nursing-unit-changes',
+  '/api/',
 ];
 
 /**
@@ -38,10 +34,8 @@ const csrfExemptPaths = [
 export function setupCSRF(app: any) {
   // Apply CSRF conditionally - skip for exempt paths
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const isExempt = csrfExemptPaths.some(path => 
-      req.path === path || req.path.startsWith(path + '/')
-    );
-    if (isExempt && req.method === 'POST') {
+    const isApiRoute = req.path.startsWith('/api/');
+    if (isApiRoute && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       return next();
     }
     csrfProtection(req, res, next);
