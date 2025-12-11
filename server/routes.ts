@@ -2,11 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitSchema, updateNursingUnitSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria, syncEvolucoesByUnitIds, syncAllEvolucoes } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { unidadesInternacaoService } from "./services/unidades-internacao.service";
+import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { registerAuthRoutes } from "./routes/auth";
@@ -595,6 +596,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new AppError(404, "Template not found", { templateId: req.params.id });
     }
     res.status(204).send();
+  }));
+
+  // =====================================================
+  // Nursing Units Management Routes (Enfermarias Locais)
+  // =====================================================
+
+  // List all nursing units (admin)
+  app.get("/api/nursing-units", asyncHandler(async (req, res) => {
+    const units = await storage.getAllNursingUnits();
+    res.json(units);
+  }));
+
+  // List only active nursing units (for dropdowns)
+  app.get("/api/nursing-units/active", asyncHandler(async (req, res) => {
+    const units = await storage.getActiveNursingUnits();
+    res.json(units);
+  }));
+
+  // Get single nursing unit by ID
+  app.get("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+    const unit = await storage.getNursingUnit(req.params.id);
+    if (!unit) {
+      throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
+    }
+    res.json(unit);
+  }));
+
+  // Create nursing unit manually (admin)
+  app.post("/api/nursing-units", asyncHandler(async (req, res) => {
+    try {
+      const validatedData = insertNursingUnitSchema.parse(req.body);
+      
+      // Check for duplicates
+      if (validatedData.externalId) {
+        const existingByExtId = await storage.getNursingUnitByExternalId(validatedData.externalId);
+        if (existingByExtId) {
+          throw new AppError(409, "Já existe uma unidade com este ID externo", { externalId: validatedData.externalId });
+        }
+      }
+      
+      const existingByCodigo = await storage.getNursingUnitByCodigo(validatedData.codigo);
+      if (existingByCodigo) {
+        throw new AppError(409, "Já existe uma unidade com este código", { codigo: validatedData.codigo });
+      }
+      
+      const unit = await storage.createNursingUnit(validatedData);
+      logger.info(`[${getTimestamp()}] [NursingUnits] Created unit: ${unit.nome} (${unit.codigo})`);
+      res.status(201).json(unit);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Dados inválidos para unidade de enfermagem", { error: error.message });
+      }
+      throw error;
+    }
+  }));
+
+  // Update nursing unit (admin)
+  app.patch("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+    try {
+      const validatedData = updateNursingUnitSchema.parse(req.body);
+      const unit = await storage.updateNursingUnit(req.params.id, validatedData);
+      if (!unit) {
+        throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
+      }
+      logger.info(`[${getTimestamp()}] [NursingUnits] Updated unit: ${unit.nome} (${unit.codigo})`);
+      res.json(unit);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Dados inválidos para unidade de enfermagem", { error: error.message });
+      }
+      throw error;
+    }
+  }));
+
+  // Delete nursing unit (admin)
+  app.delete("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+    const success = await storage.deleteNursingUnit(req.params.id);
+    if (!success) {
+      throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
+    }
+    logger.info(`[${getTimestamp()}] [NursingUnits] Deleted unit: ${req.params.id}`);
+    res.status(204).send();
+  }));
+
+  // =====================================================
+  // Nursing Units Sync & Changes Management
+  // =====================================================
+
+  // Trigger manual sync with external API
+  app.post("/api/nursing-units/sync", asyncHandler(async (req, res) => {
+    const { autoApprove } = req.body;
+    logger.info(`[${getTimestamp()}] [NursingUnitsSync] Manual sync triggered (autoApprove: ${autoApprove || false})`);
+    
+    const result = await nursingUnitsSyncService.syncUnits(autoApprove === true);
+    res.json(result);
+  }));
+
+  // Get pending changes count (for badge)
+  app.get("/api/nursing-unit-changes/count", asyncHandler(async (req, res) => {
+    const count = await storage.getPendingChangesCount();
+    res.json({ count });
+  }));
+
+  // List all pending changes
+  app.get("/api/nursing-unit-changes/pending", asyncHandler(async (req, res) => {
+    const changes = await storage.getPendingNursingUnitChanges();
+    res.json(changes);
+  }));
+
+  // List all changes (history)
+  app.get("/api/nursing-unit-changes", asyncHandler(async (req, res) => {
+    const changes = await storage.getAllNursingUnitChanges();
+    res.json(changes);
+  }));
+
+  // Approve a change
+  app.post("/api/nursing-unit-changes/:id/approve", asyncHandler(async (req, res) => {
+    const { reviewerId } = req.body;
+    if (!reviewerId) {
+      throw new AppError(400, "reviewerId é obrigatório");
+    }
+    
+    const result = await nursingUnitsSyncService.approveChange(req.params.id, reviewerId);
+    if (!result.success) {
+      throw new AppError(400, result.message);
+    }
+    
+    logger.info(`[${getTimestamp()}] [NursingUnitChanges] Change ${req.params.id} approved by ${reviewerId}`);
+    res.json(result);
+  }));
+
+  // Reject a change
+  app.post("/api/nursing-unit-changes/:id/reject", asyncHandler(async (req, res) => {
+    const { reviewerId } = req.body;
+    if (!reviewerId) {
+      throw new AppError(400, "reviewerId é obrigatório");
+    }
+    
+    const result = await nursingUnitsSyncService.rejectChange(req.params.id, reviewerId);
+    if (!result.success) {
+      throw new AppError(400, result.message);
+    }
+    
+    logger.info(`[${getTimestamp()}] [NursingUnitChanges] Change ${req.params.id} rejected by ${reviewerId}`);
+    res.json(result);
+  }));
+
+  // Approve all pending changes
+  app.post("/api/nursing-unit-changes/approve-all", asyncHandler(async (req, res) => {
+    const { reviewerId } = req.body;
+    if (!reviewerId) {
+      throw new AppError(400, "reviewerId é obrigatório");
+    }
+    
+    const result = await nursingUnitsSyncService.approveAllPending(reviewerId);
+    logger.info(`[${getTimestamp()}] [NursingUnitChanges] Bulk approval by ${reviewerId}: ${result.approved} approved, ${result.errors} errors`);
+    res.json(result);
   }));
 
   // Register authentication routes
