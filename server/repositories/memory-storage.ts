@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, Enfermaria, InsertEnfermaria, UpdateEnfermaria, PendingEnfermariaSync, InsertPendingEnfermariaSync } from "@shared/schema";
 import type { IStorage } from "../storage";
 
 export class MemStorage implements IStorage {
@@ -8,6 +8,8 @@ export class MemStorage implements IStorage {
   private alerts: Map<string, Alert>;
   private importHistory: Map<string, ImportHistory>;
   private templates: Map<string, NursingUnitTemplate>;
+  private enfermarias: Map<string, Enfermaria>;
+  private pendingEnfermariaSync: Map<string, PendingEnfermariaSync>;
 
   constructor() {
     this.users = new Map();
@@ -15,6 +17,8 @@ export class MemStorage implements IStorage {
     this.alerts = new Map();
     this.importHistory = new Map();
     this.templates = new Map();
+    this.enfermarias = new Map();
+    this.pendingEnfermariaSync = new Map();
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -241,5 +245,107 @@ export class MemStorage implements IStorage {
 
   async deleteTemplate(id: string): Promise<boolean> {
     return this.templates.delete(id);
+  }
+
+  // Enfermarias (Nursing Units)
+  async getAllEnfermarias(): Promise<Enfermaria[]> {
+    return Array.from(this.enfermarias.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async getEnfermaria(id: string): Promise<Enfermaria | undefined> {
+    return this.enfermarias.get(id);
+  }
+
+  async getEnfermariaByIdExterno(idExterno: number): Promise<Enfermaria | undefined> {
+    return Array.from(this.enfermarias.values()).find(e => e.idExterno === idExterno);
+  }
+
+  async getEnfermariaByCodigo(codigo: string): Promise<Enfermaria | undefined> {
+    return Array.from(this.enfermarias.values()).find(e => e.codigo === codigo);
+  }
+
+  async createEnfermaria(enfermaria: InsertEnfermaria): Promise<Enfermaria> {
+    const id = randomUUID();
+    const record: Enfermaria = {
+      ...enfermaria,
+      id,
+      descricao: enfermaria.descricao || null,
+      ramal: enfermaria.ramal || null,
+      localizacao: enfermaria.localizacao || null,
+      responsavel: enfermaria.responsavel || null,
+      capacidadeLeitos: enfermaria.capacidadeLeitos || null,
+      observacoes: enfermaria.observacoes || null,
+      isActive: enfermaria.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSyncAt: enfermaria.lastSyncAt || null,
+    };
+    this.enfermarias.set(id, record);
+    return record;
+  }
+
+  async updateEnfermaria(id: string, enfermaria: UpdateEnfermaria): Promise<Enfermaria | undefined> {
+    const existing = this.enfermarias.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...enfermaria, updatedAt: new Date() };
+    this.enfermarias.set(id, updated);
+    return updated;
+  }
+
+  async deleteEnfermaria(id: string): Promise<boolean> {
+    return this.enfermarias.delete(id);
+  }
+
+  // Pending Enfermaria Sync
+  async getAllPendingEnfermariaSync(): Promise<PendingEnfermariaSync[]> {
+    return Array.from(this.pendingEnfermariaSync.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getPendingEnfermariaSync(id: string): Promise<PendingEnfermariaSync | undefined> {
+    return this.pendingEnfermariaSync.get(id);
+  }
+
+  async getPendingEnfermariaSyncByStatus(status: string): Promise<PendingEnfermariaSync[]> {
+    return Array.from(this.pendingEnfermariaSync.values())
+      .filter(s => s.status === status)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createPendingEnfermariaSync(sync: InsertPendingEnfermariaSync): Promise<PendingEnfermariaSync> {
+    const id = randomUUID();
+    const record: PendingEnfermariaSync = {
+      ...sync,
+      id,
+      status: sync.status || "pending",
+      changesJson: sync.changesJson || null,
+      originalDataJson: sync.originalDataJson || null,
+      newDataJson: sync.newDataJson || null,
+      createdAt: new Date(),
+      reviewedAt: sync.reviewedAt || null,
+      reviewedBy: sync.reviewedBy || null,
+      reviewNotes: sync.reviewNotes || null,
+    };
+    this.pendingEnfermariaSync.set(id, record);
+    return record;
+  }
+
+  async updatePendingEnfermariaSync(id: string, data: Partial<PendingEnfermariaSync>): Promise<PendingEnfermariaSync | undefined> {
+    const existing = this.pendingEnfermariaSync.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...data };
+    this.pendingEnfermariaSync.set(id, updated);
+    return updated;
+  }
+
+  async deletePendingEnfermariaSync(id: string): Promise<boolean> {
+    return this.pendingEnfermariaSync.delete(id);
+  }
+
+  async deleteAllPendingEnfermariaSync(): Promise<number> {
+    const count = this.pendingEnfermariaSync.size;
+    this.pendingEnfermariaSync.clear();
+    return count;
   }
 }

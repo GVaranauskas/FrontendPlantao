@@ -1,7 +1,7 @@
 import { eq, desc, lt, gte, sql } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, enfermarias, pendingEnfermariaSync } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, Enfermaria, InsertEnfermaria, UpdateEnfermaria, PendingEnfermariaSync, InsertPendingEnfermariaSync } from "@shared/schema";
 import type { IStorage } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
@@ -209,6 +209,83 @@ export class PostgresStorage implements IStorage {
   async deleteTemplate(id: string): Promise<boolean> {
     const result = await db.delete(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id));
     return result.rowCount > 0;
+  }
+
+  // Enfermarias (Nursing Units)
+  async getAllEnfermarias(): Promise<Enfermaria[]> {
+    return await db.select().from(enfermarias).orderBy(enfermarias.nome);
+  }
+
+  async getEnfermaria(id: string): Promise<Enfermaria | undefined> {
+    const result = await db.select().from(enfermarias).where(eq(enfermarias.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getEnfermariaByIdExterno(idExterno: number): Promise<Enfermaria | undefined> {
+    const result = await db.select().from(enfermarias).where(eq(enfermarias.idExterno, idExterno)).limit(1);
+    return result[0];
+  }
+
+  async getEnfermariaByCodigo(codigo: string): Promise<Enfermaria | undefined> {
+    const result = await db.select().from(enfermarias).where(eq(enfermarias.codigo, codigo)).limit(1);
+    return result[0];
+  }
+
+  async createEnfermaria(enfermaria: InsertEnfermaria): Promise<Enfermaria> {
+    const result = await db.insert(enfermarias).values(enfermaria).returning();
+    return result[0];
+  }
+
+  async updateEnfermaria(id: string, enfermaria: UpdateEnfermaria): Promise<Enfermaria | undefined> {
+    const result = await db.update(enfermarias)
+      .set({ ...enfermaria, updatedAt: new Date() })
+      .where(eq(enfermarias.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEnfermaria(id: string): Promise<boolean> {
+    const result = await db.delete(enfermarias).where(eq(enfermarias.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Pending Enfermaria Sync
+  async getAllPendingEnfermariaSync(): Promise<PendingEnfermariaSync[]> {
+    return await db.select().from(pendingEnfermariaSync).orderBy(desc(pendingEnfermariaSync.createdAt));
+  }
+
+  async getPendingEnfermariaSync(id: string): Promise<PendingEnfermariaSync | undefined> {
+    const result = await db.select().from(pendingEnfermariaSync).where(eq(pendingEnfermariaSync.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPendingEnfermariaSyncByStatus(status: string): Promise<PendingEnfermariaSync[]> {
+    return await db.select().from(pendingEnfermariaSync)
+      .where(eq(pendingEnfermariaSync.status, status))
+      .orderBy(desc(pendingEnfermariaSync.createdAt));
+  }
+
+  async createPendingEnfermariaSync(sync: InsertPendingEnfermariaSync): Promise<PendingEnfermariaSync> {
+    const result = await db.insert(pendingEnfermariaSync).values(sync).returning();
+    return result[0];
+  }
+
+  async updatePendingEnfermariaSync(id: string, data: Partial<PendingEnfermariaSync>): Promise<PendingEnfermariaSync | undefined> {
+    const result = await db.update(pendingEnfermariaSync)
+      .set(data)
+      .where(eq(pendingEnfermariaSync.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePendingEnfermariaSync(id: string): Promise<boolean> {
+    const result = await db.delete(pendingEnfermariaSync).where(eq(pendingEnfermariaSync.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async deleteAllPendingEnfermariaSync(): Promise<number> {
+    const result = await db.delete(pendingEnfermariaSync);
+    return result.rowCount || 0;
   }
 }
 

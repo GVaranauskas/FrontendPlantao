@@ -2,11 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertEnfermariaSchema, updateEnfermariaSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria, syncEvolucoesByUnitIds, syncAllEvolucoes } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { unidadesInternacaoService } from "./services/unidades-internacao.service";
+import { enfermariaSyncService } from "./services/enfermaria-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { registerAuthRoutes } from "./routes/auth";
@@ -395,24 +396,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // List enfermarias endpoint
+  // List enfermarias endpoint - Now fetches from local database
   app.get("/api/enfermarias", async (req, res) => {
     try {
-      // Fetch enfermarias from external API
-      const enfermarias = await unidadesInternacaoService.fetchUnidades();
+      const localEnfermarias = await storage.getAllEnfermarias();
+      
+      // If no local enfermarias, try to do initial import
+      if (localEnfermarias.length === 0) {
+        logger.info(`[${getTimestamp()}] [Enfermarias] No local data, running initial import...`);
+        await enfermariaSyncService.initialImport();
+        const imported = await storage.getAllEnfermarias();
+        
+        const acceptToon = isToonFormat(req.get("accept"));
+        if (acceptToon) {
+          const toonData = stringifyToToon(imported);
+          res.type("application/toon").send(toonData);
+        } else {
+          res.json(imported);
+        }
+        return;
+      }
 
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
-        const toonData = stringifyToToon(enfermarias);
+        const toonData = stringifyToToon(localEnfermarias);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(enfermarias);
+        res.json(localEnfermarias);
       }
     } catch (error) {
       logger.error(`[${getTimestamp()}] [Enfermarias] Failed to fetch: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ message: "Failed to fetch enfermarias" });
     }
   });
+
+  // Get single enfermaria by ID
+  app.get("/api/enfermarias/:id", asyncHandler(async (req, res) => {
+    const enfermaria = await storage.getEnfermaria(req.params.id);
+    if (!enfermaria) {
+      throw new AppError(404, "Enfermaria not found", { enfermariaId: req.params.id });
+    }
+    res.json(enfermaria);
+  }));
+
+  // Update enfermaria (only editable fields like description, ramal, etc)
+  app.patch("/api/enfermarias/:id", asyncHandler(async (req, res) => {
+    try {
+      const validatedData = updateEnfermariaSchema.parse(req.body);
+      const enfermaria = await storage.updateEnfermaria(req.params.id, validatedData);
+      if (!enfermaria) {
+        throw new AppError(404, "Enfermaria not found", { enfermariaId: req.params.id });
+      }
+      logger.info(`[${getTimestamp()}] [Enfermarias] Updated: ${enfermaria.nome}`);
+      res.json(enfermaria);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Invalid enfermaria data", { error: error.message });
+      }
+      throw error;
+    }
+  }));
+
+  // Check for enfermaria sync changes (manual trigger)
+  app.post("/api/enfermarias/sync/check", asyncHandler(async (req, res) => {
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Manual sync check triggered`);
+    const result = await enfermariaSyncService.checkForChanges();
+    res.json({
+      success: true,
+      ...result,
+      message: result.noChanges 
+        ? "Nenhuma alteração detectada" 
+        : `Encontradas ${result.newFound} novas e ${result.updatesFound} atualizações pendentes`
+    });
+  }));
+
+  // Get pending sync changes
+  app.get("/api/enfermarias/sync/pending", asyncHandler(async (req, res) => {
+    const pending = await storage.getPendingEnfermariaSyncByStatus("pending");
+    res.json(pending);
+  }));
+
+  // Get all sync history
+  app.get("/api/enfermarias/sync/history", asyncHandler(async (req, res) => {
+    const history = await storage.getAllPendingEnfermariaSync();
+    res.json(history);
+  }));
+
+  // Approve a pending sync change
+  app.post("/api/enfermarias/sync/:id/approve", asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.id || "system";
+    const notes = req.body?.notes;
+    
+    const success = await enfermariaSyncService.approveChange(req.params.id, userId, notes);
+    if (!success) {
+      throw new AppError(400, "Could not approve change", { syncId: req.params.id });
+    }
+    
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Change approved: ${req.params.id}`);
+    res.json({ success: true, message: "Alteração aprovada com sucesso" });
+  }));
+
+  // Reject a pending sync change
+  app.post("/api/enfermarias/sync/:id/reject", asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.id || "system";
+    const notes = req.body?.notes;
+    
+    const success = await enfermariaSyncService.rejectChange(req.params.id, userId, notes);
+    if (!success) {
+      throw new AppError(400, "Could not reject change", { syncId: req.params.id });
+    }
+    
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Change rejected: ${req.params.id}`);
+    res.json({ success: true, message: "Alteração rejeitada" });
+  }));
+
+  // Approve all pending changes
+  app.post("/api/enfermarias/sync/approve-all", asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.id || "system";
+    const approved = await enfermariaSyncService.approveAllPending(userId);
+    
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Approved all: ${approved} changes`);
+    res.json({ success: true, approved, message: `${approved} alterações aprovadas` });
+  }));
+
+  // Reject all pending changes
+  app.post("/api/enfermarias/sync/reject-all", asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.id || "system";
+    const rejected = await enfermariaSyncService.rejectAllPending(userId);
+    
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Rejected all: ${rejected} changes`);
+    res.json({ success: true, rejected, message: `${rejected} alterações rejeitadas` });
+  }));
+
+  // Initial import (force import all from external API)
+  app.post("/api/enfermarias/sync/initial-import", asyncHandler(async (req, res) => {
+    logger.info(`[${getTimestamp()}] [EnfermariaSync] Initial import triggered`);
+    const imported = await enfermariaSyncService.initialImport();
+    res.json({ 
+      success: true, 
+      imported, 
+      message: `${imported} enfermarias importadas com sucesso` 
+    });
+  }));
 
   // Import status endpoint - test N8N connectivity
   app.get("/api/import/status", async (req, res) => {

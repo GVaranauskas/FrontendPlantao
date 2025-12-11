@@ -17,6 +17,7 @@ import ToolsPage from "@/pages/tools";
 import AdminTemplatesPage from "@/pages/admin-templates";
 import AdminUsersPage from "@/pages/admin-users";
 import AdminMenuPage from "@/pages/admin-menu";
+import AdminEnfermariasPage from "@/pages/admin-enfermarias";
 import ImportLogsPage from "@/pages/import-logs";
 import NotFound from "@/pages/not-found";
 
@@ -70,6 +71,9 @@ function Router() {
       </Route>
       <Route path="/admin/users">
         <ProtectedRoute component={AdminUsersPage} />
+      </Route>
+      <Route path="/admin/enfermarias">
+        <ProtectedRoute component={AdminEnfermariasPage} />
       </Route>
       <Route component={NotFound} />
     </Switch>

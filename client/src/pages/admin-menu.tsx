@@ -14,6 +14,7 @@ import {
   Shield,
   Code,
   FileJson,
+  Building2,
 } from "lucide-react";
 
 interface AdminModule {
@@ -34,6 +35,15 @@ const adminModules: AdminModule[] = [
     icon: Users,
     route: "/admin/users",
     badge: "Admin",
+    badgeVariant: "default",
+  },
+  {
+    id: "enfermarias",
+    title: "Gestão de Enfermarias",
+    description: "Gerenciar unidades de internação, sincronização com API externa e aprovar alterações.",
+    icon: Building2,
+    route: "/admin/enfermarias",
+    badge: "Novo",
     badgeVariant: "default",
   },
   {

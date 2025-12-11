@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { syncEvolucoesByEnfermaria } from '../sync';
 import { storage } from '../storage';
+import { enfermariaSyncService } from './enfermaria-sync.service';
 
 interface ScheduleConfig {
   enfermaria: string;
@@ -32,6 +33,45 @@ export class ImportScheduler {
   }
 
   /**
+   * Agenda sincronização diária de enfermarias na madrugada
+   * Expressão cron: "0 3 * * *" = às 03:00 todos os dias
+   */
+  scheduleEnfermariaSync(cronExpression: string = "0 3 * * *"): void {
+    const taskId = "enfermaria-sync-daily";
+
+    if (this.tasks.has(taskId)) {
+      console.warn("[Scheduler] Enfermaria sync already scheduled");
+      return;
+    }
+
+    const task = cron.schedule(cronExpression, async () => {
+      await this.runEnfermariaSync();
+    });
+
+    this.tasks.set(taskId, task);
+    console.log(`[Scheduler] Scheduled enfermaria sync with cron: ${cronExpression} (daily at 3 AM)`);
+  }
+
+  /**
+   * Executa sincronização de enfermarias (verifica alterações da API externa)
+   */
+  private async runEnfermariaSync(): Promise<void> {
+    console.log("[Scheduler] Starting daily enfermaria sync check...");
+
+    try {
+      const result = await enfermariaSyncService.checkForChanges();
+      
+      if (result.noChanges) {
+        console.log("[Scheduler] Enfermaria sync: No changes detected");
+      } else {
+        console.log(`[Scheduler] Enfermaria sync: Found ${result.newFound} new, ${result.updatesFound} updates - pending approval`);
+      }
+    } catch (error) {
+      console.error("[Scheduler] Enfermaria sync error:", error);
+    }
+  }
+
+  /**
    * Inicia scheduler com configurações padrão
    */
   async startDefaultSchedule(): Promise<void> {
@@ -42,11 +82,14 @@ export class ImportScheduler {
 
     this.enabled = true;
 
-    // Schedule imports for main enfermarias a cada hora
-    await this.scheduleImport("10A", "0 * * * *");  // A cada hora
-    await this.scheduleImport("10B", "30 * * * *"); // A cada hora, 30 minutos
+    // Schedule daily enfermaria sync at 3 AM
+    this.scheduleEnfermariaSync("0 3 * * *");
 
-    console.log("[Scheduler] Default schedule started");
+    // Schedule imports for main enfermarias a cada hora (disabled by default)
+    // await this.scheduleImport("10A", "0 * * * *");  // A cada hora
+    // await this.scheduleImport("10B", "30 * * * *"); // A cada hora, 30 minutos
+
+    console.log("[Scheduler] Default schedule started (enfermaria sync at 3 AM daily)");
   }
 
   /**
