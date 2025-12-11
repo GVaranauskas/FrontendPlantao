@@ -51,11 +51,28 @@ export class UnidadesInternacaoService {
       console.log(`[Unidades] Received ${unidades.length} unidade(s)`);
       
       // Mapear para formato esperado pelo frontend
-      return unidades.map((u: UnidadeInternacao) => ({
+      const mapped = unidades.map((u: UnidadeInternacao) => ({
         id: u.idUnidadeInternacao,
         codigo: u.dsUnidadeInternacao,
         nome: u.dsUnidadeInternacao,
       }));
+      
+      // Remove duplicates based on 'nome' field to prevent React key warnings
+      const seen = new Set<string>();
+      const deduplicated = mapped.filter((enfermaria) => {
+        if (seen.has(enfermaria.nome)) {
+          console.log(`[Unidades] Removing duplicate enfermaria: ${enfermaria.nome}`);
+          return false;
+        }
+        seen.add(enfermaria.nome);
+        return true;
+      });
+      
+      if (mapped.length !== deduplicated.length) {
+        console.log(`[Unidades] Removed ${mapped.length - deduplicated.length} duplicate(s)`);
+      }
+      
+      return deduplicated;
     } catch (error) {
       console.error(`[Unidades] Error fetching unidades:`, error);
       return [];

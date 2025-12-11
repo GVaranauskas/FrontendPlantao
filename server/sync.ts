@@ -77,6 +77,10 @@ export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Pati
       return results;
     }
 
+    // OPTIMIZATION: Fetch all patients once before the loop, not inside each iteration
+    const existingPatients = await storage.getAllPatients();
+    console.log(`[Sync] Processing ${evolucoes.length} evolucoes against ${existingPatients.length} existing patients`);
+
     // Process each evolução
     for (const evolucao of evolucoes) {
       try {
@@ -99,8 +103,7 @@ export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Pati
           continue;
         }
 
-        // Check if patient exists by leito AND enfermaria
-        const existingPatients = await storage.getAllPatients();
+        // Check if patient exists by leito AND enfermaria (using cached patients list)
         const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
         const existingPatient = existingPatients.find(p => 
           p.leito === leito && p.dsEnfermaria === patientEnfermaria
@@ -120,6 +123,8 @@ export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Pati
         } else {
           // Create new
           patient = await storage.createPatient(processada.dadosProcessados);
+          // Add to cached list to prevent duplicate creates in same sync
+          existingPatients.push(patient);
           console.log(`[Sync] Created new patient for leito: ${leito} (${processada.pacienteName})`);
         }
 

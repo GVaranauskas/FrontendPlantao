@@ -43,13 +43,23 @@ export class N8NIntegrationService {
 
       console.log(`[N8N] Fetching evolucoes with params: ["${unitIds}"]`);
       
-      const response = await fetch(N8N_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      // Add timeout to prevent hanging indefinitely (60 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
+      let response: Response;
+      try {
+        response = await fetch(N8N_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();

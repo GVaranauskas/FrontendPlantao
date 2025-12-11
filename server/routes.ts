@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitSchema, updateNursingUnitSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitManualSchema, updateNursingUnitSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria, syncEvolucoesByUnitIds, syncAllEvolucoes } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
@@ -627,14 +627,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create nursing unit manually (admin)
   app.post("/api/nursing-units", requireRole('admin'), asyncHandler(async (req, res) => {
     try {
-      const validatedData = insertNursingUnitSchema.parse(req.body);
+      const validatedData = insertNursingUnitManualSchema.parse(req.body);
+      
+      // Generate externalId if not provided (for manual creations)
+      let externalId = validatedData.externalId;
+      if (!externalId) {
+        // Generate a unique negative ID for manual creations (to distinguish from API-synced units)
+        const existingUnits = await storage.getAllNursingUnits();
+        const minExternalId = Math.min(...existingUnits.map(u => u.externalId), 0);
+        externalId = minExternalId - 1;
+      }
       
       // Check for duplicates
-      if (validatedData.externalId) {
-        const existingByExtId = await storage.getNursingUnitByExternalId(validatedData.externalId);
-        if (existingByExtId) {
-          throw new AppError(409, "Já existe uma unidade com este ID externo", { externalId: validatedData.externalId });
-        }
+      const existingByExtId = await storage.getNursingUnitByExternalId(externalId);
+      if (existingByExtId) {
+        throw new AppError(409, "Já existe uma unidade com este ID externo", { externalId });
       }
       
       const existingByCodigo = await storage.getNursingUnitByCodigo(validatedData.codigo);
@@ -642,7 +649,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new AppError(409, "Já existe uma unidade com este código", { codigo: validatedData.codigo });
       }
       
-      const unit = await storage.createNursingUnit(validatedData);
+      const unitData = { ...validatedData, externalId };
+      const unit = await storage.createNursingUnit(unitData);
       logger.info(`[${getTimestamp()}] [NursingUnits] Created unit: ${unit.nome} (${unit.codigo})`);
       res.status(201).json(unit);
     } catch (error) {

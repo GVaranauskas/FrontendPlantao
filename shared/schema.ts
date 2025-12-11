@@ -195,6 +195,11 @@ export const insertNursingUnitSchema = createInsertSchema(nursingUnits).omit({
   updatedAt: true,
 });
 
+// Schema para criação manual via UI (externalId gerado automaticamente)
+export const insertNursingUnitManualSchema = insertNursingUnitSchema.extend({
+  externalId: z.number().int().optional(),
+});
+
 export const updateNursingUnitSchema = insertNursingUnitSchema.partial().extend({
   descricao: z.string().optional(),
   observacoes: z.string().optional(),
