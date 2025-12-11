@@ -42,6 +42,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
     const token = extractToken(req);
+    if (req.path.includes('/nursing-units/sync')) {
+      console.log('[DEBUG] Sync request - cookies:', Object.keys(req.cookies || {}), 'hasToken:', !!token);
+    }
     if (token) {
       const payload = verifyAccessToken(token);
       if (payload) {
