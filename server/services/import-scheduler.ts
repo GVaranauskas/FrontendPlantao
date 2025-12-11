@@ -1,7 +1,6 @@
 import * as cron from 'node-cron';
 import { syncEvolucoesByEnfermaria } from '../sync';
 import { storage } from '../storage';
-import { nursingUnitsSyncService } from './nursing-units-sync.service';
 
 interface ScheduleConfig {
   enfermaria: string;
