@@ -767,44 +767,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // ==========================================
-  // OpenAI Analysis Routes
+  // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  // Import OpenAI service dynamically to avoid startup errors if API key is missing
   app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
-    const { openaiService } = await import("./services/openai-service");
+    const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Paciente não encontrado");
     }
     
-    const analysis = await openaiService.analyzePatient(patient);
-    logger.info(`[${getTimestamp()}] [OpenAI] Patient ${req.params.id} analyzed`);
+    const analysis = await aiService.analyzePatient(patient);
+    logger.info(`[${getTimestamp()}] [AI] Patient ${req.params.id} analyzed via ${aiService.getProvider()}`);
     res.json(analysis);
   }));
 
   app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
-    const { openaiService } = await import("./services/openai-service");
+    const { aiService } = await import("./services/ai-service");
     const patients = await storage.getAllPatients();
     
     if (patients.length === 0) {
       throw new AppError(404, "Nenhum paciente encontrado");
     }
     
-    const analysis = await openaiService.analyzeMultiplePatients(patients);
-    logger.info(`[${getTimestamp()}] [OpenAI] Analyzed ${patients.length} patients`);
+    const analysis = await aiService.analyzeMultiplePatients(patients);
+    logger.info(`[${getTimestamp()}] [AI] Analyzed ${patients.length} patients via ${aiService.getProvider()}`);
     res.json(analysis);
   }));
 
   app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
-    const { openaiService } = await import("./services/openai-service");
+    const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Paciente não encontrado");
     }
     
-    const recommendations = await openaiService.generateCareRecommendations(patient);
-    logger.info(`[${getTimestamp()}] [OpenAI] Care recommendations generated for patient ${req.params.id}`);
+    const recommendations = await aiService.generateCareRecommendations(patient);
+    logger.info(`[${getTimestamp()}] [AI] Care recommendations generated for patient ${req.params.id} via ${aiService.getProvider()}`);
     res.json({ recomendacoes: recommendations });
   }));
 
