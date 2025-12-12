@@ -103,25 +103,47 @@ export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Pati
           continue;
         }
 
-        // Check if patient exists by leito AND enfermaria (using cached patients list)
+        // Find existing patient using multiple strategies (prevent duplicates)
+        // Priority: 1) registro (unique patient ID), 2) codigoAtendimento, 3) leito+enfermaria
+        const registro = processada.registro;
+        const codigoAtendimento = processada.codigoAtendimento;
         const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
-        const existingPatient = existingPatients.find(p => 
-          p.leito === leito && p.dsEnfermaria === patientEnfermaria
-        );
+        
+        let existingPatient = null;
+        
+        // Strategy 1: Match by registro (most reliable - hospital patient ID)
+        if (registro && registro.trim() !== "") {
+          existingPatient = existingPatients.find(p => p.registro === registro);
+        }
+        
+        // Strategy 2: Match by codigoAtendimento (appointment code)
+        if (!existingPatient && codigoAtendimento && codigoAtendimento.trim() !== "") {
+          existingPatient = existingPatients.find(p => p.codigoAtendimento === codigoAtendimento);
+        }
+        
+        // Strategy 3: Match by leito + enfermaria (fallback)
+        if (!existingPatient) {
+          existingPatient = existingPatients.find(p => 
+            p.leito === leito && p.dsEnfermaria === patientEnfermaria
+          );
+        }
 
         let patient: Patient;
         if (existingPatient) {
-          // Update existing
+          // Update existing patient - preserve the ID, update all other fields
           const updated = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
           if (updated) {
             patient = updated;
+            // Update cached list with new data
+            const idx = existingPatients.findIndex(p => p.id === existingPatient!.id);
+            if (idx >= 0) existingPatients[idx] = patient;
             console.log(`[Sync] Updated patient for leito: ${leito} (${processada.pacienteName})`);
           } else {
             console.error(`[Sync] Failed to update patient for leito: ${leito}`);
             continue;
           }
         } else {
-          // Create new
+          // Create new patient only if truly doesn't exist
           patient = await storage.createPatient(processada.dadosProcessados);
           // Add to cached list to prevent duplicate creates in same sync
           existingPatients.push(patient);

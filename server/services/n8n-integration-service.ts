@@ -96,11 +96,15 @@ export class N8NIntegrationService {
 
   /**
    * Processa e mapeia dados brutos da API N8N para InsertPatient
+   * Extrai dados de múltiplas fontes: campos diretos, objeto encontro, e texto dsEvolucao
    */
   async processEvolucao(leito: string, dadosBrutos: N8NRawData): Promise<ProcessedEvolucao> {
     const erros: string[] = [];
 
     try {
+      // Extrair objeto encontro se existir (contém dados estruturados)
+      const encontro = dadosBrutos.encontro || {};
+      
       // Extrair informações do nome do paciente
       const nomePaciente = this.extractNomePaciente(dadosBrutos);
       const registro = this.extractRegistro(dadosBrutos);
@@ -109,6 +113,22 @@ export class N8NIntegrationService {
       // Mapear todos os campos
       // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
       const especialidade = this.extractEspecialidade(dadosBrutos);
+      
+      // Extrair campos com fallback para encontro e dsEvolucao
+      const alergias = this.extractField(dadosBrutos, encontro, ['alergia', 'alergias', 'alergias_reportadas']);
+      const dispositivos = this.extractField(dadosBrutos, encontro, ['disp', 'dispositivos', 'dispositivos_em_uso']);
+      const mobilidade = this.extractField(dadosBrutos, encontro, ['mobilidade', 'condicao_mobilidade']);
+      const dieta = this.extractField(dadosBrutos, encontro, ['dieta', 'alimentacao']);
+      const eliminacoes = this.extractField(dadosBrutos, encontro, ['eliminacoes', 'eliminacao']);
+      const atb = this.extractField(dadosBrutos, encontro, ['atb', 'antibioticos', 'antibiotico']);
+      const curativos = this.extractField(dadosBrutos, encontro, ['curativos', 'curativo']);
+      const aporteSaturacao = this.extractField(dadosBrutos, encontro, ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao']);
+      const exames = this.extractField(dadosBrutos, encontro, ['exames', 'exames_realizados_pendentes', 'exame']);
+      const cirurgia = this.extractField(dadosBrutos, encontro, ['cirurgia', 'data_programacao_cirurgica', 'procedimento']);
+      const observacoes = this.extractField(dadosBrutos, encontro, ['observacoes', 'observacoes_intercorrencias', 'intercorrencias', 'descricao']);
+      const previsaoAlta = this.extractField(dadosBrutos, encontro, ['previsao_alta', 'previsaoAlta', 'alta']);
+      const braden = this.extractField(dadosBrutos, encontro, ['braden', 'rq_braden', 'escala_braden']);
+      const diagnostico = this.extractField(dadosBrutos, encontro, ['diagnostico', 'diagnostico_comorbidades', 'comorbidades']);
       
       let dadosProcessados: InsertPatient = {
         // Campos básicos
@@ -120,29 +140,29 @@ export class N8NIntegrationService {
         dataNascimento: this.formatDateToDDMMYYYY(dadosBrutos.data_nascimento || dadosBrutos.dataNascimento || ""),
         dataInternacao: this.formatDateToDDMMYYYY(dadosBrutos.data_internacao || dadosBrutos.dataInternacao || new Date().toISOString()),
 
-        // Dados clínicos
-        rqBradenScp: dadosBrutos.braden || dadosBrutos.rq_braden || "",
-        diagnosticoComorbidades: dadosBrutos.diagnostico || dadosBrutos.diagnostico_comorbidades || "",
-        alergias: dadosBrutos.alergia || dadosBrutos.alergias || "",
+        // Dados clínicos (usando extração melhorada)
+        rqBradenScp: braden,
+        diagnosticoComorbidades: diagnostico,
+        alergias: alergias,
 
         // Mobilidade
-        mobilidade: this.normalizeMobilidade(dadosBrutos.mobilidade || ""),
+        mobilidade: this.normalizeMobilidade(mobilidade),
 
         // Cuidados
-        dieta: dadosBrutos.dieta || "",
-        eliminacoes: dadosBrutos.eliminacoes || "",
-        dispositivos: dadosBrutos.disp || dadosBrutos.dispositivos || "",
-        atb: dadosBrutos.atb || dadosBrutos.antibioticos || "",
-        curativos: dadosBrutos.curativos || "",
+        dieta: dieta,
+        eliminacoes: eliminacoes,
+        dispositivos: dispositivos,
+        atb: atb,
+        curativos: curativos,
 
         // Monitoramento
-        aporteSaturacao: dadosBrutos.aporte_saturacao || dadosBrutos.aporteSaturacao || "",
-        examesRealizadosPendentes: dadosBrutos.exames || dadosBrutos.exames_realizados_pendentes || "",
+        aporteSaturacao: aporteSaturacao,
+        examesRealizadosPendentes: exames,
 
         // Planejamento
-        dataProgramacaoCirurgica: dadosBrutos.cirurgia || dadosBrutos.data_programacao_cirurgica || "",
-        observacoesIntercorrencias: dadosBrutos.observacoes || dadosBrutos.observacoes_intercorrencias || "",
-        previsaoAlta: dadosBrutos.previsao_alta || dadosBrutos.previsaoAlta || "",
+        dataProgramacaoCirurgica: cirurgia,
+        observacoesIntercorrencias: observacoes,
+        previsaoAlta: previsaoAlta,
 
         // Status - será calculado automaticamente
         alerta: null,
@@ -408,6 +428,33 @@ export class N8NIntegrationService {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Extrai campo de múltiplas fontes com fallback
+   * Prioridade: dadosBrutos > encontro > string vazia
+   * @param dadosBrutos - Dados brutos do N8N
+   * @param encontro - Objeto encontro aninhado (se existir)
+   * @param fieldNames - Lista de nomes de campos possíveis para tentar
+   */
+  private extractField(dadosBrutos: N8NRawData, encontro: N8NRawData, fieldNames: string[]): string {
+    // Primeiro tenta nos dados brutos
+    for (const fieldName of fieldNames) {
+      const value = dadosBrutos[fieldName];
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        return String(value).trim();
+      }
+    }
+    
+    // Depois tenta no objeto encontro
+    for (const fieldName of fieldNames) {
+      const value = encontro[fieldName];
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        return String(value).trim();
+      }
+    }
+    
+    return "";
   }
 }
 
