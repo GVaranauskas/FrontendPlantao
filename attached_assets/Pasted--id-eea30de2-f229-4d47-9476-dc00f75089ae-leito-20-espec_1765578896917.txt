@@ -1,0 +1,98 @@
+{
+  "id": "eea30de2-f229-4d47-9476-dc00f75089ae",
+  "leito": "20",
+  "especialidadeRamal": "CARDIOLOGIA",
+  "nome": "EIJI SUTO",
+  "registro": "1133142",
+  "dataNascimento": null,
+  "dataInternacao": "11/12/2025",
+  "rqBradenScp": "",
+  "diagnosticoComorbidades": null,
+  "alergias": null,
+  "mobilidade": null,
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A10",
+  "dsLeitoCompleto": "20",
+  "dsEspecialidade": "CARDIOLOGIA",
+  "codigoAtendimento": "10108982",
+  "dsEvolucaoCompleta": "HD: POI  TROCA DE  IMPLANTE MARCA PASSO  \n\n\nOBS: DEFICIT AUDITIVO BILATERAL\n\nALERGIA :NEGA\n\nPACIENTE EM REPOUSO NO  LEITO 20,  COM GRADES E DECUBITO ELEVADOS E CAMA TRAVADA, PULSEIRA DE IDENTIFICAÇÃO E RISCO DE \nQUEDAS LEGIVEL E INTEGRA, CONFORME PROTOCOLO DA INSTITUICÃO.\n EVOLUI ACORDADO, CONSCIENTE, ORIENTADO EM TEMPO E ESPAÇO, COLABORATIVO, CONTACTUANTE, HIPOCORADO, HIDRATADO, ACIANÓTICO, ANICTÉRICO, AFEBRIL , MUCOSA ORAL INTEGRA.  REFERE BOA ACEITAÇÃO ALIMENTAR.\nMANTENDO AVP EM MSD 12/12 , COM PELICULA TRANSPARENTE DATADA DO DIA  /  ,  SEM SINAIS FLOGISTICOS.\nNORMOTENSO E NORMOCARDICO, SEM DVA, EUPNEICO EM AR AMBIENTE. AP: TORAX SIMETRICO, EXPANSIBILIDADE PRESERVADA, MV+ S/ RA. \nABD: PLANO, FLACIDO, INDOLOR A PALPAÇÃO. RHA +.\n\n\nORIENTO A CHAMAR EQUIPE DE ENFERMAGEM SEMPRE QUE NECESSÁRIO.\nORIENTO QUANTO AOS RISCOS DE QUEDA.\nDEIXA AMBIENTE ILUMINADO.",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "leito": "20",
+    "dsLeito": "10A1020",
+    "paciente": {
+      "leito": 20,
+      "estado": {
+        "DVA": "sem",
+        "pressao": "normotenso",
+        "aparencia": {
+          "afebril": true,
+          "anotico": true,
+          "hidratado": true,
+          "hipocorado": true,
+          "aciantotico": true,
+          "mucosa_oral": "íntegra"
+        },
+        "manutencao": {
+          "AVP": "MSD 12/12",
+          "pelicula_transparente": {
+            "data": "não especificada",
+            "sinais_flogisticos": false
+          }
+        },
+        "alimentacao": "boa aceitação alimentar",
+        "consciência": "acordado, consciente, orientado em tempo e espaço, colaborativo, contactuante",
+        "frequencia_cardiaca": "normocardico",
+        "frequencia_respiratoria": "eupneico em ar ambiente"
+      },
+      "condicao": "internado",
+      "intervencao": "troca de implante marca passo",
+      "observacoes": {
+        "reposo": "sim",
+        "alergia": "nega",
+        "risco_quedas": "sim",
+        "deficit_auditivo": "bilateral",
+        "pulseira_identificacao": "legível e íntegra"
+      },
+      "orientacoes": [
+        "chamar equipe de enfermagem sempre que necessário",
+        "orientar quanto aos riscos de queda",
+        "deixar ambiente iluminado"
+      ],
+      "exame_fisico": {
+        "torax": {
+          "MV": "mais (+) s/ RA",
+          "simetria": "simetrico",
+          "expansibilidade": "preservada"
+        },
+        "abdome": {
+          "RHA": "+",
+          "tipo": "plano",
+          "tensao": "flacido",
+          "sensibilidade": "indolor a palpacao"
+        }
+      }
+    },
+    "dhCriacao": "12/12/2025 16:27",
+    "dsEvolucao": "HD: POI  TROCA DE  IMPLANTE MARCA PASSO  \n\n\nOBS: DEFICIT AUDITIVO BILATERAL\n\nALERGIA :NEGA\n\nPACIENTE EM REPOUSO NO  LEITO 20,  COM GRADES E DECUBITO ELEVADOS E CAMA TRAVADA, PULSEIRA DE IDENTIFICAÇÃO E RISCO DE \nQUEDAS LEGIVEL E INTEGRA, CONFORME PROTOCOLO DA INSTITUICÃO.\n EVOLUI ACORDADO, CONSCIENTE, ORIENTADO EM TEMPO E ESPAÇO, COLABORATIVO, CONTACTUANTE, HIPOCORADO, HIDRATADO, ACIANÓTICO, ANICTÉRICO, AFEBRIL , MUCOSA ORAL INTEGRA.  REFERE BOA ACEITAÇÃO ALIMENTAR.\nMANTENDO AVP EM MSD 12/12 , COM PELICULA TRANSPARENTE DATADA DO DIA  /  ,  SEM SINAIS FLOGISTICOS.\nNORMOTENSO E NORMOCARDICO, SEM DVA, EUPNEICO EM AR AMBIENTE. AP: TORAX SIMETRICO, EXPANSIBILIDADE PRESERVADA, MV+ S/ RA. \nABD: PLANO, FLACIDO, INDOLOR A PALPAÇÃO. RHA +.\n\n\nORIENTO A CHAMAR EQUIPE DE ENFERMAGEM SEMPRE QUE NECESSÁRIO.\nORIENTO QUANTO AOS RISCOS DE QUEDA.\nDEIXA AMBIENTE ILUMINADO.",
+    "cdPrestador": 133398,
+    "dsEpecialid": "CARDIOLOGIA",
+    "dsEnfermaria": "10A10",
+    "nomePaciente": "EIJI SUTO   PT: 1133142 AT: 10108982",
+    "dataInternacao": "11/12/2025",
+    "cdEspecialidadePrestador": null
+  }
+}

@@ -118,8 +118,12 @@ export class N8NIntegrationService {
     const erros: string[] = [];
 
     try {
-      // Extrair objetos aninhados (nova estrutura N8N)
+      // Extrair objetos aninhados (nova estrutura N8N - atualizada dez/2025)
       const paciente = dadosBrutos.paciente || {};
+      const pacienteEstado = paciente.estado || {};
+      const pacienteObservacoes = paciente.observacoes || {};
+      const pacienteExameFisico = paciente.exame_fisico || {};
+      const pacienteManutencao = pacienteEstado.manutencao || {};
       const historico = paciente.historico || {};
       const evolucao = dadosBrutos.evolucao || {};
       const descricao = evolucao.descricao || {};
@@ -134,21 +138,21 @@ export class N8NIntegrationService {
       // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
       const especialidade = this.extractEspecialidade(dadosBrutos);
       
-      // Extrair campos com fallback para múltiplas fontes aninhadas
-      const alergias = this.extractNestedField(dadosBrutos, [paciente, historico, encontro], ['alergias', 'alergia']);
-      const dispositivos = this.extractNestedArrayOrString(dadosBrutos, [paciente, encontro], ['dispositivos', 'disp']);
-      const mobilidade = this.extractNestedField(dadosBrutos, [descricao, encontro], ['mobilidade', 'condicao_mobilidade']);
-      const dieta = this.extractNestedField(dadosBrutos, [descricao, encontro], ['dieta', 'alimentacao']);
-      const eliminacoes = this.extractNestedField(dadosBrutos, [descricao, descricao.avaliação || {}, encontro], ['eliminacoes', 'eliminacao', 'evacuacao']);
-      const atb = this.extractNestedField(dadosBrutos, [encontro], ['atb', 'antibioticos', 'antibiotico']);
-      const curativos = this.extractNestedField(dadosBrutos, [encontro], ['curativos', 'curativo']);
-      const aporteSaturacao = this.extractNestedField(dadosBrutos, [descricao, descricao.avaliação || {}, encontro], ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao', 'respiração']);
-      const exames = this.extractNestedField(dadosBrutos, [encontro], ['exames', 'exames_realizados_pendentes', 'exame']);
-      const cirurgia = this.extractNestedField(dadosBrutos, [encontro], ['cirurgia', 'data_programacao_cirurgica', 'procedimento']);
-      const observacoes = this.extractNestedField(dadosBrutos, [descricao, evolucao, encontro], ['observacoes', 'observacoes_intercorrencias', 'intercorrencias', 'situação_atual']);
-      const previsaoAlta = this.extractNestedField(dadosBrutos, [encontro], ['previsao_alta', 'previsaoAlta', 'alta']);
-      const braden = this.extractNestedField(dadosBrutos, [encontro], ['braden', 'rq_braden', 'escala_braden']);
-      const diagnostico = this.extractNestedField(dadosBrutos, [historico, encontro], ['diagnostico', 'diagnostico_comorbidades', 'comorbidades', 'fratura', 'antecedentes']);
+      // Extrair campos com fallback para múltiplas fontes aninhadas (incluindo paciente.estado e paciente.observacoes)
+      const alergias = this.extractNestedField(dadosBrutos, [pacienteObservacoes, paciente, historico, encontro], ['alergias', 'alergia']);
+      const dispositivos = this.extractDispositivosFromData(dadosBrutos, pacienteManutencao);
+      const mobilidade = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, encontro], ['mobilidade', 'condicao_mobilidade']);
+      const dieta = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, encontro], ['dieta', 'alimentacao']);
+      const eliminacoes = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, descricao.avaliação || {}, encontro], ['eliminacoes', 'eliminacao', 'evacuacao']);
+      const atb = this.extractNestedField(dadosBrutos, [pacienteManutencao, encontro], ['atb', 'antibioticos', 'antibiotico', 'ATB']);
+      const curativos = this.extractNestedField(dadosBrutos, [pacienteManutencao, encontro], ['curativos', 'curativo']);
+      const aporteSaturacao = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, descricao.avaliação || {}, encontro], ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao', 'respiração', 'frequencia_respiratoria']);
+      const exames = this.extractNestedField(dadosBrutos, [paciente, encontro], ['exames', 'exames_realizados_pendentes', 'exame']);
+      const cirurgia = this.extractNestedField(dadosBrutos, [paciente, encontro], ['cirurgia', 'data_programacao_cirurgica', 'procedimento', 'intervencao']);
+      const observacoes = this.extractObservacoesFromData(dadosBrutos, pacienteObservacoes, pacienteEstado);
+      const previsaoAlta = this.extractNestedField(dadosBrutos, [paciente, encontro], ['previsao_alta', 'previsaoAlta', 'alta']);
+      const braden = this.extractNestedField(dadosBrutos, [pacienteEstado, encontro], ['braden', 'rq_braden', 'escala_braden']);
+      const diagnostico = this.extractDiagnosticoFromData(dadosBrutos, paciente, historico);
       
       let dadosProcessados: InsertPatient = {
         // Campos básicos
@@ -385,6 +389,82 @@ export class N8NIntegrationService {
     if (normalized === "DA") return "DA";
 
     return null;
+  }
+
+  /**
+   * Extrai dispositivos de paciente.estado.manutencao
+   * Campos: AVP, pelicula_transparente, sondas, drenos, etc.
+   */
+  private extractDispositivosFromData(dadosBrutos: N8NRawData, manutencao: N8NRawData): string {
+    const dispositivos: string[] = [];
+    
+    // Verificar campos de manutenção
+    if (manutencao.AVP) dispositivos.push(`AVP: ${manutencao.AVP}`);
+    if (manutencao.pelicula_transparente) {
+      const pt = manutencao.pelicula_transparente;
+      if (typeof pt === "object" && pt.data) {
+        dispositivos.push(`Película: ${pt.data}`);
+      } else if (typeof pt === "string") {
+        dispositivos.push(`Película: ${pt}`);
+      }
+    }
+    if (manutencao.sonda) dispositivos.push(`Sonda: ${manutencao.sonda}`);
+    if (manutencao.cateter) dispositivos.push(`Cateter: ${manutencao.cateter}`);
+    if (manutencao.dreno) dispositivos.push(`Dreno: ${manutencao.dreno}`);
+    
+    // Fallback para campos diretos
+    if (dispositivos.length === 0) {
+      const disp = dadosBrutos.dispositivos || dadosBrutos.disp;
+      if (disp) return this.valueToString(disp);
+    }
+    
+    return dispositivos.join(" | ");
+  }
+
+  /**
+   * Extrai observações de paciente.observacoes e paciente.estado
+   * Combina informações relevantes de múltiplas fontes
+   */
+  private extractObservacoesFromData(dadosBrutos: N8NRawData, observacoes: N8NRawData, estado: N8NRawData): string {
+    const obs: string[] = [];
+    
+    // Extrair observações estruturadas
+    if (observacoes.deficit_auditivo) obs.push(`Déficit auditivo: ${observacoes.deficit_auditivo}`);
+    if (observacoes.risco_quedas) obs.push(`Risco de quedas: ${observacoes.risco_quedas}`);
+    if (observacoes.reposo === "sim") obs.push("Em repouso no leito");
+    if (observacoes.pulseira_identificacao) obs.push(`Pulseira: ${observacoes.pulseira_identificacao}`);
+    
+    // Extrair consciência do estado
+    if (estado.consciência) obs.push(estado.consciência);
+    
+    // Fallback para campos diretos
+    if (obs.length === 0) {
+      const obsField = dadosBrutos.observacoes || dadosBrutos.observacoes_intercorrencias;
+      if (obsField) return this.valueToString(obsField);
+    }
+    
+    return obs.join(" | ");
+  }
+
+  /**
+   * Extrai diagnóstico de paciente.intervencao, historico, e campos diretos
+   */
+  private extractDiagnosticoFromData(dadosBrutos: N8NRawData, paciente: N8NRawData, historico: N8NRawData): string {
+    // Priorizar intervenção do paciente
+    if (paciente.intervencao) {
+      return `HD: ${paciente.intervencao}`;
+    }
+    
+    // Tentar histórico
+    if (historico.diagnostico) return this.valueToString(historico.diagnostico);
+    if (historico.comorbidades) return this.valueToString(historico.comorbidades);
+    if (historico.antecedentes) return this.valueToString(historico.antecedentes);
+    
+    // Campos diretos
+    if (dadosBrutos.diagnostico) return this.valueToString(dadosBrutos.diagnostico);
+    if (dadosBrutos.diagnostico_comorbidades) return this.valueToString(dadosBrutos.diagnostico_comorbidades);
+    
+    return "";
   }
 
   /**
