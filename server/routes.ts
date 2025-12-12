@@ -766,6 +766,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
+  // ==========================================
+  // OpenAI Analysis Routes
+  // ==========================================
+  
+  // Import OpenAI service dynamically to avoid startup errors if API key is missing
+  app.post("/api/ai/analyze-patient/:id", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+    const { openaiService } = await import("./services/openai-service");
+    const patient = await storage.getPatient(req.params.id);
+    if (!patient) {
+      throw new AppError(404, "Paciente não encontrado");
+    }
+    
+    const analysis = await openaiService.analyzePatient(patient);
+    logger.info(`[${getTimestamp()}] [OpenAI] Patient ${req.params.id} analyzed`);
+    res.json(analysis);
+  }));
+
+  app.post("/api/ai/analyze-patients", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+    const { openaiService } = await import("./services/openai-service");
+    const patients = await storage.getAllPatients();
+    
+    if (patients.length === 0) {
+      throw new AppError(404, "Nenhum paciente encontrado");
+    }
+    
+    const analysis = await openaiService.analyzeMultiplePatients(patients);
+    logger.info(`[${getTimestamp()}] [OpenAI] Analyzed ${patients.length} patients`);
+    res.json(analysis);
+  }));
+
+  app.post("/api/ai/care-recommendations/:id", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+    const { openaiService } = await import("./services/openai-service");
+    const patient = await storage.getPatient(req.params.id);
+    if (!patient) {
+      throw new AppError(404, "Paciente não encontrado");
+    }
+    
+    const recommendations = await openaiService.generateCareRecommendations(patient);
+    logger.info(`[${getTimestamp()}] [OpenAI] Care recommendations generated for patient ${req.params.id}`);
+    res.json({ recomendacoes: recommendations });
+  }));
+
   // Register authentication routes
   registerAuthRoutes(app);
   registerUserRoutes(app);
