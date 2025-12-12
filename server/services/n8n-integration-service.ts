@@ -123,7 +123,7 @@ export class N8NIntegrationService {
         // Dados clínicos
         rqBradenScp: dadosBrutos.braden || dadosBrutos.rq_braden || "",
         diagnosticoComorbidades: dadosBrutos.diagnostico || dadosBrutos.diagnostico_comorbidades || "",
-        alergias: dadosBrutos.alergias || "",
+        alergias: dadosBrutos.alergia || dadosBrutos.alergias || "",
 
         // Mobilidade
         mobilidade: this.normalizeMobilidade(dadosBrutos.mobilidade || ""),
@@ -131,7 +131,7 @@ export class N8NIntegrationService {
         // Cuidados
         dieta: dadosBrutos.dieta || "",
         eliminacoes: dadosBrutos.eliminacoes || "",
-        dispositivos: dadosBrutos.dispositivos || "",
+        dispositivos: dadosBrutos.disp || dadosBrutos.dispositivos || "",
         atb: dadosBrutos.atb || dadosBrutos.antibioticos || "",
         curativos: dadosBrutos.curativos || "",
 
@@ -154,7 +154,7 @@ export class N8NIntegrationService {
         dsLeitoCompleto: dadosBrutos.ds_leito_completo || dadosBrutos.leito_completo || leito,
         // SINCRONIZAÇÃO: Manter ds_especialidade sincronizado com especialidadeRamal
         dsEspecialidade: especialidade,
-        dsEvolucaoCompleta: dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || dadosBrutos.descricao || "",
+        dsEvolucaoCompleta: dadosBrutos.dsEvolucao || dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || dadosBrutos.descricao || "",
         dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dh_criacao_evolucao || dadosBrutos.data_criacao),
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,
@@ -321,6 +321,7 @@ export class N8NIntegrationService {
    * Extrai código de enfermaria (formato "10A", "10B", etc)
    */
   private extractEnfermaria(dados: N8NRawData, leito: string): string {
+    if (dados.dsEnfermaria) return dados.dsEnfermaria;
     if (dados.ds_enfermaria) return dados.ds_enfermaria;
     if (dados.enfermaria) return dados.enfermaria;
     
