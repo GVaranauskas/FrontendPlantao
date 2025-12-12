@@ -96,13 +96,17 @@ export class N8NIntegrationService {
 
   /**
    * Processa e mapeia dados brutos da API N8N para InsertPatient
-   * Extrai dados de múltiplas fontes: campos diretos, objeto encontro, e texto dsEvolucao
+   * Extrai dados de múltiplas fontes: campos diretos, objetos aninhados (paciente, evolucao), e texto dsEvolucao
    */
   async processEvolucao(leito: string, dadosBrutos: N8NRawData): Promise<ProcessedEvolucao> {
     const erros: string[] = [];
 
     try {
-      // Extrair objeto encontro se existir (contém dados estruturados)
+      // Extrair objetos aninhados (nova estrutura N8N)
+      const paciente = dadosBrutos.paciente || {};
+      const historico = paciente.historico || {};
+      const evolucao = dadosBrutos.evolucao || {};
+      const descricao = evolucao.descricao || {};
       const encontro = dadosBrutos.encontro || {};
       
       // Extrair informações do nome do paciente
@@ -114,21 +118,21 @@ export class N8NIntegrationService {
       // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
       const especialidade = this.extractEspecialidade(dadosBrutos);
       
-      // Extrair campos com fallback para encontro e dsEvolucao
-      const alergias = this.extractField(dadosBrutos, encontro, ['alergia', 'alergias', 'alergias_reportadas']);
-      const dispositivos = this.extractField(dadosBrutos, encontro, ['disp', 'dispositivos', 'dispositivos_em_uso']);
-      const mobilidade = this.extractField(dadosBrutos, encontro, ['mobilidade', 'condicao_mobilidade']);
-      const dieta = this.extractField(dadosBrutos, encontro, ['dieta', 'alimentacao']);
-      const eliminacoes = this.extractField(dadosBrutos, encontro, ['eliminacoes', 'eliminacao']);
-      const atb = this.extractField(dadosBrutos, encontro, ['atb', 'antibioticos', 'antibiotico']);
-      const curativos = this.extractField(dadosBrutos, encontro, ['curativos', 'curativo']);
-      const aporteSaturacao = this.extractField(dadosBrutos, encontro, ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao']);
-      const exames = this.extractField(dadosBrutos, encontro, ['exames', 'exames_realizados_pendentes', 'exame']);
-      const cirurgia = this.extractField(dadosBrutos, encontro, ['cirurgia', 'data_programacao_cirurgica', 'procedimento']);
-      const observacoes = this.extractField(dadosBrutos, encontro, ['observacoes', 'observacoes_intercorrencias', 'intercorrencias', 'descricao']);
-      const previsaoAlta = this.extractField(dadosBrutos, encontro, ['previsao_alta', 'previsaoAlta', 'alta']);
-      const braden = this.extractField(dadosBrutos, encontro, ['braden', 'rq_braden', 'escala_braden']);
-      const diagnostico = this.extractField(dadosBrutos, encontro, ['diagnostico', 'diagnostico_comorbidades', 'comorbidades']);
+      // Extrair campos com fallback para múltiplas fontes aninhadas
+      const alergias = this.extractNestedField(dadosBrutos, [paciente, historico, encontro], ['alergias', 'alergia']);
+      const dispositivos = this.extractNestedArrayOrString(dadosBrutos, [paciente, encontro], ['dispositivos', 'disp']);
+      const mobilidade = this.extractNestedField(dadosBrutos, [descricao, encontro], ['mobilidade', 'condicao_mobilidade']);
+      const dieta = this.extractNestedField(dadosBrutos, [descricao, encontro], ['dieta', 'alimentacao']);
+      const eliminacoes = this.extractNestedField(dadosBrutos, [descricao, descricao.avaliação || {}, encontro], ['eliminacoes', 'eliminacao', 'evacuacao']);
+      const atb = this.extractNestedField(dadosBrutos, [encontro], ['atb', 'antibioticos', 'antibiotico']);
+      const curativos = this.extractNestedField(dadosBrutos, [encontro], ['curativos', 'curativo']);
+      const aporteSaturacao = this.extractNestedField(dadosBrutos, [descricao, descricao.avaliação || {}, encontro], ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao', 'respiração']);
+      const exames = this.extractNestedField(dadosBrutos, [encontro], ['exames', 'exames_realizados_pendentes', 'exame']);
+      const cirurgia = this.extractNestedField(dadosBrutos, [encontro], ['cirurgia', 'data_programacao_cirurgica', 'procedimento']);
+      const observacoes = this.extractNestedField(dadosBrutos, [descricao, evolucao, encontro], ['observacoes', 'observacoes_intercorrencias', 'intercorrencias', 'situação_atual']);
+      const previsaoAlta = this.extractNestedField(dadosBrutos, [encontro], ['previsao_alta', 'previsaoAlta', 'alta']);
+      const braden = this.extractNestedField(dadosBrutos, [encontro], ['braden', 'rq_braden', 'escala_braden']);
+      const diagnostico = this.extractNestedField(dadosBrutos, [historico, encontro], ['diagnostico', 'diagnostico_comorbidades', 'comorbidades', 'fratura', 'antecedentes']);
       
       let dadosProcessados: InsertPatient = {
         // Campos básicos
@@ -431,26 +435,74 @@ export class N8NIntegrationService {
   }
 
   /**
-   * Extrai campo de múltiplas fontes com fallback
-   * Prioridade: dadosBrutos > encontro > string vazia
+   * Extrai campo de múltiplas fontes aninhadas com fallback
+   * Prioridade: dadosBrutos (nível raiz) > objetos aninhados na ordem fornecida
    * @param dadosBrutos - Dados brutos do N8N
-   * @param encontro - Objeto encontro aninhado (se existir)
+   * @param nestedObjects - Array de objetos aninhados para buscar
    * @param fieldNames - Lista de nomes de campos possíveis para tentar
    */
-  private extractField(dadosBrutos: N8NRawData, encontro: N8NRawData, fieldNames: string[]): string {
-    // Primeiro tenta nos dados brutos
+  private extractNestedField(dadosBrutos: N8NRawData, nestedObjects: N8NRawData[], fieldNames: string[]): string {
+    // Primeiro tenta nos dados brutos (nível raiz)
     for (const fieldName of fieldNames) {
       const value = dadosBrutos[fieldName];
       if (value !== undefined && value !== null && String(value).trim() !== "") {
+        // Se for array, juntar com separador
+        if (Array.isArray(value)) {
+          return value.join(", ");
+        }
         return String(value).trim();
       }
     }
     
-    // Depois tenta no objeto encontro
+    // Depois tenta em cada objeto aninhado na ordem fornecida
+    for (const obj of nestedObjects) {
+      if (!obj) continue;
+      for (const fieldName of fieldNames) {
+        const value = obj[fieldName];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          // Se for array, juntar com separador
+          if (Array.isArray(value)) {
+            return value.join(", ");
+          }
+          return String(value).trim();
+        }
+      }
+    }
+    
+    return "";
+  }
+
+  /**
+   * Extrai campo que pode ser array ou string
+   * Converte arrays para string separada por " | "
+   */
+  private extractNestedArrayOrString(dadosBrutos: N8NRawData, nestedObjects: N8NRawData[], fieldNames: string[]): string {
+    // Primeiro tenta nos dados brutos (nível raiz)
     for (const fieldName of fieldNames) {
-      const value = encontro[fieldName];
-      if (value !== undefined && value !== null && String(value).trim() !== "") {
-        return String(value).trim();
+      const value = dadosBrutos[fieldName];
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value) && value.length > 0) {
+          return value.join(" | ");
+        }
+        if (String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+    }
+    
+    // Depois tenta em cada objeto aninhado
+    for (const obj of nestedObjects) {
+      if (!obj) continue;
+      for (const fieldName of fieldNames) {
+        const value = obj[fieldName];
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value) && value.length > 0) {
+            return value.join(" | ");
+          }
+          if (String(value).trim() !== "") {
+            return String(value).trim();
+          }
+        }
       }
     }
     

@@ -1,0 +1,125 @@
+{
+  "id": "036f2940-811f-4a0c-940d-7afa90b63676",
+  "leito": "21",
+  "especialidadeRamal": "ORTOPEDIA HSPE",
+  "nome": "CLARICE SOUZA LIMA TEIXEIRA",
+  "registro": "1416031",
+  "dataNascimento": null,
+  "dataInternacao": "11/12/2025",
+  "rqBradenScp": "",
+  "diagnosticoComorbidades": null,
+  "alergias": null,
+  "mobilidade": null,
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A11",
+  "dsLeitoCompleto": "21",
+  "dsEspecialidade": "ORTOPEDIA HSPE",
+  "codigoAtendimento": "10107229",
+  "dsEvolucaoCompleta": "### PLANTÃO NOTURNO 11/12/2025 - 10 A LEITO 21 ###\n\n- ID: CLARICE SOUZA LIMA TEIXEIRA, 87 ANOS\n- HD: FRATURA PRETROCANTERICA \n- DISPOSITIVOS: CVP J 20G MSD 10/12 | CVD + BOLSA COLETORA SISTEMA FECHADO     \n- ALERGIA : NEGA \n\n- AP: HAS\n\n# 11/12/25 - 19H:00 - CLIENTE EVOLUI EM LEITO DE ENFERMARIA, NO MOMENTO DESACOMPANHADA, COM GRADES E DECÚBITO ELEVADOS, RODAS TRAVADAS, EM USO DE PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA LEGÍVEIS CONFORME PROTOCOLO INSTITUCIONAL, LEITO IDENTIFICADO, EM PRONTUARIO, EM BOM ESTADO GERAL, LOTE, PIFR, VERBALIZANDO DISCURSO COERENTE E CONEXO, ANICTÉRICA, ACIANÓTICA, AFEBRIL, EUPNEICA EM AR AMBIENTE, SEM SINAIS DE DESCONFORTO RESPIRATÓRIO, MANTENDO AVP EM MEMEBRO SUPERIOR DIREITO, INSERÇÃO PERVIA SEM A PRESENÇA DE SINAIS FLOGÍSTICOS, OCLUÍDO COM PELÍCULA TRANSPARENTE, LIMPA, SECA E IDENTIFICADA;CATETERVESICALDEDEMORA + BOLSA COLETORA DEDIURESE SISTEMA FECHADO, DEBITO DE 200ML DE COR AMARELO CONCENTRADO, SEM PRESENÇA DE SEDEMENTOS; NEGA QUEIXAS ALGICAS. REFERE EVACUAÇÕESAUSENTES. SEGUE INTERNAÇÃO HOSPITALAR HEMODINAMICAMENTE ESTÁVEL SEM USO DE DVA, AOS CUIDADOS DE EQUIPE MULTIPROFISSIONAL. \n\n\n# AO EXAME FÍSICO:\n\n- GERAL: BEG, CORADA, HIDRATADA, ACIANÓTICA, ANICTÉRICA, AFEBRIL\n- NEURO: GLASGOW 15, CALMA, PUPILAS ISOFOTORREAGENTES, SEM DÉFICITS FOCAL OU SINAIS MENÍNGEOS\n- ACV: BRNF 2TS/SOPRO, PULSO CHEIO DE RÍTMICOS E PALPÁVEIS \n- AR: EUPNEICO EM AA. MV+ SEM RA\n- ABD: RHA +, PLANO E FLÁCIDO, INDOLOR A PALPAÇÃO, DB NEGATIVO.\n- EXTREMIDADES: MMSS E MMII SEM EDEMAS, PANTURRILHAS LIVRES, PPP BILATERALMENTE, TEC  3 SEG.\n- TEGUMENTAR: PELE ÍNTEGRA\n\n# ORIENTO CLIENTE SOBRE RISCO DE QUEDA, A SOLICITAR A EQUPE DE ENFERMAGEM QUANDO NECESSÁRIO, POSICIONO CAMPAINHA PRÓXIMO E DEIXO AMBIENTE ILUMINADO.  \n\n- SEGUE INTERNAÇÃO HOSPITALAR HEMODINAMICAMENTE ESTÁVEL SEM USO DE DVA, AOS CUIDADOS DA ENFERMAGEM.",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "leito": "21",
+    "dsLeito": "10A1121",
+    "evolucao": {
+      "data": "11/12/25",
+      "hora": "19H:00",
+      "descricao": {
+        "avaliação": {
+          "cor": "anictérica, acianótica",
+          "queixas": "nega queixas algicas",
+          "evacuacao": "ausentes",
+          "temperatura": "afebril",
+          "respiração": "eupneica em ar ambiente",
+          "catetervescical": {
+            "debito": {
+              "cor": "amarelo concentrado",
+              "volume": "200ml",
+              "sedimentos": "sem presença de sedimentos"
+            },
+            "inserção": "pervia",
+            "sinais_flogísticos": "sem presença de sinais flogísticos"
+          },
+          "estado_consciencia": "verbalizando discurso coerente e conexo",
+          "sinais_desconforto": "sem sinais de desconforto respiratório"
+        },
+        "estado_geral": "bom",
+        "hemodinamica": {
+          "estado": "estável",
+          "uso_dva": "sem uso de DVA"
+        },
+        "situação_atual": "em leito de enfermaria, desacompanhada, com grades e decúbito elevados, rodas travadas"
+      },
+      "orientacao": {
+        "campainha": "posicionada próximo e ambiente iluminado",
+        "risco_queda": "cliente orientada sobre risco de queda"
+      },
+      "exame_fisico": {
+        "geral": {
+          "descricao": "BEG, corada, hidratada, acianótica, anictérica, afebril"
+        },
+        "abdome": {
+          "db": "negativo",
+          "descricao": "RHA +, plano e flácido, indolor à palpação"
+        },
+        "tegumentar": {
+          "descricao": "pele íntegra"
+        },
+        "neurologico": {
+          "estado": "calma",
+          "glasgow": 15,
+          "pupilas": "isofotorreagentes",
+          "deficits": "sem déficits focais ou sinais meníngeos"
+        },
+        "extremidades": {
+          "tec": "< 3 seg",
+          "descricao": "MMSS e MMII sem edemas, panturrilhas livres, PPP bilateralmente"
+        },
+        "respiratorio": {
+          "mv": "MV+",
+          "ra": "sem RA",
+          "respiração": "eupneico em AA"
+        },
+        "cardiovascular": {
+          "pulso": "cheio, rítmico e palpável",
+          "ritmo": "BRNF 2TS/Sopro"
+        }
+      }
+    },
+    "paciente": {
+      "nome": "CLARICE SOUZA LIMA TEIXEIRA",
+      "idade": 87,
+      "historico": {
+        "fratura": "fratura pretorcantérica",
+        "alergias": "nega",
+        "antecedentes": [
+          "HAS"
+        ]
+      },
+      "dispositivos": [
+        "CVP J 20G MSD 10/12",
+        "CVD + bolsa coletora sistema fechado"
+      ]
+    },
+    "dhCriacao": "11/12/2025 23:36",
+    "dsEvolucao": "### PLANTÃO NOTURNO 11/12/2025 - 10 A LEITO 21 ###\n\n- ID: CLARICE SOUZA LIMA TEIXEIRA, 87 ANOS\n- HD: FRATURA PRETROCANTERICA \n- DISPOSITIVOS: CVP J 20G MSD 10/12 | CVD + BOLSA COLETORA SISTEMA FECHADO     \n- ALERGIA : NEGA \n\n- AP: HAS\n\n# 11/12/25 - 19H:00 - CLIENTE EVOLUI EM LEITO DE ENFERMARIA, NO MOMENTO DESACOMPANHADA, COM GRADES E DECÚBITO ELEVADOS, RODAS TRAVADAS, EM USO DE PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA LEGÍVEIS CONFORME PROTOCOLO INSTITUCIONAL, LEITO IDENTIFICADO, EM PRONTUARIO, EM BOM ESTADO GERAL, LOTE, PIFR, VERBALIZANDO DISCURSO COERENTE E CONEXO, ANICTÉRICA, ACIANÓTICA, AFEBRIL, EUPNEICA EM AR AMBIENTE, SEM SINAIS DE DESCONFORTO RESPIRATÓRIO, MANTENDO AVP EM MEMEBRO SUPERIOR DIREITO, INSERÇÃO PERVIA SEM A PRESENÇA DE SINAIS FLOGÍSTICOS, OCLUÍDO COM PELÍCULA TRANSPARENTE, LIMPA, SECA E IDENTIFICADA;CATETERVESICALDEDEMORA + BOLSA COLETORA DEDIURESE SISTEMA FECHADO, DEBITO DE 200ML DE COR AMARELO CONCENTRADO, SEM PRESENÇA DE SEDEMENTOS; NEGA QUEIXAS ALGICAS. REFERE EVACUAÇÕESAUSENTES. SEGUE INTERNAÇÃO HOSPITALAR HEMODINAMICAMENTE ESTÁVEL SEM USO DE DVA, AOS CUIDADOS DE EQUIPE MULTIPROFISSIONAL. \n\n\n# AO EXAME FÍSICO:\n\n- GERAL: BEG, CORADA, HIDRATADA, ACIANÓTICA, ANICTÉRICA, AFEBRIL\n- NEURO: GLASGOW 15, CALMA, PUPILAS ISOFOTORREAGENTES, SEM DÉFICITS FOCAL OU SINAIS MENÍNGEOS\n- ACV: BRNF 2TS/SOPRO, PULSO CHEIO DE RÍTMICOS E PALPÁVEIS \n- AR: EUPNEICO EM AA. MV+ SEM RA\n- ABD: RHA +, PLANO E FLÁCIDO, INDOLOR A PALPAÇÃO, DB NEGATIVO.\n- EXTREMIDADES: MMSS E MMII SEM EDEMAS, PANTURRILHAS LIVRES, PPP BILATERALMENTE, TEC < 3 SEG.\n- TEGUMENTAR: PELE ÍNTEGRA\n\n# ORIENTO CLIENTE SOBRE RISCO DE QUEDA, A SOLICITAR A EQUPE DE ENFERMAGEM QUANDO NECESSÁRIO, POSICIONO CAMPAINHA PRÓXIMO E DEIXO AMBIENTE ILUMINADO.  \n\n- SEGUE INTERNAÇÃO HOSPITALAR HEMODINAMICAMENTE ESTÁVEL SEM USO DE DVA, AOS CUIDADOS DA ENFERMAGEM.",
+    "cdPrestador": 133721,
+    "dsEpecialid": "ORTOPEDIA HSPE",
+    "dsEnfermaria": "10A11",
+    "nomePaciente": "CLARICE SOUZA LIMA TEIXEIRA   PT: 1416031 AT: 10107229",
+    "dataInternacao": "11/12/2025",
+    "cdEspecialidadePrestador": null
+  }
+}
