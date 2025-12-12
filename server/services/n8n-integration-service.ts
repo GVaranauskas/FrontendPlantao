@@ -32,14 +32,8 @@ export class N8NIntegrationService {
    */
   async fetchEvolucoes(unitIds: string = ""): Promise<N8NRawData[] | null> {
     try {
-      // Se não foi passado unitIds, não buscar nada (API N8N requer pelo menos 1 ID)
-      if (!unitIds || unitIds.trim() === "") {
-        console.log(`[N8N] No unit IDs provided, skipping fetch`);
-        return [];
-      }
-      
       const payload: N8NRequest = {
-        flowId: unitIds,  // flowId deve ser igual aos IDs das unidades
+        flowId: "1a2b3c4d5e",
         forceUpdate: false,
         meta: {
           params: [unitIds],
