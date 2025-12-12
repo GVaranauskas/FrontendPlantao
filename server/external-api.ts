@@ -13,7 +13,7 @@ interface ExternalAPIResponse {
   [key: string]: any;
 }
 
-const EXTERNAL_API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes";
+const EXTERNAL_API_URL = "https://dev-n8n.7care.com.br/webhook/evolucoes";
 
 export class ExternalAPIService {
   /**

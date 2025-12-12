@@ -23,7 +23,7 @@ interface ProcessedEvolucao {
   erros: string[];
 }
 
-const N8N_API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes";
+const N8N_API_URL = "https://dev-n8n.7care.com.br/webhook/evolucoes";
 
 export class N8NIntegrationService {
   /**

@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "online",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes"
+          api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes"
         });
       } else {
         logger.info(`[${getTimestamp()}] [Status] N8N API returned null (latency: ${latency}ms)`);
@@ -444,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "offline",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://n8n-dev.iamspe.sp.gov.br/webhook-test/evolucoes"
+          api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes"
         });
       }
     } catch (error) {
