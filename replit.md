@@ -37,4 +37,28 @@ Preferred communication style: Simple, everyday language.
 - **Security**: jsonwebtoken (JWT), bcryptjs (password hashing), csurf (CSRF protection), cookie-parser (cookie handling).
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data (`https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes`) and nursing units (`https://n8n-dev.iamspe.sp.gov.br/webhook/unidades-internacao`).
+- **AI/OpenAI**: OpenAI SDK with `gpt-4o-mini` model for patient data analysis. Service at `server/services/openai-service.ts`.
 - **Scheduled Tasks**: Daily automatic sync of nursing units (06:00 AM) with change detection and admin approval workflow.
+
+## OpenAI Integration
+
+### Configuration
+- **API Key**: Stored as secret `OPENAI_API_KEY`
+- **Model**: `gpt-4o-mini` (configured via env var `OPENAI_MODEL`)
+- **Service**: `server/services/openai-service.ts`
+
+### API Endpoints
+- `POST /api/ai/analyze-patient/:id` - Analisa dados de um paciente específico
+- `POST /api/ai/analyze-patients` - Analisa todos os pacientes e gera resumo
+- `POST /api/ai/care-recommendations/:id` - Gera recomendações de cuidados
+
+### Response Format (analyze-patient)
+```json
+{
+  "resumo": "Resumo clínico do paciente",
+  "alertas": ["Lista de alertas"],
+  "recomendacoes": ["Lista de recomendações"],
+  "riscos": ["Lista de riscos"],
+  "prioridade": "baixa|media|alta|critica"
+}
+```
