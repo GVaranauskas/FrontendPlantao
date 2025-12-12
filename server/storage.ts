@@ -2,6 +2,19 @@ import { type User, type InsertUser, type UpdateUser, type Patient, type InsertP
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
@@ -12,6 +25,7 @@ export interface IStorage {
   updateLastLogin(id: string): Promise<void>;
   
   getAllPatients(): Promise<Patient[]>;
+  getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>>;
   getPatient(id: string): Promise<Patient | undefined>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined>;
@@ -47,6 +61,7 @@ export interface IStorage {
 
   // Nursing Units (Enfermarias)
   getAllNursingUnits(): Promise<NursingUnit[]>;
+  getNursingUnitsPaginated(params: PaginationParams): Promise<PaginatedResult<NursingUnit>>;
   getActiveNursingUnits(): Promise<NursingUnit[]>;
   getNursingUnit(id: string): Promise<NursingUnit | undefined>;
   getNursingUnitByExternalId(externalId: number): Promise<NursingUnit | undefined>;

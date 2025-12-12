@@ -1,22 +1,15 @@
-import { decode as toonDecode, encode as toonEncode } from "@toon-format/toon";
-
-export function parseToon(toonString: string): unknown {
-  try {
-    return toonDecode(toonString);
-  } catch (error) {
-    throw new Error(`Failed to parse TOON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
+import { encode, decode } from "@toon-format/toon";
 
 export function stringifyToToon(data: unknown): string {
-  try {
-    return toonEncode(data);
-  } catch (error) {
-    throw new Error(`Failed to stringify to TOON: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  return encode(data, { indent: 2 });
+}
+
+export function parseToon(data: string): unknown {
+  return decode(data, { strict: false });
 }
 
 export function isToonFormat(contentType: string | undefined): boolean {
   if (!contentType) return false;
-  return contentType.includes("application/toon") || contentType.includes("text/toon");
+  return contentType.toLowerCase().includes("toon") || 
+         contentType.toLowerCase().includes("application/toon");
 }

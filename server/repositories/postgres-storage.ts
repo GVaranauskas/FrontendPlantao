@@ -1,8 +1,8 @@
-import { eq, desc, lt, gte, sql, and } from "drizzle-orm";
+import { eq, desc, lt, gte, sql, and, count } from "drizzle-orm";
 import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
-import type { IStorage } from "../storage";
+import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
 export class PostgresStorage implements IStorage {
@@ -50,6 +50,27 @@ export class PostgresStorage implements IStorage {
   async getAllPatients(): Promise<Patient[]> {
     const result = await db.select().from(patients);
     return result.map(p => this.decryptPatientData(p));
+  }
+
+  async getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+
+    const [countResult, result] = await Promise.all([
+      db.select({ total: count() }).from(patients),
+      db.select().from(patients).orderBy(patients.leito).limit(limit).offset(offset)
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return {
+      data: result.map(p => this.decryptPatientData(p)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async getPatient(id: string): Promise<Patient | undefined> {
@@ -214,6 +235,27 @@ export class PostgresStorage implements IStorage {
   // Nursing Units CRUD
   async getAllNursingUnits(): Promise<NursingUnit[]> {
     return await db.select().from(nursingUnits).orderBy(nursingUnits.nome);
+  }
+
+  async getNursingUnitsPaginated(params: PaginationParams): Promise<PaginatedResult<NursingUnit>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+
+    const [countResult, result] = await Promise.all([
+      db.select({ total: count() }).from(nursingUnits),
+      db.select().from(nursingUnits).orderBy(nursingUnits.nome).limit(limit).offset(offset)
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return {
+      data: result,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async getActiveNursingUnits(): Promise<NursingUnit[]> {

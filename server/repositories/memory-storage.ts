@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
-import type { IStorage } from "../storage";
+import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
@@ -76,6 +76,21 @@ export class MemStorage implements IStorage {
 
   async getAllPatients(): Promise<Patient[]> {
     return Array.from(this.patients.values());
+  }
+
+  async getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+    const all = Array.from(this.patients.values());
+    const data = all.slice(offset, offset + limit);
+    return {
+      data,
+      total: all.length,
+      page,
+      limit,
+      totalPages: Math.ceil(all.length / limit)
+    };
   }
 
   async getPatient(id: string): Promise<Patient | undefined> {
@@ -250,6 +265,21 @@ export class MemStorage implements IStorage {
   // Nursing Units CRUD
   async getAllNursingUnits(): Promise<NursingUnit[]> {
     return Array.from(this.nursingUnits.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async getNursingUnitsPaginated(params: PaginationParams): Promise<PaginatedResult<NursingUnit>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+    const all = Array.from(this.nursingUnits.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+    const data = all.slice(offset, offset + limit);
+    return {
+      data,
+      total: all.length,
+      page,
+      limit,
+      totalPages: Math.ceil(all.length / limit)
+    };
   }
 
   async getActiveNursingUnits(): Promise<NursingUnit[]> {

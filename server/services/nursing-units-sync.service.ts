@@ -4,6 +4,48 @@ import { logger } from "../lib/logger";
 
 const N8N_UNITS_API = "https://n8n-dev.iamspe.sp.gov.br/webhook/unidades-internacao";
 
+// Simple in-memory cache for N8N API responses
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+class APICache {
+  private cache = new Map<string, CacheEntry<unknown>>();
+  private defaultTTL = 5 * 60 * 1000; // 5 minutes
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return entry.data as T;
+  }
+
+  set<T>(key: string, data: T, ttl?: number): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl: ttl || this.defaultTTL
+    });
+  }
+
+  invalidate(key: string): void {
+    this.cache.delete(key);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const apiCache = new APICache();
+
 interface N8NUnitResponse {
   idUnidadeInternacao: number;
   dsUnidadeInternacao: string;
@@ -21,7 +63,19 @@ interface SyncResult {
 }
 
 export class NursingUnitsSyncService {
-  async fetchExternalUnits(): Promise<N8NUnitResponse[]> {
+  private static CACHE_KEY_UNITS = "n8n_units";
+
+  async fetchExternalUnits(useCache: boolean = true): Promise<N8NUnitResponse[]> {
+    const cacheKey = NursingUnitsSyncService.CACHE_KEY_UNITS;
+    
+    if (useCache) {
+      const cached = apiCache.get<N8NUnitResponse[]>(cacheKey);
+      if (cached) {
+        logger.info(`[NursingUnitsSync] Using cached data (${cached.length} units)`);
+        return cached;
+      }
+    }
+
     try {
       logger.info("[NursingUnitsSync] Fetching units from N8N API...");
       
@@ -42,15 +96,27 @@ export class NursingUnitsSyncService {
       
       if (!Array.isArray(data)) {
         logger.warn("[NursingUnitsSync] API response is not an array, wrapping...");
-        return data ? [data] : [];
+        const result = data ? [data] : [];
+        if (useCache) {
+          apiCache.set(cacheKey, result);
+        }
+        return result;
       }
 
       logger.info(`[NursingUnitsSync] Fetched ${data.length} units from API`);
+      if (useCache) {
+        apiCache.set(cacheKey, data);
+      }
       return data;
     } catch (error) {
       logger.error("[NursingUnitsSync] Error fetching units from N8N API", error instanceof Error ? error : undefined);
       throw error;
     }
+  }
+
+  invalidateCache(): void {
+    apiCache.clear();
+    logger.info("[NursingUnitsSync] Cache invalidated");
   }
 
   async syncUnits(autoApprove: boolean = false): Promise<SyncResult> {
@@ -65,7 +131,8 @@ export class NursingUnitsSyncService {
     };
 
     try {
-      const externalUnits = await this.fetchExternalUnits();
+      this.invalidateCache();
+      const externalUnits = await this.fetchExternalUnits(false);
       const existingUnits = await storage.getAllNursingUnits();
       
       const existingByExternalId = new Map<number, NursingUnit>();
