@@ -10,7 +10,7 @@ export interface Enfermaria {
   nome: string;
 }
 
-const API_URL = "https://n8n-dev.iamspe.sp.gov.br/webhook/unidades-internacao";
+const API_URL = "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
 
 export class UnidadesInternacaoService {
   /**

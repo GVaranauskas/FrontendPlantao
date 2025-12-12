@@ -2,7 +2,7 @@ import { storage } from "../storage";
 import type { InsertNursingUnit, InsertNursingUnitChange, NursingUnit } from "@shared/schema";
 import { logger } from "../lib/logger";
 
-const N8N_UNITS_API = "https://n8n-dev.iamspe.sp.gov.br/webhook/unidades-internacao";
+const N8N_UNITS_API = "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
 
 // Simple in-memory cache for N8N API responses
 interface CacheEntry<T> {

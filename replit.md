@@ -36,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Data Format**: @toon-format/toon for TOON encoding/decoding.
 - **Security**: jsonwebtoken (JWT), bcryptjs (password hashing), csurf (CSRF protection), cookie-parser (cookie handling).
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
-- **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://n8n-dev.iamspe.sp.gov.br/webhook/unidades-internacao`).
+- **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://dev-n8n.7care.com.br/webhook/unidades-internacao`).
 - **AI Integration**: Claude Haiku 4.5 (primary) with OpenAI GPT-4o-mini (fallback) for patient data analysis. Unified service at `server/services/ai-service.ts`.
 - **Scheduled Tasks**: Daily automatic sync of nursing units (06:00 AM) with change detection and admin approval workflow.
 
