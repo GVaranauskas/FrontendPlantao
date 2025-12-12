@@ -1,21 +1,36 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Patient, Alert } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
-  Edit, Loader2, Cloud, Download, FileSpreadsheet, ChevronDown
+  Edit, Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
+  AlertTriangle, CheckCircle, Activity
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { useAutoSync } from "@/hooks/use-auto-sync";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface AIAnalysisResult {
+  resumoGeral: string;
+  pacientesCriticos: string[];
+  alertasGerais: string[];
+  estatisticas: {
+    total: number;
+    altaComplexidade: number;
+    mediaBraden: number;
+  };
+}
 
 interface NursingTemplate {
   id: string;
@@ -33,9 +48,33 @@ export default function ShiftHandoverPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
+  const { toast } = useToast();
+
+  const analyzePatientsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/ai/analyze-patients");
+      return response.json();
+    },
+    onSuccess: (data: AIAnalysisResult) => {
+      setAiAnalysis(data);
+      toast({
+        title: "Análise concluída",
+        description: "A análise de IA foi gerada com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro na análise",
+        description: error.message || "Não foi possível gerar a análise.",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Enable automatic sync on page load and every 15 minutes
   const { isSyncing: isAutoSyncing, lastSyncTimeAgo, triggerSync } = useAutoSync({
@@ -291,6 +330,131 @@ export default function ShiftHandoverPage() {
               <Button variant="ghost" size="icon" data-testid="button-filter">
                 <Filter className="w-5 h-5" />
               </Button>
+              <Sheet open={aiOpen} onOpenChange={setAiOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    data-testid="button-ai-analysis"
+                    title="Análise de IA"
+                  >
+                    <Brain className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-lg max-h-screen overflow-hidden flex flex-col">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-primary" />
+                      Análise de IA - Passagem de Plantão
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto mt-4">
+                    {!aiAnalysis && !analyzePatientsMutation.isPending && (
+                      <div className="text-center py-8 space-y-4">
+                        <Brain className="w-16 h-16 mx-auto text-muted-foreground" />
+                        <p className="text-muted-foreground">
+                          Utilize a IA para gerar um resumo inteligente dos pacientes e identificar pontos de atenção para a passagem de plantão.
+                        </p>
+                        <Button
+                          onClick={() => analyzePatientsMutation.mutate()}
+                          disabled={!patients?.length}
+                          data-testid="button-run-ai-analysis"
+                        >
+                          <Brain className="w-4 h-4 mr-2" />
+                          Analisar {patients?.length || 0} Pacientes
+                        </Button>
+                      </div>
+                    )}
+
+                    {analyzePatientsMutation.isPending && (
+                      <div className="text-center py-12 space-y-4">
+                        <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
+                        <p className="text-muted-foreground">
+                          Analisando dados dos pacientes...
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Isso pode levar alguns segundos.
+                        </p>
+                      </div>
+                    )}
+
+                    {aiAnalysis && !analyzePatientsMutation.isPending && (
+                      <div className="space-y-4">
+                        <Card className="p-4 bg-primary/5 border-primary/20">
+                          <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                            <Activity className="w-4 h-4" />
+                            Resumo Geral
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {aiAnalysis.resumoGeral}
+                          </p>
+                        </Card>
+
+                        <Card className="p-4">
+                          <h3 className="font-semibold text-sm mb-3">Estatísticas</h3>
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-2xl font-bold text-primary">{aiAnalysis.estatisticas.total}</div>
+                              <div className="text-xs text-muted-foreground">Total</div>
+                            </div>
+                            <div className="bg-chart-3/10 rounded-lg p-2">
+                              <div className="text-2xl font-bold text-chart-3">{aiAnalysis.estatisticas.altaComplexidade}</div>
+                              <div className="text-xs text-muted-foreground">Alta Complexidade</div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-2xl font-bold">{aiAnalysis.estatisticas.mediaBraden?.toFixed(1) || "-"}</div>
+                              <div className="text-xs text-muted-foreground">Média Braden</div>
+                            </div>
+                          </div>
+                        </Card>
+
+                        {aiAnalysis.pacientesCriticos?.length > 0 && (
+                          <Card className="p-4 border-destructive/30 bg-destructive/5">
+                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2 text-destructive">
+                              <AlertTriangle className="w-4 h-4" />
+                              Pacientes Críticos
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {aiAnalysis.pacientesCriticos.map((leito, idx) => (
+                                <Badge key={idx} variant="destructive" className="text-xs">
+                                  Leito {leito}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {aiAnalysis.alertasGerais?.length > 0 && (
+                          <Card className="p-4">
+                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                              <Bell className="w-4 h-4" />
+                              Alertas para o Plantão
+                            </h3>
+                            <ul className="space-y-2">
+                              {aiAnalysis.alertasGerais.map((alerta, idx) => (
+                                <li key={idx} className="flex items-start gap-2 text-sm">
+                                  <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                                  <span className="text-muted-foreground">{alerta}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        )}
+
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => analyzePatientsMutation.mutate()}
+                          data-testid="button-refresh-ai-analysis"
+                        >
+                          <RefreshCcw className="w-4 h-4 mr-2" />
+                          Atualizar Análise
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
               <Sheet open={alertsOpen} onOpenChange={setAlertsOpen}>
                 <SheetTrigger asChild>
                   <Button 
