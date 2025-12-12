@@ -144,9 +144,9 @@ export class N8NIntegrationService {
         observacoesIntercorrencias: dadosBrutos.observacoes || dadosBrutos.observacoes_intercorrencias || "",
         previsaoAlta: dadosBrutos.previsao_alta || dadosBrutos.previsaoAlta || "",
 
-        // Status
+        // Status - será calculado automaticamente
         alerta: null,
-        status: "pending",
+        status: "pending", // Será recalculado abaixo
 
         // Campos N8N
         idEvolucao: dadosBrutos.id_evolucao || dadosBrutos.id || "",
@@ -165,6 +165,9 @@ export class N8NIntegrationService {
       if (!validatePatientDataLength(dadosProcessados)) {
         erros.push("Patient data exceeds maximum field lengths");
       }
+
+      // Calcular status automaticamente baseado nos campos preenchidos
+      dadosProcessados.status = this.calculatePatientStatus(dadosProcessados);
 
       return {
         pacienteName: nomePaciente,
@@ -224,6 +227,36 @@ export class N8NIntegrationService {
       valid: validacaoErros.length === 0 && dados.erros.length === 0,
       errors: [...validacaoErros, ...dados.erros],
     };
+  }
+
+  /**
+   * Calcula o status do paciente baseado nos campos preenchidos
+   * Um paciente é considerado "complete" quando possui os campos essenciais preenchidos
+   * Campos obrigatórios para ser considerado completo:
+   * - leito, nome, dataInternacao (campos básicos)
+   * - diagnosticoComorbidades OU observacoesIntercorrencias (dados clínicos)
+   * - mobilidade (estado do paciente)
+   */
+  private calculatePatientStatus(dados: InsertPatient): "complete" | "pending" {
+    // Campos básicos obrigatórios
+    const hasLeito = !!dados.leito && dados.leito.trim() !== "";
+    const hasNome = !!dados.nome && dados.nome.trim() !== "";
+    const hasDataInternacao = !!dados.dataInternacao && dados.dataInternacao.trim() !== "";
+
+    // Pelo menos um dado clínico relevante
+    const hasDiagnostico = !!dados.diagnosticoComorbidades && dados.diagnosticoComorbidades.trim() !== "";
+    const hasObservacoes = !!dados.observacoesIntercorrencias && dados.observacoesIntercorrencias.trim() !== "";
+    const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
+
+    // Mobilidade (importante para cuidados)
+    const hasMobilidade = !!dados.mobilidade && dados.mobilidade.trim() !== "";
+
+    // Um paciente é completo se tem os dados básicos + dados clínicos + mobilidade
+    if (hasLeito && hasNome && hasDataInternacao && hasDadosClinicosRelevantes && hasMobilidade) {
+      return "complete";
+    }
+
+    return "pending";
   }
 
   /**

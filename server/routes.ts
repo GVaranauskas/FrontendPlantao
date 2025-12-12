@@ -548,6 +548,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   };
 
+  // ==========================================
+  // Patient Status Recalculation
+  // ==========================================
+  
+  // Recalculate status for all patients based on filled fields
+  app.post("/api/patients/recalculate-status", requireRole('admin'), asyncHandler(async (req, res) => {
+    const patients = await storage.getAllPatients();
+    let updated = 0;
+    let unchanged = 0;
+    
+    for (const patient of patients) {
+      // Calcula o status baseado nos campos preenchidos
+      const hasLeito = !!patient.leito && patient.leito.trim() !== "";
+      const hasNome = !!patient.nome && patient.nome.trim() !== "";
+      const hasDataInternacao = !!patient.dataInternacao && patient.dataInternacao.trim() !== "";
+      const hasDiagnostico = !!patient.diagnosticoComorbidades && patient.diagnosticoComorbidades.trim() !== "";
+      const hasObservacoes = !!patient.observacoesIntercorrencias && patient.observacoesIntercorrencias.trim() !== "";
+      const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
+      const hasMobilidade = !!patient.mobilidade && patient.mobilidade.trim() !== "";
+      
+      const newStatus = (hasLeito && hasNome && hasDataInternacao && hasDadosClinicosRelevantes && hasMobilidade) 
+        ? "complete" 
+        : "pending";
+      
+      if (patient.status !== newStatus) {
+        await storage.updatePatient(patient.id, { status: newStatus });
+        updated++;
+        logger.info(`[${getTimestamp()}] [Status] Patient ${patient.leito} updated: ${patient.status} -> ${newStatus}`);
+      } else {
+        unchanged++;
+      }
+    }
+    
+    logger.info(`[${getTimestamp()}] [Status] Recalculation complete: ${updated} updated, ${unchanged} unchanged`);
+    res.json({ 
+      message: "Status recalculation complete",
+      updated,
+      unchanged,
+      total: patients.length
+    });
+  }));
+
   // Template Management Routes
   app.get("/api/templates", asyncHandler(async (req, res) => {
     const templates = await storage.getAllTemplates();
