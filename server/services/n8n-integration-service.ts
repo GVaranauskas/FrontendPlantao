@@ -276,8 +276,9 @@ export class N8NIntegrationService {
    * N8N envia como "ds_especialid" (sem o "ade" no final)
    */
   private extractEspecialidade(dados: N8NRawData): string {
-    return dados.ds_especialidade || 
-           dados.ds_especialid ||      // Campo do N8N (sem "ade" no final)
+    return dados.dsEpecialid ||        // Campo do N8N em camelCase (sem "ade" no final)
+           dados.ds_especialidade || 
+           dados.ds_especialid ||      
            dados.especialidade || 
            dados.especialidadeRamal || 
            "";
