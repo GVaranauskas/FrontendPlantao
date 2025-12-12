@@ -111,6 +111,7 @@ export class AIService {
         const response = await anthropic.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 1000,
+          temperature: 0,
           messages: [
             {
               role: "user",
@@ -141,7 +142,7 @@ export class AIService {
             { role: "system", content: SYSTEM_PROMPT_PATIENT },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.3,
+          temperature: 0,
           max_tokens: 1000,
           response_format: { type: "json_object" },
         });
@@ -176,6 +177,7 @@ export class AIService {
         const response = await anthropic.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 1500,
+          temperature: 0,
           messages: [
             {
               role: "user",
@@ -205,7 +207,7 @@ export class AIService {
             { role: "system", content: SYSTEM_PROMPT_MULTIPLE },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.3,
+          temperature: 0,
           max_tokens: 1500,
           response_format: { type: "json_object" },
         });
@@ -240,6 +242,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
           const response = await anthropic.messages.create({
             model: CLAUDE_MODEL,
             max_tokens: 500,
+            temperature: 0,
             messages: [
               {
                 role: "user",
@@ -270,7 +273,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
               { role: "system", content: SYSTEM_PROMPT_CARE },
               { role: "user", content: userPrompt },
             ],
-            temperature: 0.4,
+            temperature: 0,
             max_tokens: 500,
             response_format: { type: "json_object" },
           });
