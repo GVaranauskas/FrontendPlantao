@@ -435,22 +435,69 @@ export class N8NIntegrationService {
   }
 
   /**
+   * Converte um valor para string, tratando objetos aninhados
+   */
+  private valueToString(value: any): string {
+    if (value === undefined || value === null) return "";
+    
+    // String simples
+    if (typeof value === "string") {
+      return value.trim();
+    }
+    
+    // Número ou boolean
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+    
+    // Array - converter cada item e juntar
+    if (Array.isArray(value)) {
+      const items = value
+        .map(item => this.valueToString(item))
+        .filter(item => item !== "" && item !== "[object Object]");
+      return items.join(" | ");
+    }
+    
+    // Objeto - extrair valores relevantes
+    if (typeof value === "object") {
+      // Tentar campos comuns que contêm texto descritivo
+      const textFields = ["descricao", "description", "valor", "value", "texto", "text", "nome", "name", "estado", "status"];
+      for (const field of textFields) {
+        if (value[field] && typeof value[field] === "string") {
+          return value[field].trim();
+        }
+      }
+      
+      // Se não encontrou campo de texto, extrair todos os valores string
+      const stringValues: string[] = [];
+      for (const key of Object.keys(value)) {
+        const v = value[key];
+        if (typeof v === "string" && v.trim() !== "") {
+          stringValues.push(v.trim());
+        } else if (typeof v === "number" || typeof v === "boolean") {
+          stringValues.push(`${key}: ${v}`);
+        }
+      }
+      
+      if (stringValues.length > 0) {
+        return stringValues.join(", ");
+      }
+    }
+    
+    return "";
+  }
+
+  /**
    * Extrai campo de múltiplas fontes aninhadas com fallback
    * Prioridade: dadosBrutos (nível raiz) > objetos aninhados na ordem fornecida
-   * @param dadosBrutos - Dados brutos do N8N
-   * @param nestedObjects - Array de objetos aninhados para buscar
-   * @param fieldNames - Lista de nomes de campos possíveis para tentar
    */
   private extractNestedField(dadosBrutos: N8NRawData, nestedObjects: N8NRawData[], fieldNames: string[]): string {
     // Primeiro tenta nos dados brutos (nível raiz)
     for (const fieldName of fieldNames) {
       const value = dadosBrutos[fieldName];
-      if (value !== undefined && value !== null && String(value).trim() !== "") {
-        // Se for array, juntar com separador
-        if (Array.isArray(value)) {
-          return value.join(", ");
-        }
-        return String(value).trim();
+      const result = this.valueToString(value);
+      if (result !== "") {
+        return result;
       }
     }
     
@@ -459,12 +506,9 @@ export class N8NIntegrationService {
       if (!obj) continue;
       for (const fieldName of fieldNames) {
         const value = obj[fieldName];
-        if (value !== undefined && value !== null && String(value).trim() !== "") {
-          // Se for array, juntar com separador
-          if (Array.isArray(value)) {
-            return value.join(", ");
-          }
-          return String(value).trim();
+        const result = this.valueToString(value);
+        if (result !== "") {
+          return result;
         }
       }
     }
@@ -480,13 +524,9 @@ export class N8NIntegrationService {
     // Primeiro tenta nos dados brutos (nível raiz)
     for (const fieldName of fieldNames) {
       const value = dadosBrutos[fieldName];
-      if (value !== undefined && value !== null) {
-        if (Array.isArray(value) && value.length > 0) {
-          return value.join(" | ");
-        }
-        if (String(value).trim() !== "") {
-          return String(value).trim();
-        }
+      const result = this.valueToString(value);
+      if (result !== "") {
+        return result;
       }
     }
     
@@ -495,13 +535,9 @@ export class N8NIntegrationService {
       if (!obj) continue;
       for (const fieldName of fieldNames) {
         const value = obj[fieldName];
-        if (value !== undefined && value !== null) {
-          if (Array.isArray(value) && value.length > 0) {
-            return value.join(" | ");
-          }
-          if (String(value).trim() !== "") {
-            return String(value).trim();
-          }
+        const result = this.valueToString(value);
+        if (result !== "") {
+          return result;
         }
       }
     }
