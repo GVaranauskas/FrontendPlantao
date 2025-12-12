@@ -1,0 +1,83 @@
+{
+  "id": "aed36312-324d-4ed1-badf-9db6aa49603b",
+  "leito": "02",
+  "especialidadeRamal": "ORTOPEDIA HSPE",
+  "nome": "EVA RIVAROLA DE POLYDORO",
+  "registro": "1075418",
+  "dataNascimento": null,
+  "dataInternacao": "09/12/2025",
+  "rqBradenScp": "",
+  "diagnosticoComorbidades": null,
+  "alergias": null,
+  "mobilidade": null,
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A01",
+  "dsLeitoCompleto": "02",
+  "dsEspecialidade": "ORTOPEDIA HSPE",
+  "codigoAtendimento": "10099878",
+  "dsEvolucaoCompleta": "HD : Revisão de ATQ D9 LUXAÇÂO\n\n10 RECEBO PACIENTE PROVENIENTE DA UTI DO 9C, ACOMODADA EM LEITO 1002 DO 10A. SEGUE ORIENTADA EM TEMPO ESPAÇO,  MANTIDA EM MACA COM GRADES ELEVADAS E CAMA TRAVADA, , ACIANÓTICA, ANICTÉRICA EM AA, AFEBRIL, COM BOA ACEITAÇÃO DO CAFÉ DA MANHÃ, APRESENTA PELE ÍNTEGRA COM EQUIMOSES EM MMSS, SINAIS VITAIS DENTRO DA NORMALIDADE, MANTEM AVP MSD 09/12 COM INSERÇÃO LIMPA, SECA, SEM SINAIS FLOGÍSTICOS.  FO EM FD COM CURATIVO LIMPO E SECO , FAZ USO DE FRALDAS E DIURESE POR SVD COM DÉBITO A. CLARO;.\n-SEGUE COM PULSEIRAS DE IDENTIFICAÇÃO E DE RISCO DE QUEDA, REFERE DOR E INSÔNIA, SEGUE AOS NOSSOS CUIDADOS DE TODA EQUIPE MULTIDISCIPLINAR.",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "leito": "02",
+    "dsLeito": "10A0102",
+    "evolucao": {
+      "data": "10",
+      "leito": "1002 do 10A",
+      "origem": "UTI do 9C",
+      "cuidado": " segue aos nossos cuidados de toda a equipe multidisciplinar",
+      "queixas": [
+        "dor",
+        "insônia"
+      ],
+      "identificacao": {
+        "pulseiras": [
+          "identificação",
+          "risco de queda"
+        ]
+      },
+      "condicao_fisica": {
+        "avp": {
+          "data": "09/12",
+          "estado": "inserção limpa, seca, sem sinais flogísticos",
+          "membro": "MSD"
+        },
+        "cor": "acianótica",
+        "pele": {
+          "estado": "íntegra",
+          "lesões": "equimoses em membros superiores"
+        },
+        "curativo": {
+          "estado": "limpo e seco",
+          "observacao": "faz uso de fraldas e diurese por SVD com débito a. claro"
+        },
+        "ictérica": "anictérica",
+        "posição": "maca com grades elevadas e cama travada",
+        "temperatura": "afebril",
+        "sinais_vitais": "dentro da normalidade",
+        "aceitação_alimentar": "boa aceitação do café da manhã"
+      },
+      "estado_consciente": "orientada em tempo e espaço"
+    },
+    "dhCriacao": "11/12/2025 12:13",
+    "dsEvolucao": "HD : Revisão de ATQ D9 LUXAÇÂO\n\n10 RECEBO PACIENTE PROVENIENTE DA UTI DO 9C, ACOMODADA EM LEITO 1002 DO 10A. SEGUE ORIENTADA EM TEMPO ESPAÇO,  MANTIDA EM MACA COM GRADES ELEVADAS E CAMA TRAVADA, , ACIANÓTICA, ANICTÉRICA EM AA, AFEBRIL, COM BOA ACEITAÇÃO DO CAFÉ DA MANHÃ, APRESENTA PELE ÍNTEGRA COM EQUIMOSES EM MMSS, SINAIS VITAIS DENTRO DA NORMALIDADE, MANTEM AVP MSD 09/12 COM INSERÇÃO LIMPA, SECA, SEM SINAIS FLOGÍSTICOS.  FO EM FD COM CURATIVO LIMPO E SECO , FAZ USO DE FRALDAS E DIURESE POR SVD COM DÉBITO A. CLARO;.\n-SEGUE COM PULSEIRAS DE IDENTIFICAÇÃO E DE RISCO DE QUEDA, REFERE DOR E INSÔNIA, SEGUE AOS NOSSOS CUIDADOS DE TODA EQUIPE MULTIDISCIPLINAR.",
+    "cdPrestador": 133724,
+    "dsEpecialid": "ORTOPEDIA HSPE",
+    "dsEnfermaria": "10A01",
+    "nomePaciente": "EVA RIVAROLA DE POLYDORO   PT: 1075418 AT: 10099878",
+    "dataInternacao": "09/12/2025",
+    "cdEspecialidadePrestador": null
+  }
+}
