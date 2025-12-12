@@ -771,7 +771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================
   
   // Import OpenAI service dynamically to avoid startup errors if API key is missing
-  app.post("/api/ai/analyze-patient/:id", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { openaiService } = await import("./services/openai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -783,7 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/analyze-patients", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { openaiService } = await import("./services/openai-service");
     const patients = await storage.getAllPatients();
     
@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", requireRole('enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { openaiService } = await import("./services/openai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
