@@ -60,9 +60,9 @@ export class N8NIntegrationService {
 
       console.log(`[N8N] Fetching evolucoes with params: ["${unitIds}"]`);
       
-      // Add timeout to prevent hanging indefinitely (60 seconds)
+      // Add timeout to prevent hanging indefinitely (3 minutes - N8N can be slow)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
       
       let response: Response;
       try {
