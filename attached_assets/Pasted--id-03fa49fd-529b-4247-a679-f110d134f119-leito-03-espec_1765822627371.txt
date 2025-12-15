@@ -1,0 +1,157 @@
+{
+  "id": "03fa49fd-529b-4247-a679-f110d134f119",
+  "leito": "03",
+  "especialidadeRamal": "CIRURGIA GERAL HSPE",
+  "nome": "ODETE CARDOSO TERTULIANO",
+  "registro": "1492485",
+  "dataNascimento": null,
+  "dataInternacao": "08/12/2025",
+  "rqBradenScp": "",
+  "diagnosticoComorbidades": null,
+  "alergias": null,
+  "mobilidade": null,
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A02",
+  "dsLeitoCompleto": "03",
+  "dsEspecialidade": "CIRURGIA GERAL HSPE",
+  "codigoAtendimento": "10089945",
+  "dsEvolucaoCompleta": "EVOLUÇÃO DE ENFERMAGEM DO DIA 11/12 NOTURNO A\n\n\nDiagnóstico:  Sepse de foco abdomina/ CA de pancreas\nAlergia: Nega\nDieta: Geral branda ( Aceitação parcial )\nDisp: CVP mse 08/12 Salinizado e sem sinais flogisticos\nATB: Meropenem D4/7\n\n\n\nGlasgow Adulto: 15 - Disfunção normal/ leve\nEscala de Braden: 17 - Risco baixo\nEscala parte 1 - Johns Hopkins: 0 - Seguir p/ cálculo do score\nEscala parte 2 - Jhons Hopkins: 13 -Moderado risco de queda\nEscala de Flebite Maddox: 0 - Sem sinais de flebite\nEscala Numérica de dor: 0- Sem dor\n\n\n\n\n21H Realizo visita beira-leito. Paciente encontrada acomodada em leito, cama baixa, grades elevadas e rodas travadas. Segue em CN 02L/MIN, eupneico, sem sinais de desconforto respiratório, calma e orientada em tempo e espaço, afebril. Mantém dreno de Pigtail bilateral em funcionamento, com curativos íntegros, limpos e secos, pulseira de identificação legível e risco de queda conforme protocolo institucional. Diurese presente realizada em fralda e refere evacuação ausente até o momento da visita, acompanhado pela irmã Dara. Campainha deixada ao alcance das mãos e orientada a acionar a equipe de enfermagem sempre que necessário.\n\n\n\nAO EXAME FISICO:\nNeuro: Glasgow 15,\nAP: MV + S/RA\nAC: BNF em 2T, sem sopros audíveis no momento\nABD: Flácido, indolor á palpaçãp profunda, RH+\n\n\n\n\nMETA DIÁRIA:\n- Conforto para dor\n- Prevenção de infecção\n- Prevenção de quedas",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "leito": "03",
+    "dsLeito": "10A0203",
+    "paciente": {
+      "data": "11/12",
+      "diario_de_evolucao": {
+        "dieta": "Geral branda (Aceitação parcial)",
+        "alergia": "Nega",
+        "escalas": {
+          "dor": {
+            "descricao": "Sem dor",
+            "escala_numerica": 0
+          },
+          "braden": {
+            "risco": "baixo",
+            "resultado": 17
+          },
+          "glasgow": {
+            "adulto": 15,
+            "status": "Disfunção normal/ leve"
+          },
+          "johns_hopkins": {
+            "parte_1": {
+              "resultado": 0,
+              "observacao": "Seguir p/ cálculo do score"
+            },
+            "parte_2": {
+              "risco": "Moderado risco de queda",
+              "resultado": 13
+            }
+          },
+          "flebite_maddox": {
+            "sinais": "Sem sinais de flebite",
+            "resultado": 0
+          }
+        },
+        "diagnostico": "Sepse de foco abdominal/ CA de pancreas",
+        "observacoes": {
+          "visita_beira_leito": {
+            "horario": "21H",
+            "condicao": {
+              "cama": {
+                "rodas": "travadas",
+                "altura": "baixa",
+                "grades": "elevadas"
+              },
+              "dreno": {
+                "tipo": "Pigtail",
+                "estado": "em funcionamento",
+                "curativos": "íntegros, limpos e secos"
+              },
+              "diurese": {
+                "estado": "presente",
+                "metodo": "realizada em fralda"
+              },
+              "campainha": {
+                "estado": "ao alcance das mãos",
+                "orientacao": "acionar a equipe de enfermagem sempre que necessário"
+              },
+              "evacuacao": "ausente até o momento da visita",
+              "oxigenacao": "CN 02L/MIN",
+              "respiracao": {
+                "estado": "eupneico",
+                "sinais_desconforto": "sem"
+              },
+              "localizacao": "acomodada em leito",
+              "acompanhante": "irmã Dara",
+              "estado_geral": {
+                "emocional": "calma",
+                "orientacao": "em tempo e espaço",
+                "temperatura": "afebril"
+              },
+              "pulseira_identificacao": {
+                "estado": "legível",
+                "risco_queda": "conforme protocolo institucional"
+              }
+            },
+            "exame_fisico": {
+              "neuro": {
+                "glasgow": 15
+              },
+              "abdome": {
+                "estado": "Flácido",
+                "sensibilidade": "indolor à palpação profunda",
+                "ruido_intestinal": "RH+"
+              },
+              "auscultacao_cardiaca": {
+                "bnf": "em 2T",
+                "sopros": "sem sopros audíveis no momento"
+              },
+              "auscultacao_pulmonar": {
+                "mv": "+",
+                "sra": "S/RA"
+              }
+            }
+          }
+        },
+        "antibioticos": {
+          "nome": "Meropenem",
+          "duracao": "D4/7"
+        },
+        "dispositivos": {
+          "CVP": {
+            "data": "08/12",
+            "estado": "Salinizado e sem sinais flogísticos"
+          }
+        },
+        "metas_diarias": [
+          "Conforto para dor",
+          "Prevenção de infecção",
+          "Prevenção de quedas"
+        ]
+      }
+    },
+    "dhCriacao": "11/12/2025 22:48",
+    "dsEvolucao": "EVOLUÇÃO DE ENFERMAGEM DO DIA 11/12 NOTURNO A\n\n\nDiagnóstico:  Sepse de foco abdomina/ CA de pancreas\nAlergia: Nega\nDieta: Geral branda ( Aceitação parcial )\nDisp: CVP mse 08/12 Salinizado e sem sinais flogisticos\nATB: Meropenem D4/7\n\n\n\nGlasgow Adulto: 15 - Disfunção normal/ leve\nEscala de Braden: 17 - Risco baixo\nEscala parte 1 - Johns Hopkins: 0 - Seguir p/ cálculo do score\nEscala parte 2 - Jhons Hopkins: 13 -Moderado risco de queda\nEscala de Flebite Maddox: 0 - Sem sinais de flebite\nEscala Numérica de dor: 0- Sem dor\n\n\n\n\n21H Realizo visita beira-leito. Paciente encontrada acomodada em leito, cama baixa, grades elevadas e rodas travadas. Segue em CN 02L/MIN, eupneico, sem sinais de desconforto respiratório, calma e orientada em tempo e espaço, afebril. Mantém dreno de Pigtail bilateral em funcionamento, com curativos íntegros, limpos e secos, pulseira de identificação legível e risco de queda conforme protocolo institucional. Diurese presente realizada em fralda e refere evacuação ausente até o momento da visita, acompanhado pela irmã Dara. Campainha deixada ao alcance das mãos e orientada a acionar a equipe de enfermagem sempre que necessário.\n\n\n\nAO EXAME FISICO:\nNeuro: Glasgow 15,\nAP: MV + S/RA\nAC: BNF em 2T, sem sopros audíveis no momento\nABD: Flácido, indolor á palpaçãp profunda, RH+\n\n\n\n\nMETA DIÁRIA:\n- Conforto para dor\n- Prevenção de infecção\n- Prevenção de quedas",
+    "cdPrestador": 133144,
+    "dsEpecialid": "CIRURGIA GERAL HSPE",
+    "dsEnfermaria": "10A02",
+    "nomePaciente": "ODETE CARDOSO TERTULIANO   PT: 1492485 AT: 10089945",
+    "dataInternacao": "08/12/2025",
+    "cdEspecialidadePrestador": null
+  },
+  "importedAt": "2025-12-15T17:35:43.890Z"
+}
