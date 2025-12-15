@@ -1,0 +1,101 @@
+{
+  "id": "b19fc8f3-6e98-42ba-adc0-ea2acf075fed",
+  "leito": "07",
+  "especialidadeRamal": "ORTOPEDIA HSPE",
+  "nome": "ANA PAULA DA SILVA",
+  "registro": "1166342",
+  "dataNascimento": null,
+  "dataInternacao": "09/12/2025",
+  "rqBradenScp": "valor: 18, baixo",
+  "diagnosticoComorbidades": "Pré OP. de fratura de tibia mie",
+  "alergias": "Nega",
+  "mobilidade": null,
+  "dieta": "Geral geral (Aceitação total)",
+  "eliminacoes": "",
+  "dispositivos": "AVP MSD 10/12 Salinizado e sem sinais flogisticos",
+  "atb": "S/ atb",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A04",
+  "dsLeitoCompleto": "07",
+  "dsEspecialidade": "ORTOPEDIA HSPE",
+  "codigoAtendimento": "10096335",
+  "dsEvolucaoCompleta": "EVOLUÇÃO DE ENFERMAGEM DO DIA 11/12 NOTURNO A\n\n\nDiagnóstico:  Pré OP. de fratura de tibia mie\nAlergia: Nega\nDieta: Geral geral ( Aceitação total ) \nDisp: AVP MSD 10/12 Salinizado e sem sinais flogisticos\nATB: S/ atb\n\n\n\nGlasgow Adulto: 15 - Disfunção normal/ leve\nEscala de Braden: 18 - Risco baixo\nEscala parte 1 - Johns Hopkins: 0 - Seguir p/ cálculo do score\nEscala parte 2 - Jhons Hopkins: 3  -Baixo risco de queda\nEscala de Flebite Maddox: 0 - Sem sinais de flebite\nEscala Numérica de dor: 0- Sem dor\n\n\n\n\n21H Realizo visita beira-leito. Paciente encontrada acomodada em leito, cama baixa, grades elevadas e rodas travadas. Segue em ar ambiente, eupneico, sem sinais de desconforto respiratório, calma e orientada em tempo e espaço, afebril. Mantém pulseira de identificação legível e risco de queda conforme protocolo institucional. Diurese presente e evacuação presente. Em W.C em cadeira higienica, sem acompanhantes. Campainha deixada ao alcance das mãos e orientada a acionar a equipe de enfermagem sempre que necessário.\n\n\n\nAO EXAME FISICO:\nNeuro: Glasgow 15,\nAP: MV + S/RA\nAC: BNF em 2T, sem sopros audíveis no momento\nABD: Flácido, indolor á palpaçãp profunda, RH+\n\n\n\n\nMETA DIÁRIA:\n- Conforto para dor\n- Prevenção de infecção\n- Prevenção de quedas",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "atb": "S/ atb",
+    "data": "11/12",
+    "disp": "AVP MSD 10/12 Salinizado e sem sinais flogisticos",
+    "dieta": "Geral geral (Aceitação total)",
+    "leito": "07",
+    "turno": "noturno",
+    "visita": {
+      "horario": "21H",
+      "observacoes": {
+        "diurese": "Diurese presente e evacuação presente.",
+        "higiene": "Em W.C em cadeira higienica, sem acompanhantes.",
+        "campainha": "Campainha deixada ao alcance das mãos e orientada a acionar a equipe de enfermagem sempre que necessário.",
+        "acomodacao": "Paciente encontrada acomodada em leito, cama baixa, grades elevadas e rodas travadas.",
+        "respiracao": "Segue em ar ambiente, eupneico, sem sinais de desconforto respiratório, calma e orientada em tempo e espaço, afebril.",
+        "identificacao": "Mantém pulseira de identificação legível e risco de queda conforme protocolo institucional."
+      }
+    },
+    "alergia": "Nega",
+    "dsLeito": "10A0407",
+    "glascow": {
+      "valor": 15,
+      "descricao": "Disfunção normal/leve"
+    },
+    "dhCriacao": "11/12/2025 23:10",
+    "dsEvolucao": "EVOLUÇÃO DE ENFERMAGEM DO DIA 11/12 NOTURNO A\n\n\nDiagnóstico:  Pré OP. de fratura de tibia mie\nAlergia: Nega\nDieta: Geral geral ( Aceitação total ) \nDisp: AVP MSD 10/12 Salinizado e sem sinais flogisticos\nATB: S/ atb\n\n\n\nGlasgow Adulto: 15 - Disfunção normal/ leve\nEscala de Braden: 18 - Risco baixo\nEscala parte 1 - Johns Hopkins: 0 - Seguir p/ cálculo do score\nEscala parte 2 - Jhons Hopkins: 3  -Baixo risco de queda\nEscala de Flebite Maddox: 0 - Sem sinais de flebite\nEscala Numérica de dor: 0- Sem dor\n\n\n\n\n21H Realizo visita beira-leito. Paciente encontrada acomodada em leito, cama baixa, grades elevadas e rodas travadas. Segue em ar ambiente, eupneico, sem sinais de desconforto respiratório, calma e orientada em tempo e espaço, afebril. Mantém pulseira de identificação legível e risco de queda conforme protocolo institucional. Diurese presente e evacuação presente. Em W.C em cadeira higienica, sem acompanhantes. Campainha deixada ao alcance das mãos e orientada a acionar a equipe de enfermagem sempre que necessário.\n\n\n\nAO EXAME FISICO:\nNeuro: Glasgow 15,\nAP: MV + S/RA\nAC: BNF em 2T, sem sopros audíveis no momento\nABD: Flácido, indolor á palpaçãp profunda, RH+\n\n\n\n\nMETA DIÁRIA:\n- Conforto para dor\n- Prevenção de infecção\n- Prevenção de quedas",
+    "escala_dor": {
+      "valor": 0,
+      "descricao": "Sem dor"
+    },
+    "cdPrestador": 133144,
+    "diagnostico": "Pré OP. de fratura de tibia mie",
+    "dsEpecialid": "ORTOPEDIA HSPE",
+    "meta_diaria": [
+      "Conforto para dor",
+      "Prevenção de infecção",
+      "Prevenção de quedas"
+    ],
+    "dsEnfermaria": "10A04",
+    "exame_fisico": {
+      "ac": "BNF em 2T, sem sopros audíveis no momento",
+      "ap": "MV + S/RA",
+      "abd": "Flácido, indolor à palpação profunda, RH+",
+      "neuro": "Glasgow 15"
+    },
+    "nomePaciente": "ANA PAULA DA SILVA   PT: 1166342 AT: 10096335",
+    "escala_braden": {
+      "risco": "baixo",
+      "valor": 18
+    },
+    "dataInternacao": "09/12/2025",
+    "escala_flebite": {
+      "valor": 0,
+      "descricao": "Sem sinais de flebite"
+    },
+    "escala_johns_hopkins": {
+      "parte_1": {
+        "score": 0,
+        "descricao": "Seguir p/ cálculo do score"
+      },
+      "parte_2": {
+        "risco": "Baixo risco de queda",
+        "score": 3
+      }
+    },
+    "cdEspecialidadePrestador": null
+  },
+  "importedAt": "2025-12-15T17:35:43.890Z"
+}

@@ -113,48 +113,35 @@ export class N8NIntegrationService {
 
   /**
    * Processa e mapeia dados brutos da API N8N para InsertPatient
-   * Extrai dados de múltiplas fontes: campos diretos, objetos aninhados (paciente, evolucao), e texto dsEvolucao
+   * PRIORIZA campos diretos do formJson (braden, diagnostico, alergias, mobilidade, etc.)
+   * Fallback para estruturas aninhadas apenas se campos diretos não existirem
    */
   async processEvolucao(leito: string, dadosBrutos: N8NRawData): Promise<ProcessedEvolucao> {
     const erros: string[] = [];
 
     try {
-      // Extrair objetos aninhados (nova estrutura N8N - atualizada dez/2025)
-      const paciente = dadosBrutos.paciente || {};
-      const pacienteEstado = paciente.estado || {};
-      const pacienteObservacoes = paciente.observacoes || {};
-      const pacienteExameFisico = paciente.exame_fisico || {};
-      const pacienteManutencao = pacienteEstado.manutencao || {};
-      const historico = paciente.historico || {};
-      const evolucao = dadosBrutos.evolucao || {};
-      const descricao = evolucao.descricao || {};
-      const encontro = dadosBrutos.encontro || {};
-      const condicaoFisica = evolucao.condicao_fisica || {};
-      
       // Extrair informações do nome do paciente
       const nomePaciente = this.extractNomePaciente(dadosBrutos);
       const registro = this.extractRegistro(dadosBrutos);
       const codigoAtendimento = this.extractCodigoAtendimento(dadosBrutos);
-
-      // Mapear todos os campos
-      // SINCRONIZAÇÃO: ds_especialidade (N8N) → especialidadeRamal (Replit)
       const especialidade = this.extractEspecialidade(dadosBrutos);
-      
-      // Extrair campos com fallback para múltiplas fontes aninhadas (incluindo paciente.estado, paciente.observacoes e evolucao.condicao_fisica)
-      const alergias = this.extractNestedField(dadosBrutos, [pacienteObservacoes, paciente, historico, encontro], ['alergias', 'alergia']);
-      const dispositivos = this.extractDispositivosFromData(dadosBrutos, pacienteManutencao, condicaoFisica);
-      const mobilidade = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, encontro], ['mobilidade', 'condicao_mobilidade']);
-      const dieta = this.extractDietaFromData(dadosBrutos, pacienteEstado, descricao, condicaoFisica, encontro);
-      const eliminacoes = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, descricao.avaliação || {}, encontro], ['eliminacoes', 'eliminacao', 'evacuacao']);
-      const atb = this.extractNestedField(dadosBrutos, [pacienteManutencao, encontro], ['atb', 'antibioticos', 'antibiotico', 'ATB']);
-      const curativos = this.extractCurativosFromData(dadosBrutos, pacienteManutencao, condicaoFisica, encontro);
-      const aporteSaturacao = this.extractNestedField(dadosBrutos, [pacienteEstado, descricao, descricao.avaliação || {}, encontro], ['aporte_saturacao', 'aporteSaturacao', 'condicao_respiratoria', 'saturacao', 'respiração', 'frequencia_respiratoria']);
-      const exames = this.extractNestedField(dadosBrutos, [paciente, encontro], ['exames', 'exames_realizados_pendentes', 'exame']);
-      const cirurgia = this.extractNestedField(dadosBrutos, [paciente, encontro], ['cirurgia', 'data_programacao_cirurgica', 'procedimento', 'intervencao']);
-      const observacoes = this.extractObservacoesFromData(dadosBrutos, pacienteObservacoes, pacienteEstado, evolucao);
-      const previsaoAlta = this.extractNestedField(dadosBrutos, [paciente, encontro], ['previsao_alta', 'previsaoAlta', 'alta']);
-      const braden = this.extractNestedField(dadosBrutos, [pacienteEstado, encontro], ['braden', 'rq_braden', 'escala_braden']);
-      const diagnostico = this.extractDiagnosticoFromData(dadosBrutos, paciente, historico, evolucao);
+
+      // PRIORIDADE 1: Campos diretos do formJson (formato Postman correto)
+      // Estes são os 14 campos que o N8N deve retornar normalizados
+      const braden = this.getDirectField(dadosBrutos, 'braden') || "";
+      const diagnostico = this.getDirectField(dadosBrutos, 'diagnostico') || "";
+      const alergias = this.getDirectField(dadosBrutos, 'alergias') || "";
+      const mobilidade = this.getDirectField(dadosBrutos, 'mobilidade') || "";
+      const dieta = this.getDirectField(dadosBrutos, 'dieta') || "";
+      const eliminacoes = this.getDirectField(dadosBrutos, 'eliminacoes') || "";
+      const dispositivos = this.getDirectField(dadosBrutos, 'dispositivos') || "";
+      const atb = this.getDirectField(dadosBrutos, 'atb') || "";
+      const curativos = this.getDirectField(dadosBrutos, 'curativos') || "";
+      const aporteSaturacao = this.getDirectField(dadosBrutos, 'aporteSaturacao') || "";
+      const exames = this.getDirectField(dadosBrutos, 'exames') || "";
+      const cirurgia = this.getDirectField(dadosBrutos, 'cirurgia') || "";
+      const observacoes = this.getDirectField(dadosBrutos, 'observacoes') || "";
+      const previsaoAlta = this.getDirectField(dadosBrutos, 'previsaoAlta') || "";
       
       let dadosProcessados: InsertPatient = {
         // Campos básicos
@@ -166,42 +153,41 @@ export class N8NIntegrationService {
         dataNascimento: this.formatDateToDDMMYYYY(dadosBrutos.data_nascimento || dadosBrutos.dataNascimento || ""),
         dataInternacao: this.formatDateToDDMMYYYY(dadosBrutos.data_internacao || dadosBrutos.dataInternacao || new Date().toISOString()),
 
-        // Dados clínicos (usando extração melhorada)
+        // Dados clínicos - PRIORIZA campos diretos do formJson
         rqBradenScp: braden,
         diagnosticoComorbidades: diagnostico,
         alergias: alergias,
 
-        // Mobilidade
+        // Mobilidade - PRIORIZA campo direto, depois normaliza
         mobilidade: this.normalizeMobilidade(mobilidade),
 
-        // Cuidados
+        // Cuidados - PRIORIZA campos diretos
         dieta: dieta,
         eliminacoes: eliminacoes,
         dispositivos: dispositivos,
         atb: atb,
         curativos: curativos,
 
-        // Monitoramento
+        // Monitoramento - PRIORIZA campos diretos
         aporteSaturacao: aporteSaturacao,
         examesRealizadosPendentes: exames,
 
-        // Planejamento
+        // Planejamento - PRIORIZA campos diretos
         dataProgramacaoCirurgica: cirurgia,
         observacoesIntercorrencias: observacoes,
         previsaoAlta: previsaoAlta,
 
         // Status - será calculado automaticamente
         alerta: null,
-        status: "pending", // Será recalculado abaixo
+        status: "pending",
 
         // Campos N8N
         idEvolucao: dadosBrutos.id_evolucao || dadosBrutos.id || "",
         dsEnfermaria: this.extractEnfermaria(dadosBrutos, leito),
-        dsLeitoCompleto: dadosBrutos.ds_leito_completo || dadosBrutos.leito_completo || leito,
-        // SINCRONIZAÇÃO: Manter ds_especialidade sincronizado com especialidadeRamal
+        dsLeitoCompleto: dadosBrutos.dsLeito || dadosBrutos.ds_leito_completo || dadosBrutos.leito_completo || leito,
         dsEspecialidade: especialidade,
-        dsEvolucaoCompleta: dadosBrutos.dsEvolucao || dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || dadosBrutos.descricao || "",
-        dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dh_criacao_evolucao || dadosBrutos.data_criacao),
+        dsEvolucaoCompleta: dadosBrutos.dsEvolucao || dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || "",
+        dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dhCriacao || dadosBrutos.dh_criacao_evolucao || dadosBrutos.data_criacao),
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,
       };
@@ -234,6 +220,24 @@ export class N8NIntegrationService {
         erros,
       };
     }
+  }
+
+  /**
+   * Obtém campo direto do objeto (formato formJson do N8N)
+   * Prioriza campos exatamente como definidos no formJson
+   */
+  private getDirectField(dados: N8NRawData, fieldName: string): string {
+    const value = dados[fieldName];
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object") {
+      // Se for objeto, tentar extrair valor ou descrição
+      if (value.valor !== undefined) return String(value.valor);
+      if (value.descricao !== undefined) return String(value.descricao);
+      if (value.risco !== undefined) return `${value.valor || value.resultado || ""}, ${value.risco}`;
+      return JSON.stringify(value);
+    }
+    return String(value);
   }
 
   /**
