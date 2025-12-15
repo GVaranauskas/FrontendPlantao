@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
@@ -117,6 +116,15 @@ export default function ShiftHandoverPage() {
         <div className="container mx-auto px-5 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-5">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setLocation("/modules")}
+                data-testid="button-home"
+                title="Voltar ao Menu Principal"
+              >
+                <Home className="w-5 h-5 text-primary" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon"
