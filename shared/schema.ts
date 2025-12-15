@@ -53,6 +53,7 @@ export const patients = pgTable("patients", {
   dhCriacaoEvolucao: timestamp("dh_criacao_evolucao"),
   fonteDados: text("fonte_dados").default("N8N_IAMSPE"),
   dadosBrutosJson: jsonb("dados_brutos_json"),
+  importedAt: timestamp("imported_at").defaultNow(),
 });
 
 export const alerts = pgTable("alerts", {

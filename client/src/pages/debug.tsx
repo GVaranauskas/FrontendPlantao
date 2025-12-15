@@ -117,17 +117,30 @@ export default function DebugPage() {
               ) : (
                 patients?.map((patient, idx) => (
                   <div key={patient.id} className="border rounded-lg p-3 bg-card/50 space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold">Paciente #{idx + 1}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          copyToClipboard(JSON.stringify(patient, null, 2), `patient-${patient.id}`)
-                        }
-                      >
-                        {copiedId === `patient-${patient.id}` ? "✓ Copiado" : <Copy className="w-3 h-3" />}
-                      </Button>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">Paciente #{idx + 1}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="font-medium">{patient.nome}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="text-xs text-muted-foreground">Leito: {patient.leito}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {patient.importedAt && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                            Importado: {new Date(patient.importedAt).toLocaleString("pt-BR")}
+                          </span>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            copyToClipboard(JSON.stringify(patient, null, 2), `patient-${patient.id}`)
+                          }
+                        >
+                          {copiedId === `patient-${patient.id}` ? "✓ Copiado" : <Copy className="w-3 h-3" />}
+                        </Button>
+                      </div>
                     </div>
                     <pre className="bg-black text-green-400 p-2 rounded text-xs overflow-x-auto max-h-48">
                       {JSON.stringify(patient, null, 2)}
