@@ -82,12 +82,12 @@ export default function ShiftHandoverPage() {
     syncInterval: 900000, // 15 minutes
   });
 
-  // Mutation para sincronização manual com forceUpdate: true
+  // Mutation para sincronização manual
   const manualSyncMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/sync/evolucoes", {
         unitIds: "22,23",
-        forceUpdate: true,
+        forceUpdate: false,
       });
       return response.json();
     },
@@ -95,7 +95,7 @@ export default function ShiftHandoverPage() {
       refetch();
       toast({
         title: "Sincronização Manual Concluída",
-        description: `Dados do N8N atualizados com forceUpdate: true`,
+        description: `Dados do N8N atualizados`,
       });
     },
     onError: (error: Error) => {
@@ -222,7 +222,7 @@ export default function ShiftHandoverPage() {
                 onClick={() => manualSyncMutation.mutate()}
                 disabled={manualSyncMutation.isPending}
                 data-testid="button-manual-n8n-sync"
-                title="Sincronização Manual N8N (forceUpdate: true)"
+                title="Sincronização Manual N8N"
                 className="bg-chart-3 hover:bg-chart-3/90 text-white"
               >
                 {manualSyncMutation.isPending ? (
