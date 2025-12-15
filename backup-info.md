@@ -171,7 +171,7 @@
 
 | API | Endpoint | Uso |
 |-----|----------|-----|
-| N8N | https://n8n-dev.iamspe.sp.gov.br/webhook/evolucoes | Dados de evolução de pacientes |
+| N8N | https://dev-n8n.7care.com.br/webhook/evolucoes | Dados de evolução de pacientes |
 
 ---
 
