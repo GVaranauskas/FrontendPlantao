@@ -1,10 +1,11 @@
 import OpenAI from "openai";
+import { env } from "../config/env";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: env.OPENAI_API_KEY,
 });
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const MODEL = env.OPENAI_MODEL;
 
 interface PatientAnalysisResult {
   resumo: string;

@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { isProductionEnv } from '../config/env';
 
 /**
  * Set secure JWT cookie
@@ -7,7 +8,7 @@ import { Request, Response } from 'express';
 export function setAccessTokenCookie(res: Response, token: string): void {
   res.cookie('accessToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProductionEnv,
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
@@ -20,7 +21,7 @@ export function setAccessTokenCookie(res: Response, token: string): void {
 export function setRefreshTokenCookie(res: Response, token: string): void {
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',

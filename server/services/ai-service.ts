@@ -1,16 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { env } from "../config/env";
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: env.ANTHROPIC_API_KEY,
 });
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: env.OPENAI_API_KEY,
 });
 
-const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const CLAUDE_MODEL = env.ANTHROPIC_MODEL;
+const OPENAI_MODEL = env.OPENAI_MODEL;
 
 interface PatientAnalysisResult {
   resumo: string;

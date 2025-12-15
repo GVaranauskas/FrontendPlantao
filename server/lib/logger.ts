@@ -1,7 +1,8 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
+import { env, isProductionEnv } from '../config/env';
 
-const logDir = process.env.LOG_DIR || './logs';
+const logDir = env.LOG_DIR;
 
 const customLevels = {
   levels: {
@@ -48,7 +49,7 @@ const errorFileRotateTransport = new DailyRotateFile({
 
 const winstonLogger = winston.createLogger({
   levels: customLevels.levels,
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: isProductionEnv ? 'info' : 'debug',
   format: customFormat,
   transports: [
     fileRotateTransport,
@@ -56,7 +57,7 @@ const winstonLogger = winston.createLogger({
   ],
 });
 
-if (process.env.NODE_ENV !== 'production') {
+if (!isProductionEnv) {
   winstonLogger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),

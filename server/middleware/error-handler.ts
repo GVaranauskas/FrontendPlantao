@@ -1,5 +1,6 @@
 import { type Express, type Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
+import { isDevelopmentEnv } from "../config/env";
 
 export class AppError extends Error {
   constructor(
@@ -18,7 +19,7 @@ export function registerErrorHandler(app: Express) {
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const statusCode = err.statusCode || err.status || 500;
     const message = err.message || 'Internal Server Error';
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDevelopment = isDevelopmentEnv;
 
     // Log the error with structured data
     const logContext = {

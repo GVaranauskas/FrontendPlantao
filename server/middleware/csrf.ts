@@ -1,5 +1,6 @@
 import csrf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
+import { isProductionEnv } from '../config/env';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -12,7 +13,7 @@ const csrfProtection = csrf({
   cookie: {
     key: '_csrf',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProductionEnv,
     sameSite: 'lax', // lax allows GET requests from other sites
     maxAge: 3600000, // 1 hour
     signed: false, // Don't sign the cookie for simplicity

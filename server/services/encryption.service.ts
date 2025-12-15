@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { env, isProductionEnv } from '../config/env';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
@@ -8,31 +9,45 @@ const TAG_LENGTH = 16;
 const TAG_POSITION = SALT_LENGTH + IV_LENGTH;
 const ENCRYPTED_POSITION = TAG_POSITION + TAG_LENGTH;
 
+function validateEncryptionKey(): { key: Buffer; valid: boolean } {
+  const masterKeyBase64 = env.ENCRYPTION_KEY;
+  
+  if (!masterKeyBase64) {
+    if (isProductionEnv) {
+      throw new Error('ENCRYPTION_KEY must be set in production environment');
+    }
+    console.warn('[Encryption] ENCRYPTION_KEY not set - encryption disabled in development');
+    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+  }
+
+  try {
+    const key = Buffer.from(masterKeyBase64, 'base64');
+
+    if (key.length !== KEY_LENGTH) {
+      throw new Error(`ENCRYPTION_KEY must be exactly ${KEY_LENGTH} bytes (got ${key.length})`);
+    }
+
+    return { key, valid: true };
+  } catch (error) {
+    if (isProductionEnv) {
+      throw error;
+    }
+    console.error('[Encryption] Failed to initialize:', error);
+    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+  }
+}
+
 class EncryptionService {
   private masterKey: Buffer;
   private initialized: boolean = false;
 
   constructor() {
-    const masterKeyBase64 = process.env.ENCRYPTION_KEY;
+    const { key, valid } = validateEncryptionKey();
+    this.masterKey = key;
+    this.initialized = valid;
     
-    if (!masterKeyBase64) {
-      console.warn('[Encryption] ENCRYPTION_KEY not set - encryption disabled');
-      this.masterKey = Buffer.alloc(KEY_LENGTH);
-      return;
-    }
-
-    try {
-      this.masterKey = Buffer.from(masterKeyBase64, 'base64');
-
-      if (this.masterKey.length !== KEY_LENGTH) {
-        throw new Error(`ENCRYPTION_KEY must be exactly ${KEY_LENGTH} bytes (got ${this.masterKey.length})`);
-      }
-
-      this.initialized = true;
+    if (valid) {
       console.log('[Encryption] Service initialized with AES-256-GCM');
-    } catch (error) {
-      console.error('[Encryption] Failed to initialize:', error);
-      this.masterKey = Buffer.alloc(KEY_LENGTH);
     }
   }
 

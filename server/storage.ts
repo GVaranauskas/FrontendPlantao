@@ -1,6 +1,7 @@
 import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
+import { env } from "./config/env";
 
 export interface PaginationParams {
   page?: number;
@@ -83,6 +84,6 @@ export interface IStorage {
 }
 
 // Initialize storage based on environment
-const storage: IStorage = process.env.DATABASE_URL ? postgresStorage : new MemStorage();
+const storage: IStorage = env.DATABASE_URL ? postgresStorage : new MemStorage();
 
 export { storage };

@@ -1,4 +1,5 @@
 import { createHmac } from 'crypto';
+import { env, isDevelopmentEnv, getN8NAllowedIPs } from '../config/env';
 
 /**
  * Validates N8N webhook signature
@@ -7,11 +8,11 @@ import { createHmac } from 'crypto';
 export function validateN8NWebhook(
   payload: string,
   signature: string | undefined,
-  secret: string = process.env.N8N_WEBHOOK_SECRET || 'dev-secret'
+  secret: string = env.N8N_WEBHOOK_SECRET
 ): boolean {
   if (!signature) {
     // In development, allow unsigned requests
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopmentEnv) {
       return true;
     }
     return false;
@@ -28,12 +29,10 @@ export function validateN8NWebhook(
  * Allowed N8N source IPs for additional security
  * Add your N8N server IP to this list in production
  */
-export const ALLOWED_N8N_IPS = process.env.N8N_ALLOWED_IPS
-  ? process.env.N8N_ALLOWED_IPS.split(',')
-  : ['127.0.0.1', 'localhost']; // Development defaults
+export const ALLOWED_N8N_IPS = getN8NAllowedIPs();
 
 export function validateN8NSourceIP(clientIP: string): boolean {
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopmentEnv) {
     return true;
   }
   return ALLOWED_N8N_IPS.includes(clientIP);
