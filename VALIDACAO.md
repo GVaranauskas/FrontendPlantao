@@ -34,9 +34,9 @@
 | nome | Texto | ✅ Criptografado |
 | registro | Texto | ✅ Criptografado |
 | dataNascimento | Texto | ✅ Criptografado |
-| diagnosticoComorbidades | Texto | ✅ Criptografado |
+| diagnostico | Texto | ✅ Criptografado |
 | alergias | Texto | ✅ Criptografado |
-| observacoesIntercorrencias | Texto | ✅ Criptografado |
+| observacoes | Texto | ✅ Criptografado |
 | dsEvolucaoCompleta | Texto | ✅ Criptografado |
 
 **Caracteristicas:**

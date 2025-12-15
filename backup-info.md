@@ -201,9 +201,9 @@
 | nome | Nome do paciente |
 | registro | Número de registro |
 | dataNascimento | Data de nascimento |
-| diagnosticoComorbidades | Diagnóstico e comorbidades |
+| diagnostico | Diagnóstico principal |
 | alergias | Alergias conhecidas |
-| observacoesIntercorrencias | Observações e intercorrências |
+| observacoes | Observações e intercorrências |
 | dsEvolucaoCompleta | Evolução completa do N8N |
 
 ### Arquivos Relacionados

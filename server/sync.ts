@@ -1,39 +1,77 @@
 import { storage } from "./storage";
-import { externalAPIService } from "./external-api";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import type { Patient } from "@shared/schema";
 
 /**
  * Sync a patient from external API and store/update in our system
+ * Uses n8nIntegrationService for unified integration path
  */
 export async function syncPatientFromExternalAPI(leito: string): Promise<Patient | null> {
   try {
-    // Fetch data from external API
-    const externalData = await externalAPIService.fetchPatientData(leito);
+    // Fetch data from N8N using the leito as the unitIds parameter
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(leito);
     
-    if (!externalData) {
-      console.warn(`No data retrieved from external API for leito: ${leito}`);
+    if (!evolucoes || evolucoes.length === 0) {
+      console.warn(`No data retrieved from N8N for leito: ${leito}`);
+      return null;
+    }
+
+    // Find the evolução that matches the requested leito
+    const evolucao = evolucoes.find(e => {
+      const evoLeito = e.leito || e.dsLeito || e.ds_leito_completo || e.leito_completo || "";
+      return evoLeito === leito || evoLeito.includes(leito);
+    }) || evolucoes[0];
+
+    const evoLeito = evolucao.leito || evolucao.dsLeito || evolucao.ds_leito_completo || evolucao.leito_completo || leito;
+
+    // Process evolução data using n8nIntegrationService
+    const processada = await n8nIntegrationService.processEvolucao(evoLeito, evolucao);
+    
+    // Validate processed data
+    const validacao = n8nIntegrationService.validateProcessedData(processada);
+    if (!validacao.valid) {
+      console.warn(`Validation errors for leito ${leito}:`, validacao.errors);
       return null;
     }
 
     // Check if patient already exists for this leito
     const existingPatients = await storage.getAllPatients();
-    const existingPatient = existingPatients.find(p => p.leito === leito);
+    
+    // Find existing patient using multiple strategies
+    const registro = processada.registro;
+    const codigoAtendimento = processada.codigoAtendimento;
+    const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
+    
+    let existingPatient = null;
+    
+    if (registro && registro.trim() !== "") {
+      existingPatient = existingPatients.find(p => p.registro === registro);
+    }
+    
+    if (!existingPatient && codigoAtendimento && codigoAtendimento.trim() !== "") {
+      existingPatient = existingPatients.find(p => p.codigoAtendimento === codigoAtendimento);
+    }
+    
+    if (!existingPatient) {
+      existingPatient = existingPatients.find(p => 
+        p.leito === evoLeito && p.dsEnfermaria === patientEnfermaria
+      );
+    }
 
     let patient: Patient;
     if (existingPatient) {
       // Update existing patient
-      const updated = await storage.updatePatient(existingPatient.id, externalData);
+      const updated = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
       if (!updated) {
         console.error(`Failed to update patient for leito: ${leito}`);
         return null;
       }
       patient = updated;
-      console.log(`Updated patient for leito: ${leito}`);
+      console.log(`Updated patient for leito: ${leito} (${processada.pacienteName})`);
     } else {
       // Create new patient
-      patient = await storage.createPatient(externalData);
-      console.log(`Created new patient for leito: ${leito}`);
+      patient = await storage.createPatient(processada.dadosProcessados);
+      console.log(`Created new patient for leito: ${leito} (${processada.pacienteName})`);
     }
 
     return patient;

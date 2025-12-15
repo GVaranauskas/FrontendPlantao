@@ -21,9 +21,9 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API supporting JSON and TOON formats. Custom middleware for logging and JSON parsing.
 - **Storage**: PostgreSQL with Drizzle ORM, with automatic fallback to MemStorage.
 - **Development**: Vite middleware integration, Replit-specific plugins, separate static file serving.
-- **Data Models**: User (authentication, role-based access), Patient (18-column data + 9 N8N-specific fields, alert status), ImportHistory, NursingUnitTemplate (customizable templates with field configuration), NursingUnit (unit registry with external ID mapping), NursingUnitChange (pending changes with approval workflow).
-- **API Endpoints**: Standard CRUD for patients and alerts. N8N integration endpoints for fetching and importing evolution data. Template management endpoints. Authentication endpoints (`/api/auth/*`). Real-time WebSocket at `/ws/import` for import event notifications. CSRF token endpoint. User management (`/api/users/*`).
-- **N8N Integration Service**: Fetches, processes, validates, and stores patient evolution data from the N8N API, including automatic field mapping and data extraction.
+- **Data Models**: User (authentication, role-based access), Patient (14 normalized N8N fields: braden, diagnostico, alergias, mobilidade, dieta, eliminacoes, dispositivos, atb, curativos, aporteSaturacao, exames, cirurgia, observacoes, previsaoAlta), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange.
+- **API Endpoints**: Standard CRUD for patients and alerts. N8N sync endpoint (`/api/sync/evolucoes`). Template management. Authentication (`/api/auth/*`). WebSocket (`/ws/import`). User management (`/api/users/*`).
+- **N8N Integration Service**: Simple direct mapping from N8N webhook response to patient fields. No complex extraction - fields are mapped 1:1 as returned by N8N.
 - **Periodic Sync Scheduler**: Cron-based automation for automatic patient data synchronization.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware for error catching, automatic logging of request context.
 - **Security**: JWT authentication (access/refresh tokens), Role-Based Access Control (admin, enfermeiro, visualizador), CSRF protection, secure cookie handling, N8N webhook validation.
