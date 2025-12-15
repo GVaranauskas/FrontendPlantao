@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
         p.especialidadeRamal,
         p.dataNascimento,
         p.dataInternacao,
-        p.diagnosticoComorbidades,
+        p.diagnostico,
         p.alergias,
         p.mobilidade,
         p.dieta,
@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
       especialidadeRamal: 0,
       dataNascimento: 0,
       dataInternacao: 0,
-      diagnosticoComorbidades: 0,
+      diagnostico: 0,
       alergias: 0,
       mobilidade: 0,
       dieta: 0,
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
       if (p.especialidadeRamal) fields.especialidadeRamal++;
       if (p.dataNascimento) fields.dataNascimento++;
       if (p.dataInternacao) fields.dataInternacao++;
-      if (p.diagnosticoComorbidades) fields.diagnosticoComorbidades++;
+      if (p.diagnostico) fields.diagnostico++;
       if (p.alergias) fields.alergias++;
       if (p.mobilidade) fields.mobilidade++;
       if (p.dieta) fields.dieta++;
@@ -414,7 +414,7 @@ export default function AnalyticsPage() {
                       patient.nome,
                       patient.registro,
                       patient.especialidadeRamal,
-                      patient.diagnosticoComorbidades,
+                      patient.diagnostico,
                       patient.alergias,
                       patient.mobilidade,
                       patient.dispositivos,

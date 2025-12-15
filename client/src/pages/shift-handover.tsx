@@ -723,8 +723,8 @@ export default function ShiftHandoverPage() {
                         <div className="text-muted-foreground">{patient.dataNascimento || "-"}</div>
                       </td>
                       <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataInternacao || "-"}</td>
-                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.rqBradenScp || "-"}</td>
-                      <td className="px-2 py-2 text-[10px] border border-border">{patient.diagnosticoComorbidades || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.braden || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.diagnostico || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.alergias || "-"}</td>
                       <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.mobilidade || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.dieta || "-"}</td>
@@ -733,9 +733,9 @@ export default function ShiftHandoverPage() {
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.atb || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.curativos || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.aporteSaturacao || "-"}</td>
-                      <td className="px-2 py-2 text-[10px] border border-border">{patient.examesRealizadosPendentes || "-"}</td>
-                      <td className="px-2 py-2 text-[10px] border border-border">{patient.dataProgramacaoCirurgica || "-"}</td>
-                      <td className="px-2 py-2 text-[10px] border border-border">{patient.observacoesIntercorrencias || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.exames || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.cirurgia || "-"}</td>
+                      <td className="px-2 py-2 text-[10px] border border-border">{patient.observacoes || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.previsaoAlta || "-"}</td>
                     </tr>
                   ))}

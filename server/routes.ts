@@ -566,8 +566,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasLeito = !!patient.leito && patient.leito.trim() !== "";
       const hasNome = !!patient.nome && patient.nome.trim() !== "";
       const hasDataInternacao = !!patient.dataInternacao && patient.dataInternacao.trim() !== "";
-      const hasDiagnostico = !!patient.diagnosticoComorbidades && patient.diagnosticoComorbidades.trim() !== "";
-      const hasObservacoes = !!patient.observacoesIntercorrencias && patient.observacoesIntercorrencias.trim() !== "";
+      const hasDiagnostico = !!patient.diagnostico && patient.diagnostico.trim() !== "";
+      const hasObservacoes = !!patient.observacoes && patient.observacoes.trim() !== "";
       const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
       const hasMobilidade = !!patient.mobilidade && patient.mobilidade.trim() !== "";
       

@@ -26,8 +26,8 @@ export const patients = pgTable("patients", {
   registro: text("registro"),
   dataNascimento: text("data_nascimento"),
   dataInternacao: text("data_internacao").notNull(),
-  rqBradenScp: text("rq_braden_scp"),
-  diagnosticoComorbidades: text("diagnostico_comorbidades"),
+  braden: text("braden"),
+  diagnostico: text("diagnostico"),
   alergias: text("alergias"),
   mobilidade: text("mobilidade"),
   dieta: text("dieta"),
@@ -36,9 +36,9 @@ export const patients = pgTable("patients", {
   atb: text("atb"),
   curativos: text("curativos"),
   aporteSaturacao: text("aporte_saturacao"),
-  examesRealizadosPendentes: text("exames_realizados_pendentes"),
-  dataProgramacaoCirurgica: text("data_programacao_cirurgica"),
-  observacoesIntercorrencias: text("observacoes_intercorrencias"),
+  exames: text("exames"),
+  cirurgia: text("cirurgia"),
+  observacoes: text("observacoes"),
   previsaoAlta: text("previsao_alta"),
   alerta: text("alerta"),
   status: text("status").notNull().default("pending"),
@@ -168,8 +168,6 @@ export const updateUserSchema = insertUserSchema.partial().extend({
 
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
-}).extend({
-  mobilidade: z.enum(["A", "D", "DA"]).nullable().optional(),
 });
 
 export const insertAlertSchema = createInsertSchema(alerts).omit({

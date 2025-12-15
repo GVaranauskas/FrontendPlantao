@@ -1,5 +1,5 @@
 import type { InsertPatient } from "@shared/schema";
-import { validateEnfermaria, sanitizePatientData, validatePatientDataLength } from "../validation";
+import { sanitizePatientData, validatePatientDataLength } from "../validation";
 
 interface N8NRequest {
   flowId: string;
@@ -60,7 +60,6 @@ export class N8NIntegrationService {
 
       console.log(`[N8N] Fetching evolucoes with params: ["${unitIds}"]`);
       
-      // Add timeout to prevent hanging indefinitely (3 minutes - N8N can be slow)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
       
@@ -86,7 +85,6 @@ export class N8NIntegrationService {
 
       const responseText = await response.text();
       
-      // Verificar se a resposta está vazia
       if (!responseText || responseText.trim() === "") {
         console.warn(`[N8N] Empty response from API`);
         return [];
@@ -100,7 +98,6 @@ export class N8NIntegrationService {
         return null;
       }
       
-      // N8N pode retornar array ou objeto único
       const resultado = Array.isArray(data) ? data : (data && Object.keys(data).length > 0 ? [data] : []);
       console.log(`[N8N] Received ${resultado.length} record(s)`);
       
@@ -112,97 +109,61 @@ export class N8NIntegrationService {
   }
 
   /**
-   * Processa e mapeia dados brutos da API N8N para InsertPatient
-   * PRIORIZA campos diretos do formJson (braden, diagnostico, alergias, mobilidade, etc.)
-   * Fallback para estruturas aninhadas apenas se campos diretos não existirem
+   * Maps N8N flat JSON response directly to InsertPatient
+   * N8N returns normalized fields - we just map them directly without re-processing
    */
   async processEvolucao(leito: string, dadosBrutos: N8NRawData): Promise<ProcessedEvolucao> {
     const erros: string[] = [];
 
     try {
-      // Extrair informações do nome do paciente
-      const nomePaciente = this.extractNomePaciente(dadosBrutos);
-      const registro = this.extractRegistro(dadosBrutos);
-      const codigoAtendimento = this.extractCodigoAtendimento(dadosBrutos);
-      const especialidade = this.extractEspecialidade(dadosBrutos);
-
-      // PRIORIDADE 1: Campos diretos do formJson (formato Postman correto)
-      // Estes são os 14 campos que o N8N deve retornar normalizados
-      const braden = this.getDirectField(dadosBrutos, 'braden') || "";
-      const diagnostico = this.getDirectField(dadosBrutos, 'diagnostico') || "";
-      const alergias = this.getDirectField(dadosBrutos, 'alergias') || "";
-      const mobilidade = this.getDirectField(dadosBrutos, 'mobilidade') || "";
-      const dieta = this.getDirectField(dadosBrutos, 'dieta') || "";
-      const eliminacoes = this.getDirectField(dadosBrutos, 'eliminacoes') || "";
-      const dispositivos = this.getDirectField(dadosBrutos, 'dispositivos') || "";
-      const atb = this.getDirectField(dadosBrutos, 'atb') || "";
-      const curativos = this.getDirectField(dadosBrutos, 'curativos') || "";
-      const aporteSaturacao = this.getDirectField(dadosBrutos, 'aporteSaturacao') || "";
-      const exames = this.getDirectField(dadosBrutos, 'exames') || "";
-      const cirurgia = this.getDirectField(dadosBrutos, 'cirurgia') || "";
-      const observacoes = this.getDirectField(dadosBrutos, 'observacoes') || "";
-      const previsaoAlta = this.getDirectField(dadosBrutos, 'previsaoAlta') || "";
+      const { nome, registro, codigoAtendimento } = this.parseNomePaciente(dadosBrutos.nomePaciente || "");
       
       let dadosProcessados: InsertPatient = {
-        // Campos básicos
-        leito,
-        nome: nomePaciente,
+        leito: dadosBrutos.leito || leito,
+        nome,
         registro,
         codigoAtendimento,
-        especialidadeRamal: especialidade,
-        dataNascimento: this.formatDateToDDMMYYYY(dadosBrutos.data_nascimento || dadosBrutos.dataNascimento || ""),
-        dataInternacao: this.formatDateToDDMMYYYY(dadosBrutos.data_internacao || dadosBrutos.dataInternacao || new Date().toISOString()),
+        especialidadeRamal: dadosBrutos.dsEpecialid || "",
+        dataNascimento: "",
+        dataInternacao: dadosBrutos.dataInternacao || this.getTodayDate(),
 
-        // Dados clínicos - PRIORIZA campos diretos do formJson
-        rqBradenScp: braden,
-        diagnosticoComorbidades: diagnostico,
-        alergias: alergias,
+        braden: dadosBrutos.braden || "",
+        diagnostico: dadosBrutos.diagnostico || "",
+        alergias: dadosBrutos.alergias || "",
+        mobilidade: dadosBrutos.mobilidade || "",
+        dieta: dadosBrutos.dieta || "",
+        eliminacoes: dadosBrutos.eliminacoes || "",
+        dispositivos: dadosBrutos.dispositivos || "",
+        atb: dadosBrutos.atb || "",
+        curativos: dadosBrutos.curativos || "",
+        aporteSaturacao: dadosBrutos.aporteSaturacao || "",
+        exames: dadosBrutos.exames || "",
+        cirurgia: dadosBrutos.cirurgia || "",
+        observacoes: dadosBrutos.observacoes || "",
+        previsaoAlta: dadosBrutos.previsaoAlta || "",
 
-        // Mobilidade - PRIORIZA campo direto, depois normaliza
-        mobilidade: this.normalizeMobilidade(mobilidade),
-
-        // Cuidados - PRIORIZA campos diretos
-        dieta: dieta,
-        eliminacoes: eliminacoes,
-        dispositivos: dispositivos,
-        atb: atb,
-        curativos: curativos,
-
-        // Monitoramento - PRIORIZA campos diretos
-        aporteSaturacao: aporteSaturacao,
-        examesRealizadosPendentes: exames,
-
-        // Planejamento - PRIORIZA campos diretos
-        dataProgramacaoCirurgica: cirurgia,
-        observacoesIntercorrencias: observacoes,
-        previsaoAlta: previsaoAlta,
-
-        // Status - será calculado automaticamente
         alerta: null,
         status: "pending",
 
-        // Campos N8N
-        idEvolucao: dadosBrutos.id_evolucao || dadosBrutos.id || "",
-        dsEnfermaria: this.extractEnfermaria(dadosBrutos, leito),
-        dsLeitoCompleto: dadosBrutos.dsLeito || dadosBrutos.ds_leito_completo || dadosBrutos.leito_completo || leito,
-        dsEspecialidade: especialidade,
-        dsEvolucaoCompleta: dadosBrutos.dsEvolucao || dadosBrutos.ds_evolucao_completa || dadosBrutos.evolucao_completa || "",
-        dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dhCriacao || dadosBrutos.dh_criacao_evolucao || dadosBrutos.data_criacao),
+        idEvolucao: dadosBrutos.id || "",
+        dsEnfermaria: dadosBrutos.dsEnfermaria || "",
+        dsLeitoCompleto: dadosBrutos.dsLeito || "",
+        dsEspecialidade: dadosBrutos.dsEpecialid || "",
+        dsEvolucaoCompleta: "",
+        dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dhCriacao),
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,
       };
 
-      // Sanitize and validate patient data
       dadosProcessados = sanitizePatientData(dadosProcessados);
       if (!validatePatientDataLength(dadosProcessados)) {
         erros.push("Patient data exceeds maximum field lengths");
       }
 
-      // Calcular status automaticamente baseado nos campos preenchidos
       dadosProcessados.status = this.calculatePatientStatus(dadosProcessados);
 
       return {
-        pacienteName: nomePaciente,
+        pacienteName: nome,
         registro,
         codigoAtendimento,
         dadosProcessados,
@@ -223,30 +184,35 @@ export class N8NIntegrationService {
   }
 
   /**
-   * Obtém campo direto do objeto (formato formJson do N8N)
-   * Prioriza campos exatamente como definidos no formJson
+   * Parses nomePaciente to extract nome, registro (PT), and codigoAtendimento (AT)
+   * Format: "NOME DO PACIENTE   PT: 1234567 AT: 7654321"
    */
-  private getDirectField(dados: N8NRawData, fieldName: string): string {
-    const value = dados[fieldName];
-    if (value === undefined || value === null) return "";
-    if (typeof value === "string") return value.trim();
-    if (typeof value === "object") {
-      // Se for objeto, tentar extrair valor ou descrição
-      if (value.valor !== undefined) return String(value.valor);
-      if (value.descricao !== undefined) return String(value.descricao);
-      if (value.risco !== undefined) return `${value.valor || value.resultado || ""}, ${value.risco}`;
-      return JSON.stringify(value);
+  private parseNomePaciente(nomePaciente: string): { nome: string; registro: string; codigoAtendimento: string } {
+    if (!nomePaciente) {
+      return { nome: "", registro: "", codigoAtendimento: "" };
     }
-    return String(value);
+
+    const ptMatch = nomePaciente.match(/PT:\s*(\d+)/);
+    const atMatch = nomePaciente.match(/AT:\s*(\d+)/);
+    
+    const nome = nomePaciente
+      .replace(/\s*PT:\s*\d+/g, "")
+      .replace(/\s*AT:\s*\d+/g, "")
+      .trim();
+
+    return {
+      nome,
+      registro: ptMatch ? ptMatch[1] : "",
+      codigoAtendimento: atMatch ? atMatch[1] : "",
+    };
   }
 
   /**
-   * Valida dados processados antes de salvar
+   * Validates processed data before saving
    */
   validateProcessedData(dados: ProcessedEvolucao): { valid: boolean; errors: string[] } {
     const validacaoErros: string[] = [];
 
-    // Validações obrigatórias
     if (!dados.dadosProcessados.leito || dados.dadosProcessados.leito.trim() === "") {
       validacaoErros.push("Leito é obrigatório");
     }
@@ -259,17 +225,9 @@ export class N8NIntegrationService {
       validacaoErros.push("Data de internação é obrigatória");
     }
 
-    // Validar formato de data (DD/MM/YYYY)
     if (dados.dadosProcessados.dataInternacao) {
       if (!this.isValidDateFormat(dados.dadosProcessados.dataInternacao)) {
         validacaoErros.push(`Data de internação em formato inválido: ${dados.dadosProcessados.dataInternacao}`);
-      }
-    }
-
-    // Validar mobilidade se preenchida
-    if (dados.dadosProcessados.mobilidade) {
-      if (!["A", "D", "DA"].includes(dados.dadosProcessados.mobilidade)) {
-        validacaoErros.push(`Mobilidade inválida: ${dados.dadosProcessados.mobilidade}. Deve ser A, D ou DA`);
       }
     }
 
@@ -280,28 +238,19 @@ export class N8NIntegrationService {
   }
 
   /**
-   * Calcula o status do paciente baseado nos campos preenchidos
-   * Um paciente é considerado "complete" quando possui os campos essenciais preenchidos
-   * Campos obrigatórios para ser considerado completo:
-   * - leito, nome, dataInternacao (campos básicos)
-   * - diagnosticoComorbidades OU observacoesIntercorrencias (dados clínicos)
-   * - mobilidade (estado do paciente)
+   * Calculates patient status based on filled fields
    */
   private calculatePatientStatus(dados: InsertPatient): "complete" | "pending" {
-    // Campos básicos obrigatórios
     const hasLeito = !!dados.leito && dados.leito.trim() !== "";
     const hasNome = !!dados.nome && dados.nome.trim() !== "";
     const hasDataInternacao = !!dados.dataInternacao && dados.dataInternacao.trim() !== "";
 
-    // Pelo menos um dado clínico relevante
-    const hasDiagnostico = !!dados.diagnosticoComorbidades && dados.diagnosticoComorbidades.trim() !== "";
-    const hasObservacoes = !!dados.observacoesIntercorrencias && dados.observacoesIntercorrencias.trim() !== "";
+    const hasDiagnostico = !!dados.diagnostico && dados.diagnostico.trim() !== "";
+    const hasObservacoes = !!dados.observacoes && dados.observacoes.trim() !== "";
     const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
 
-    // Mobilidade (importante para cuidados)
     const hasMobilidade = !!dados.mobilidade && dados.mobilidade.trim() !== "";
 
-    // Um paciente é completo se tem os dados básicos + dados clínicos + mobilidade
     if (hasLeito && hasNome && hasDataInternacao && hasDadosClinicosRelevantes && hasMobilidade) {
       return "complete";
     }
@@ -309,447 +258,37 @@ export class N8NIntegrationService {
     return "pending";
   }
 
-  /**
-   * Extrai nome do paciente removendo PT e AT
-   * Exemplo: "PACIENTE NOME PT: 123456 AT: 78901" -> "PACIENTE NOME"
-   */
-  private extractNomePaciente(dados: N8NRawData): string {
-    let nome = dados.nomePaciente || dados.nome_paciente || dados.nome || dados.paciente || "";
-    
-    if (!nome) return "";
-
-    // Remover padrões PT: XXXXX e AT: XXXXX
-    nome = nome.replace(/\s*PT:\s*\d+\s*/g, "").replace(/\s*AT:\s*\d+\s*/g, "").trim();
-    
-    return nome;
+  private getTodayDate(): string {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
   }
 
-  /**
-   * Extrai registro hospitalar (número após PT:)
-   * Exemplo: "PACIENTE PT: 123456 AT: 78901" -> "123456"
-   */
-  private extractRegistro(dados: N8NRawData): string {
-    if (dados.registro) return dados.registro;
-    if (dados.pt) return dados.pt;
-
-    const nome = dados.nomePaciente || dados.nome_paciente || dados.nome || "";
-    const match = nome.match(/PT:\s*(\d+)/);
-    
-    return match ? match[1] : "";
-  }
-
-  /**
-   * Extrai código atendimento (número após AT:)
-   * Exemplo: "PACIENTE PT: 123456 AT: 78901" -> "78901"
-   */
-  private extractCodigoAtendimento(dados: N8NRawData): string {
-    if (dados.codigo_atendimento) return dados.codigo_atendimento;
-    if (dados.at) return dados.at;
-
-    const nome = dados.nomePaciente || dados.nome_paciente || dados.nome || "";
-    const match = nome.match(/AT:\s*(\d+)/);
-    
-    return match ? match[1] : "";
-  }
-
-  /**
-   * Extrai especialidade
-   * NOTA: ds_especialidade/ds_especialid (N8N) é equivalente a especialidadeRamal (Replit)
-   * Prioriza o campo N8N quando disponível
-   * N8N envia como "ds_especialid" (sem o "ade" no final)
-   */
-  private extractEspecialidade(dados: N8NRawData): string {
-    return dados.dsEpecialid ||        // Campo do N8N em camelCase (sem "ade" no final)
-           dados.ds_especialidade || 
-           dados.ds_especialid ||      
-           dados.especialidade || 
-           dados.especialidadeRamal || 
-           "";
-  }
-
-  /**
-   * Extrai código de enfermaria (formato "10A", "10B", etc)
-   */
-  private extractEnfermaria(dados: N8NRawData, leito: string): string {
-    if (dados.dsEnfermaria) return dados.dsEnfermaria;
-    if (dados.ds_enfermaria) return dados.ds_enfermaria;
-    if (dados.enfermaria) return dados.enfermaria;
-    
-    // Tentar extrair do leito (ex: "10A02" -> "10A")
-    const match = leito.match(/^(\d+[A-Z])/);
-    return match ? match[1] : leito;
-  }
-
-  /**
-   * Normaliza mobilidade para A, D, ou DA
-   */
-  private normalizeMobilidade(value: string): "A" | "D" | "DA" | null {
-    if (!value) return null;
-
-    const normalized = value.toUpperCase().trim();
-
-    if (normalized.includes("ACAMADO")) return "A";
-    if (normalized.includes("DEAMBULA COM AUXÍLIO")) return "DA";
-    if (normalized.includes("DEAMBULA") || normalized === "D") return "D";
-    if (normalized === "A") return "A";
-    if (normalized === "DA") return "DA";
-
-    return null;
-  }
-
-  /**
-   * Extrai dispositivos de paciente.estado.manutencao e evolucao.condicao_fisica.avp
-   * Campos: AVP, pelicula_transparente, sondas, drenos, etc.
-   */
-  private extractDispositivosFromData(dadosBrutos: N8NRawData, manutencao: N8NRawData, condicaoFisica: N8NRawData): string {
-    const dispositivos: string[] = [];
-    
-    // Verificar campos de manutenção
-    if (manutencao.AVP) dispositivos.push(`AVP: ${manutencao.AVP}`);
-    if (manutencao.pelicula_transparente) {
-      const pt = manutencao.pelicula_transparente;
-      if (typeof pt === "object" && pt.data) {
-        dispositivos.push(`Película: ${pt.data}`);
-      } else if (typeof pt === "string") {
-        dispositivos.push(`Película: ${pt}`);
-      }
-    }
-    if (manutencao.sonda) dispositivos.push(`Sonda: ${manutencao.sonda}`);
-    if (manutencao.cateter) dispositivos.push(`Cateter: ${manutencao.cateter}`);
-    if (manutencao.dreno) dispositivos.push(`Dreno: ${manutencao.dreno}`);
-    
-    // Verificar evolucao.condicao_fisica.avp (estrutura alternativa)
-    if (dispositivos.length === 0 && condicaoFisica.avp) {
-      const avp = condicaoFisica.avp;
-      if (typeof avp === "object") {
-        const parts: string[] = [];
-        if (avp.data) parts.push(`Data: ${avp.data}`);
-        if (avp.membro) parts.push(`Membro: ${avp.membro}`);
-        if (avp.estado) parts.push(avp.estado);
-        if (parts.length > 0) {
-          dispositivos.push(`AVP: ${parts.join(", ")}`);
-        }
-      } else if (typeof avp === "string") {
-        dispositivos.push(`AVP: ${avp}`);
-      }
-    }
-    
-    // Fallback para campos diretos
-    if (dispositivos.length === 0) {
-      const disp = dadosBrutos.dispositivos || dadosBrutos.disp;
-      if (disp) return this.valueToString(disp);
-    }
-    
-    return dispositivos.join(" | ");
-  }
-
-  /**
-   * Extrai dieta de múltiplas fontes incluindo evolucao.condicao_fisica.aceitação_alimentar
-   */
-  private extractDietaFromData(dadosBrutos: N8NRawData, estado: N8NRawData, descricao: N8NRawData, condicaoFisica: N8NRawData, encontro: N8NRawData): string {
-    // Verificar evolucao.condicao_fisica.aceitação_alimentar (pode ter acento ou não)
-    const aceitacao = condicaoFisica["aceitação_alimentar"] || condicaoFisica["aceitacao_alimentar"] || condicaoFisica.alimentacao;
-    if (aceitacao) {
-      return this.valueToString(aceitacao);
-    }
-    
-    // Fallback para outras fontes
-    const sources = [estado, descricao, encontro];
-    const fieldNames = ['dieta', 'alimentacao', 'alimentação'];
-    
-    for (const source of sources) {
-      if (!source) continue;
-      for (const field of fieldNames) {
-        if (source[field]) {
-          return this.valueToString(source[field]);
-        }
-      }
-    }
-    
-    // Campo direto
-    if (dadosBrutos.dieta) return this.valueToString(dadosBrutos.dieta);
-    if (dadosBrutos.alimentacao) return this.valueToString(dadosBrutos.alimentacao);
-    
-    return "";
-  }
-
-  /**
-   * Extrai curativos de múltiplas fontes incluindo evolucao.condicao_fisica.curativo
-   */
-  private extractCurativosFromData(dadosBrutos: N8NRawData, manutencao: N8NRawData, condicaoFisica: N8NRawData, encontro: N8NRawData): string {
-    // Verificar manutencao primeiro
-    if (manutencao.curativos || manutencao.curativo) {
-      return this.valueToString(manutencao.curativos || manutencao.curativo);
-    }
-    
-    // Verificar evolucao.condicao_fisica.curativo
-    if (condicaoFisica.curativo) {
-      const curativo = condicaoFisica.curativo;
-      if (typeof curativo === "object") {
-        const parts: string[] = [];
-        if (curativo.estado) parts.push(curativo.estado);
-        if (curativo.observacao) parts.push(curativo.observacao);
-        if (curativo.local) parts.push(`Local: ${curativo.local}`);
-        return parts.join(" | ");
-      }
-      return this.valueToString(curativo);
-    }
-    
-    // Fallback encontro
-    if (encontro.curativos || encontro.curativo) {
-      return this.valueToString(encontro.curativos || encontro.curativo);
-    }
-    
-    // Campo direto
-    if (dadosBrutos.curativos) return this.valueToString(dadosBrutos.curativos);
-    
-    return "";
-  }
-
-  /**
-   * Extrai observações de paciente.observacoes, paciente.estado e evolucao
-   * Combina informações relevantes de múltiplas fontes
-   */
-  private extractObservacoesFromData(dadosBrutos: N8NRawData, observacoes: N8NRawData, estado: N8NRawData, evolucao: N8NRawData): string {
-    const obs: string[] = [];
-    
-    // Extrair observações estruturadas de paciente.observacoes
-    if (observacoes.deficit_auditivo) obs.push(`Déficit auditivo: ${observacoes.deficit_auditivo}`);
-    if (observacoes.risco_quedas) obs.push(`Risco de quedas: ${observacoes.risco_quedas}`);
-    if (observacoes.reposo === "sim") obs.push("Em repouso no leito");
-    if (observacoes.pulseira_identificacao) obs.push(`Pulseira: ${observacoes.pulseira_identificacao}`);
-    
-    // Extrair consciência do estado
-    if (estado.consciência) obs.push(estado.consciência);
-    
-    // Extrair de evolucao.estado_consciente (estrutura alternativa)
-    if (evolucao.estado_consciente) {
-      obs.push(this.valueToString(evolucao.estado_consciente));
-    }
-    
-    // Extrair queixas de evolucao.queixas
-    if (evolucao.queixas) {
-      if (Array.isArray(evolucao.queixas)) {
-        obs.push(`Queixas: ${evolucao.queixas.join(", ")}`);
-      } else {
-        obs.push(`Queixas: ${this.valueToString(evolucao.queixas)}`);
-      }
-    }
-    
-    // Fallback para campos diretos
-    if (obs.length === 0) {
-      const obsField = dadosBrutos.observacoes || dadosBrutos.observacoes_intercorrencias;
-      if (obsField) return this.valueToString(obsField);
-    }
-    
-    return obs.join(" | ");
-  }
-
-  /**
-   * Extrai diagnóstico de paciente.intervencao, historico, dsEvolucao, e campos diretos
-   * Também extrai HD (Hipótese Diagnóstica) do texto dsEvolucao
-   */
-  private extractDiagnosticoFromData(dadosBrutos: N8NRawData, paciente: N8NRawData, historico: N8NRawData, evolucao: N8NRawData): string {
-    // Priorizar intervenção do paciente
-    if (paciente.intervencao) {
-      return `HD: ${paciente.intervencao}`;
-    }
-    
-    // Tentar extrair HD do dsEvolucao (texto completo da evolução)
-    const dsEvolucao = dadosBrutos.dsEvolucao || dadosBrutos.ds_evolucao || "";
-    if (dsEvolucao) {
-      const hdMatch = dsEvolucao.match(/HD\s*:\s*([^.|\n]+)/i);
-      if (hdMatch && hdMatch[1]) {
-        return `HD: ${hdMatch[1].trim()}`;
-      }
-    }
-    
-    // Tentar histórico
-    if (historico.diagnostico) return this.valueToString(historico.diagnostico);
-    if (historico.comorbidades) return this.valueToString(historico.comorbidades);
-    if (historico.antecedentes) return this.valueToString(historico.antecedentes);
-    
-    // Campos diretos
-    if (dadosBrutos.diagnostico) return this.valueToString(dadosBrutos.diagnostico);
-    if (dadosBrutos.diagnostico_comorbidades) return this.valueToString(dadosBrutos.diagnostico_comorbidades);
-    
-    return "";
-  }
-
-  /**
-   * Formata data para DD/MM/YYYY
-   * Aceita formatos: DD/MM/YYYY, ISO 8601, ou outros formatos parseáveis
-   */
-  private formatDateToDDMMYYYY(dateString: string): string {
-    if (!dateString) return "";
-
-    try {
-      // Se já está no formato DD/MM/YYYY, retornar como está
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-        return dateString;
-      }
-
-      // Tentar parsear e converter
-      const date = new Date(dateString);
-      
-      if (isNaN(date.getTime())) {
-        // Se não parseou, usar data atual como fallback
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, "0");
-        const month = String(now.getMonth() + 1).padStart(2, "0");
-        const year = now.getFullYear();
-        return `${day}/${month}/${year}`;
-      }
-
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
-
-      return `${day}/${month}/${year}`;
-    } catch {
-      // Fallback para data atual
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = now.getFullYear();
-      return `${day}/${month}/${year}`;
-    }
-  }
-
-  /**
-   * Valida se a data está no formato DD/MM/YYYY
-   */
   private isValidDateFormat(dateString: string): boolean {
-    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
-    return regex.test(dateString);
+    return /^\d{2}\/\d{2}\/\d{4}$/.test(dateString);
   }
 
-  /**
-   * Parse timestamp da API para Date
-   */
   private parseTimestamp(timestamp: any): Date | undefined {
     if (!timestamp) return undefined;
 
     try {
+      if (typeof timestamp === "string" && timestamp.includes("/")) {
+        const [datePart, timePart] = timestamp.split(" ");
+        const [day, month, year] = datePart.split("/");
+        const [hours, minutes] = (timePart || "00:00").split(":");
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours) || 0, parseInt(minutes) || 0);
+        if (!isNaN(date.getTime())) return date;
+      }
+      
       const date = new Date(timestamp);
-      if (isNaN(date.getTime())) return undefined;
-      return date;
+      if (!isNaN(date.getTime())) return date;
+      return undefined;
     } catch {
       return undefined;
     }
   }
-
-  /**
-   * Converte um valor para string, tratando objetos aninhados
-   */
-  private valueToString(value: any): string {
-    if (value === undefined || value === null) return "";
-    
-    // String simples
-    if (typeof value === "string") {
-      return value.trim();
-    }
-    
-    // Número ou boolean
-    if (typeof value === "number" || typeof value === "boolean") {
-      return String(value);
-    }
-    
-    // Array - converter cada item e juntar
-    if (Array.isArray(value)) {
-      const items = value
-        .map(item => this.valueToString(item))
-        .filter(item => item !== "" && item !== "[object Object]");
-      return items.join(" | ");
-    }
-    
-    // Objeto - extrair valores relevantes
-    if (typeof value === "object") {
-      // Tentar campos comuns que contêm texto descritivo
-      const textFields = ["descricao", "description", "valor", "value", "texto", "text", "nome", "name", "estado", "status"];
-      for (const field of textFields) {
-        if (value[field] && typeof value[field] === "string") {
-          return value[field].trim();
-        }
-      }
-      
-      // Se não encontrou campo de texto, extrair todos os valores string
-      const stringValues: string[] = [];
-      for (const key of Object.keys(value)) {
-        const v = value[key];
-        if (typeof v === "string" && v.trim() !== "") {
-          stringValues.push(v.trim());
-        } else if (typeof v === "number" || typeof v === "boolean") {
-          stringValues.push(`${key}: ${v}`);
-        }
-      }
-      
-      if (stringValues.length > 0) {
-        return stringValues.join(", ");
-      }
-    }
-    
-    return "";
-  }
-
-  /**
-   * Extrai campo de múltiplas fontes aninhadas com fallback
-   * Prioridade: dadosBrutos (nível raiz) > objetos aninhados na ordem fornecida
-   */
-  private extractNestedField(dadosBrutos: N8NRawData, nestedObjects: N8NRawData[], fieldNames: string[]): string {
-    // Primeiro tenta nos dados brutos (nível raiz)
-    for (const fieldName of fieldNames) {
-      const value = dadosBrutos[fieldName];
-      const result = this.valueToString(value);
-      if (result !== "") {
-        return result;
-      }
-    }
-    
-    // Depois tenta em cada objeto aninhado na ordem fornecida
-    for (const obj of nestedObjects) {
-      if (!obj) continue;
-      for (const fieldName of fieldNames) {
-        const value = obj[fieldName];
-        const result = this.valueToString(value);
-        if (result !== "") {
-          return result;
-        }
-      }
-    }
-    
-    return "";
-  }
-
-  /**
-   * Extrai campo que pode ser array ou string
-   * Converte arrays para string separada por " | "
-   */
-  private extractNestedArrayOrString(dadosBrutos: N8NRawData, nestedObjects: N8NRawData[], fieldNames: string[]): string {
-    // Primeiro tenta nos dados brutos (nível raiz)
-    for (const fieldName of fieldNames) {
-      const value = dadosBrutos[fieldName];
-      const result = this.valueToString(value);
-      if (result !== "") {
-        return result;
-      }
-    }
-    
-    // Depois tenta em cada objeto aninhado
-    for (const obj of nestedObjects) {
-      if (!obj) continue;
-      for (const fieldName of fieldNames) {
-        const value = obj[fieldName];
-        const result = this.valueToString(value);
-        if (result !== "") {
-          return result;
-        }
-      }
-    }
-    
-    return "";
-  }
 }
 
-// Export singleton instance
 export const n8nIntegrationService = new N8NIntegrationService();

@@ -148,8 +148,8 @@ export const SENSITIVE_PATIENT_FIELDS = [
   'nome',
   'registro', 
   'dataNascimento',
-  'diagnosticoComorbidades',
+  'diagnostico',
   'alergias',
-  'observacoesIntercorrencias',
+  'observacoes',
   'dsEvolucaoCompleta'
 ] as const;

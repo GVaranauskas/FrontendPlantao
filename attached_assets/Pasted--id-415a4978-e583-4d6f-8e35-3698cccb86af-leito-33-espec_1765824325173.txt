@@ -1,0 +1,113 @@
+{
+  "id": "415a4978-e583-4d6f-8e35-3698cccb86af",
+  "leito": "33",
+  "especialidadeRamal": "CARDIOLOGIA",
+  "nome": "CLEOPATRA AFANASENKO SILVA",
+  "registro": "3198597",
+  "dataNascimento": null,
+  "dataInternacao": "13/12/2025",
+  "rqBradenScp": "",
+  "diagnosticoComorbidades": null,
+  "alergias": null,
+  "mobilidade": null,
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "examesRealizadosPendentes": "",
+  "dataProgramacaoCirurgica": "",
+  "observacoesIntercorrencias": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A17",
+  "dsLeitoCompleto": "10A1733",
+  "dsEspecialidade": "CARDIOLOGIA",
+  "codigoAtendimento": "10114118",
+  "dsEvolucaoCompleta": "HD: ANGINA INSTÁVEL\n\nANTECEDENTES: DLP/ HAS/ IAM PRÉVIO\n\nALERGIA: NEGA\n\nATB: S/ATB\n\nEVOLUÇÃO:\nPASSO VISITA BEIRA LEITO, PACIENTE SE ENCONTRA NORMOTENSA, NORMOCARDICA, AFEBRIL, ANICTÉRICA, ACIANÓTICA, EUPNEICA EM A.A, COM PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA, SEM ACOMPANHANTE. APRESENTA PELE ÍNTEGRA, S/ AVP, REFERE BANHO DURANTE O DIA, ELIMINAÇÕES VESICAIS E INTESTINAIS PRESENTES, ACEITAÇÃO PARCIAL DA DIETA, APRESENTA PELE ÍNTEGRA, ORIENTO A CHAMAR SEMPRE QUE NECESSÁRIO, SEGUE AOS CUIDADOS DA EQUIPE.\n\nAo exame físico:\n- ECTO: BEG, hidratado, anictérico, acianótico, afebril, lúcido e orientado\n- NEURO: Glasgow 15, sem déficits motores focais, pupilas isocóricas e fotorreagentes\n- CV: BRNF 2 T, sem sopros audíveis. Ausência de turgência jugular\n- AR: Murmúrio Vesicular presente em AHT, sem ruídos adventícios\n- TGI: Globoso, indolor a palpação superficial e profunda, ausência de visceromegalias ou MP. Evacuações presentes\n- R-M: Diurese presente. Evacuação ausente\n- EXT: Aquecidas, perfundidas| Sem edemas de panturrilhas\n\nMETAS:\nMANTER GRADES E DECUBITO ELEVADOS\nMANTER PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA LEGIVEL\nOBSERVAR, ANOTAR  E COMUNICAR ALTERAÇOES DOS SSVV.",
+  "dhCriacaoEvolucao": null,
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "leito": "33",
+    "metas": [
+      "MANTER GRADES E DECUBITO ELEVADOS",
+      "MANTER PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA LEGÍVEL",
+      "OBSERVAR, ANOTAR E COMUNICAR ALTERAÇÕES DOS SSVV"
+    ],
+    "alergia": "NEGA",
+    "dsLeito": "10A1733",
+    "dhCriacao": "15/12/2025 04:20",
+    "dsEvolucao": "HD: ANGINA INSTÁVEL\n\nANTECEDENTES: DLP/ HAS/ IAM PRÉVIO\n\nALERGIA: NEGA\n\nATB: S/ATB\n\nEVOLUÇÃO:\nPASSO VISITA BEIRA LEITO, PACIENTE SE ENCONTRA NORMOTENSA, NORMOCARDICA, AFEBRIL, ANICTÉRICA, ACIANÓTICA, EUPNEICA EM A.A, COM PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA, SEM ACOMPANHANTE. APRESENTA PELE ÍNTEGRA, S/ AVP, REFERE BANHO DURANTE O DIA, ELIMINAÇÕES VESICAIS E INTESTINAIS PRESENTES, ACEITAÇÃO PARCIAL DA DIETA, APRESENTA PELE ÍNTEGRA, ORIENTO A CHAMAR SEMPRE QUE NECESSÁRIO, SEGUE AOS CUIDADOS DA EQUIPE.\n\nAo exame físico:\n- ECTO: BEG, hidratado, anictérico, acianótico, afebril, lúcido e orientado\n- NEURO: Glasgow 15, sem déficits motores focais, pupilas isocóricas e fotorreagentes\n- CV: BRNF 2 T, sem sopros audíveis. Ausência de turgência jugular\n- AR: Murmúrio Vesicular presente em AHT, sem ruídos adventícios\n- TGI: Globoso, indolor a palpação superficial e profunda, ausência de visceromegalias ou MP. Evacuações presentes\n- R-M: Diurese presente. Evacuação ausente\n- EXT: Aquecidas, perfundidas| Sem edemas de panturrilhas\n\nMETAS:\nMANTER GRADES E DECUBITO ELEVADOS\nMANTER PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA LEGIVEL\nOBSERVAR, ANOTAR  E COMUNICAR ALTERAÇOES DOS SSVV.",
+    "antibiotico": "S/ATB",
+    "cdPrestador": 133684,
+    "dsEpecialid": "CARDIOLOGIA",
+    "antecedentes": [
+      "DLP",
+      "HAS",
+      "IAM PRÉVIO"
+    ],
+    "dsEnfermaria": "10A17",
+    "exame_fisico": {
+      "abdominal": {
+        "dor": "Ausente",
+        "forma": "Globoso",
+        "evacuacoes": "Presentes",
+        "visceromegalias": "Ausentes",
+        "massas_palpáveis": "Ausentes"
+      },
+      "neurologia": {
+        "glasgow": 15,
+        "pupilas": "Isocóricas e fotorreagentes",
+        "deficits_motores": "Ausentes"
+      },
+      "extremidades": {
+        "edemas": "Ausentes",
+        "perfusao": "Presente",
+        "temperatura": "Aquecidas"
+      },
+      "renomuscular": {
+        "diurese": "Presente",
+        "evacuacao": "Ausente"
+      },
+      "respiratorio": {
+        "ruidos_adventicos": "Ausentes",
+        "murmorio_vesicular": "Presente em AHT"
+      },
+      "cardiovascular": {
+        "bulhas": "BRNF 2 T",
+        "sopros": "Ausentes",
+        "turgencia_jugular": "Ausente"
+      }
+    },
+    "nomePaciente": "CLEOPATRA AFANASENKO SILVA   PT: 3198597 AT: 10114118",
+    "aspecto_geral": {
+      "pele": "Íntegra",
+      "estado": "BEG",
+      "cianose": "Acianótico",
+      "ictericia": "Anictérico",
+      "hidratacao": "Hidratado",
+      "consciencia": "Lúcido e orientado"
+    },
+    "sinais_vitais": {
+      "respiracao": "Eupneica em A.A",
+      "temperatura": "Afebril",
+      "pressao_arterial": "Normotensa",
+      "frequencia_cardiaca": "Normocárdica"
+    },
+    "dataInternacao": "13/12/2025",
+    "condicoes_gerais": {
+      "higiene": "Banho realizado",
+      "alimentacao": "Aceitação parcial",
+      "eliminacoes": "Vesicais e intestinais presentes",
+      "acompanhante": "Ausente",
+      "acesso_venoso": "Sem AVP",
+      "dispositivos_seguranca": "Pulseira de identificação e risco de queda"
+    },
+    "diagnostico_principal": "ANGINA INSTÁVEL",
+    "cdEspecialidadePrestador": null
+  },
+  "importedAt": "2025-12-15T17:35:43.890Z"
+}

@@ -54,31 +54,31 @@ export default function TextViewerPage() {
         });
       }
 
-      // Observações e intercorrências
+      // Observações
       if (
-        p.observacoesIntercorrencias &&
-        p.observacoesIntercorrencias.length > 10
+        p.observacoes &&
+        p.observacoes.length > 10
       ) {
         fields.push({
           leito: p.leito,
           nome: p.nome,
-          campo: "Observações e Intercorrências",
-          conteudo: p.observacoesIntercorrencias,
-          tamanho: p.observacoesIntercorrencias.length,
+          campo: "Observações",
+          conteudo: p.observacoes,
+          tamanho: p.observacoes.length,
         });
       }
 
-      // Diagnóstico e comorbidades
+      // Diagnóstico
       if (
-        p.diagnosticoComorbidades &&
-        p.diagnosticoComorbidades.length > 10
+        p.diagnostico &&
+        p.diagnostico.length > 10
       ) {
         fields.push({
           leito: p.leito,
           nome: p.nome,
-          campo: "Diagnóstico e Comorbidades",
-          conteudo: p.diagnosticoComorbidades,
-          tamanho: p.diagnosticoComorbidades.length,
+          campo: "Diagnóstico",
+          conteudo: p.diagnostico,
+          tamanho: p.diagnostico.length,
         });
       }
     });

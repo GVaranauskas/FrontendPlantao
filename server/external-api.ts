@@ -74,10 +74,6 @@ export class ExternalAPIService {
    * Map external API response fields to our patient schema
    */
   private mapExternalDataToPatient(leito: string, data: ExternalAPIResponse): InsertPatient {
-    // Parse mobilidade to ensure it's valid (A, D, or DA)
-    const mobilidadeRaw = data.mobilidade || "";
-    const mobilidade = this.normalizeMobilidade(mobilidadeRaw);
-
     // Parse timestamp de criação
     let dhCriacaoEvolucao: Date | undefined;
     if (data.dh_criacao_evolucao || data.data_criacao || data.dhCriacaoEvolucao) {
@@ -91,57 +87,40 @@ export class ExternalAPIService {
 
     return {
       leito: leito,
-      especialidadeRamal: data.especialidade || data.especialidadeRamal || data.ds_especialidade || "",
+      especialidadeRamal: data.dsEpecialid || data.especialidade || "",
       nome: data.paciente || data.nome || data.nome_paciente || "",
-      registro: data.registro || data.codigo_atendimento || "",
+      registro: data.registro || "",
       dataNascimento: data.dataNascimento || data.nascimento || data.data_nascimento || "",
-      dataInternacao: data.dataInternacao || data.internacao || data.data_internacao || new Date().toLocaleDateString("pt-BR"),
-      rqBradenScp: data.braden || data.rq_braden || "",
-      diagnosticoComorbidades: data.diagnostico || data.diagnostico_comorbidades || "",
+      dataInternacao: data.dataInternacao || new Date().toLocaleDateString("pt-BR"),
+      braden: data.braden || "",
+      diagnostico: data.diagnostico || "",
       alergias: data.alergias || "",
-      mobilidade: mobilidade as "A" | "D" | "DA" | null | undefined,
+      mobilidade: data.mobilidade || "",
       dieta: data.dieta || "",
       eliminacoes: data.eliminacoes || "",
       dispositivos: data.dispositivos || "",
-      atb: data.atb || data.antibioticos || "",
+      atb: data.atb || "",
       curativos: data.curativos || "",
-      aporteSaturacao: data.aporteSaturacao || data.aporte_saturacao || "",
-      examesRealizadosPendentes: data.exames || data.exames_realizados_pendentes || "",
-      dataProgramacaoCirurgica: data.cirurgia || data.data_programacao_cirurgica || "",
-      observacoesIntercorrencias: data.observacoes || data.observacoes_intercorrencias || "",
-      previsaoAlta: data.previsaoAlta || data.previsao_alta || "",
+      aporteSaturacao: data.aporteSaturacao || "",
+      exames: data.exames || "",
+      cirurgia: data.cirurgia || "",
+      observacoes: data.observacoes || "",
+      previsaoAlta: data.previsaoAlta || "",
       alerta: null,
       status: "pending",
       
-      // Novos campos da API N8N
-      idEvolucao: data.id_evolucao || data.id || data.idEvolucao || "",
-      dsEnfermaria: data.ds_enfermaria || data.enfermaria || data.dsEnfermaria || leito,
-      dsLeitoCompleto: data.ds_leito_completo || data.leito_completo || data.dsLeitoCompleto || leito,
-      dsEspecialidade: data.ds_especialidade || data.especialidade || data.dsEspecialidade || "",
-      codigoAtendimento: data.codigo_atendimento || data.at || data.codigoAtendimento || "",
-      dsEvolucaoCompleta: data.ds_evolucao_completa || data.evolucao_completa || data.descricao || data.dsEvolucaoCompleta || "",
+      idEvolucao: data.id || "",
+      dsEnfermaria: data.dsEnfermaria || leito,
+      dsLeitoCompleto: data.dsLeito || leito,
+      dsEspecialidade: data.dsEpecialid || "",
+      codigoAtendimento: data.codigo_atendimento || "",
+      dsEvolucaoCompleta: "",
       dhCriacaoEvolucao: dhCriacaoEvolucao,
       fonteDados: "N8N_IAMSPE",
       dadosBrutosJson: data,
     };
   }
 
-  /**
-   * Normalize mobilidade field to valid values
-   */
-  private normalizeMobilidade(value: string): "A" | "D" | "DA" | null {
-    if (!value) return null;
-    
-    const normalized = value.toUpperCase().trim();
-    
-    if (normalized.includes("ACAMADO")) return "A";
-    if (normalized.includes("DEAMBULA COM AUXÍLIO")) return "DA";
-    if (normalized.includes("DEAMBULA") || normalized === "D") return "D";
-    if (normalized === "A") return "A";
-    if (normalized === "DA") return "DA";
-    
-    return null;
-  }
 }
 
 export const externalAPIService = new ExternalAPIService();

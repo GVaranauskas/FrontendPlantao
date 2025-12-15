@@ -18,14 +18,14 @@ interface PatientAnalysisResult {
 interface PatientData {
   nome?: string;
   leito?: string;
-  diagnosticoComorbidades?: string;
+  diagnostico?: string;
   alergias?: string;
   mobilidade?: string;
   dieta?: string;
   dispositivos?: string;
   atb?: string;
-  rqBradenScp?: string;
-  observacoesIntercorrencias?: string;
+  braden?: string;
+  observacoes?: string;
   [key: string]: any;
 }
 
@@ -84,10 +84,10 @@ Responda SEMPRE em formato JSON válido.`
   }> {
     const patientsSummary = patients.map(p => ({
       leito: p.leito,
-      diagnostico: p.diagnosticoComorbidades?.substring(0, 100),
-      braden: p.rqBradenScp,
+      diagnostico: p.diagnostico?.substring(0, 100),
+      braden: p.braden,
       mobilidade: p.mobilidade,
-      alertas: p.observacoesIntercorrencias?.substring(0, 50)
+      alertas: p.observacoes?.substring(0, 50)
     }));
 
     try {
@@ -144,8 +144,8 @@ Responda em formato JSON com um array "recomendacoes" contendo strings.`
           {
             role: "user",
             content: `Paciente:
-- Diagnóstico: ${patient.diagnosticoComorbidades || "Não informado"}
-- Braden: ${patient.rqBradenScp || "Não avaliado"}
+- Diagnóstico: ${patient.diagnostico || "Não informado"}
+- Braden: ${patient.braden || "Não avaliado"}
 - Mobilidade: ${patient.mobilidade || "Não informada"}
 - Dispositivos: ${patient.dispositivos || "Nenhum"}
 - Alergias: ${patient.alergias || "NKDA"}
@@ -174,14 +174,14 @@ Gere 3-5 recomendações de cuidados prioritários.`
 
 DADOS DO PACIENTE:
 - Leito: ${patient.leito || "N/A"}
-- Diagnóstico/Comorbidades: ${patient.diagnosticoComorbidades || "Não informado"}
+- Diagnóstico: ${patient.diagnostico || "Não informado"}
 - Alergias: ${patient.alergias || "NKDA"}
 - Mobilidade: ${patient.mobilidade || "Não avaliada"}
-- Escala Braden/SCP: ${patient.rqBradenScp || "Não avaliado"}
+- Escala Braden: ${patient.braden || "Não avaliado"}
 - Dieta: ${patient.dieta || "Não informada"}
 - Dispositivos: ${patient.dispositivos || "Nenhum"}
 - ATB em uso: ${patient.atb || "Nenhum"}
-- Observações/Intercorrências: ${patient.observacoesIntercorrencias || "Sem intercorrências"}
+- Observações: ${patient.observacoes || "Sem intercorrências"}
 
 Responda em JSON com:
 {
