@@ -186,7 +186,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // N8N Evolucoes sync endpoint - all units (params: [""])
   app.post("/api/sync/evolucoes", async (req, res) => {
     try {
-      const { unitIds, forceUpdate } = req.body;
+      logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
+      
+      const { unitIds, forceUpdate } = req.body || {};
       // unitIds can be empty string for all units, or comma-separated IDs like "22,23"
       const params = unitIds !== undefined ? unitIds : "";
       const force = forceUpdate === true;
