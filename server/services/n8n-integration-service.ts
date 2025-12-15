@@ -29,12 +29,13 @@ export class N8NIntegrationService {
   /**
    * Busca dados de evolução da API N8N
    * @param unitIds - IDs das unidades de internação (ex: "22,23") ou vazio para todas
+   * @param forceUpdate - Se true, força atualização dos dados no N8N
    */
-  async fetchEvolucoes(unitIds: string = ""): Promise<N8NRawData[] | null> {
+  async fetchEvolucoes(unitIds: string = "", forceUpdate: boolean = false): Promise<N8NRawData[] | null> {
     try {
       const payload: N8NRequest = {
         flowId: "10A",
-        forceUpdate: false,
+        forceUpdate: forceUpdate,
         meta: {
           params: [unitIds],
           formJson: {

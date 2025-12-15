@@ -62,15 +62,16 @@ export async function syncMultiplePatientsFromExternalAPI(leitos: string[]): Pro
 /**
  * Sync evolucoes from N8N for specific unit IDs or all units
  * @param unitIds - IDs das unidades de internação (ex: "22,23") ou vazio para todas
+ * @param forceUpdate - Se true, força atualização dos dados no N8N
  */
-export async function syncEvolucoesByUnitIds(unitIds: string = ""): Promise<Patient[]> {
+export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: boolean = false): Promise<Patient[]> {
   const results: Patient[] = [];
   
   try {
-    console.log(`[Sync] Starting sync with params: ["${unitIds}"]`);
+    console.log(`[Sync] Starting sync with params: ["${unitIds}"], forceUpdate: ${forceUpdate}`);
     
     // Fetch raw evolucoes from N8N
-    const evolucoes = await n8nIntegrationService.fetchEvolucoes(unitIds);
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(unitIds, forceUpdate);
     
     if (!evolucoes || evolucoes.length === 0) {
       console.log(`[Sync] No evolucoes found`);

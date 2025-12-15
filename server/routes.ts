@@ -186,12 +186,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // N8N Evolucoes sync endpoint - all units (params: [""])
   app.post("/api/sync/evolucoes", async (req, res) => {
     try {
-      const { unitIds } = req.body;
+      const { unitIds, forceUpdate } = req.body;
       // unitIds can be empty string for all units, or comma-separated IDs like "22,23"
       const params = unitIds !== undefined ? unitIds : "";
+      const force = forceUpdate === true;
       
-      logger.info(`[${getTimestamp()}] [Sync] Syncing evolucoes with params: ["${params}"]`);
-      const patients = await syncEvolucoesByUnitIds(params);
+      logger.info(`[${getTimestamp()}] [Sync] Syncing evolucoes with params: ["${params}"], forceUpdate: ${force}`);
+      const patients = await syncEvolucoesByUnitIds(params, force);
       
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {

@@ -75,10 +75,36 @@ export default function ShiftHandoverPage() {
     },
   });
   
-  // Enable automatic sync on page load and every 15 minutes
+  // TEMPORARIAMENTE DESATIVADO: Auto-sync a cada 15 minutos
+  // Para reativar, mude enabled para true
   const { isSyncing: isAutoSyncing, lastSyncTimeAgo, triggerSync } = useAutoSync({
-    enabled: true,
+    enabled: false, // DESATIVADO TEMPORARIAMENTE PARA TESTES
     syncInterval: 900000, // 15 minutes
+  });
+
+  // Mutation para sincronização manual com forceUpdate: true
+  const manualSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/sync/evolucoes", {
+        unitIds: "22,23",
+        forceUpdate: true,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      refetch();
+      toast({
+        title: "Sincronização Manual Concluída",
+        description: `Dados do N8N atualizados com forceUpdate: true`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro na Sincronização",
+        description: error.message || "Não foi possível sincronizar com o N8N.",
+        variant: "destructive",
+      });
+    },
   });
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
@@ -189,6 +215,28 @@ export default function ShiftHandoverPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Botão de Sincronização Manual N8N - TEMPORÁRIO PARA TESTES */}
+              <Button 
+                variant="default"
+                size="sm"
+                onClick={() => manualSyncMutation.mutate()}
+                disabled={manualSyncMutation.isPending}
+                data-testid="button-manual-n8n-sync"
+                title="Sincronização Manual N8N (forceUpdate: true)"
+                className="bg-chart-3 hover:bg-chart-3/90 text-white"
+              >
+                {manualSyncMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCcw className="w-4 h-4 mr-2" />
+                    Sync N8N
+                  </>
+                )}
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
