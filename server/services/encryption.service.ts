@@ -103,7 +103,7 @@ class EncryptionService {
       const encrypted = buffer.subarray(ENCRYPTED_POSITION);
       
       const key = scryptSync(this.masterKey, salt, KEY_LENGTH);
-      const decipher = createDecipheriv(ALGORITHM, key, iv);
+      const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
       decipher.setAuthTag(authTag);
       
       const decrypted = Buffer.concat([
