@@ -13,7 +13,8 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
   Edit, Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
-  AlertTriangle, CheckCircle, Activity
+  AlertTriangle, CheckCircle, Activity, Shield, Bug, Wind, Utensils, Heart,
+  Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { useAutoSync } from "@/hooks/use-auto-sync";
@@ -52,11 +53,43 @@ interface ClinicalInsights {
   recomendacoes_enfermagem: string[];
 }
 
-interface LeitoDetalhado {
+interface LeitoDetalhadoSimples {
   leito: string;
   nome: string;
   recomendacoes: string[];
   alertas: ClinicalAlert[];
+}
+
+interface LeitoDetalhado {
+  leito: string;
+  nome: string;
+  diagnostico_principal: string;
+  tipo_enfermidade: string;
+  dias_internacao: number;
+  nivel_alerta: "VERMELHO" | "AMARELO" | "VERDE";
+  score_qualidade: number;
+  braden: string;
+  mobilidade: string;
+  riscos_identificados: Array<{
+    tipo: string;
+    nivel: "ALTO" | "MODERADO" | "BAIXO";
+    descricao: string;
+  }>;
+  protocolos_ativos: Array<{
+    nome: string;
+    descricao: string;
+    frequencia?: string;
+  }>;
+  recomendacoes_enfermagem: string[];
+  alertas: Array<{
+    tipo: string;
+    nivel: "VERMELHO" | "AMARELO" | "VERDE";
+    titulo: string;
+    descricao?: string;
+  }>;
+  gaps_documentacao: string[];
+  dispositivos: string[];
+  antibioticos: string[];
 }
 
 interface LeitoClassificado {
@@ -77,12 +110,38 @@ interface ClassificacaoProblemas {
   risco_respiratorio: LeitoClassificado[];
 }
 
+interface ProtocoloEnfermagem {
+  categoria: string;
+  icone: string;
+  cor: string;
+  leitos_afetados: string[];
+  quantidade: number;
+  protocolo_resumo: string;
+  acoes_principais: string[];
+}
+
+interface IndicadoresPlantao {
+  total_pacientes: number;
+  media_braden: number;
+  media_dias_internacao: number;
+  taxa_completude_documentacao: number;
+  pacientes_alta_complexidade: number;
+  pacientes_com_dispositivos: number;
+  pacientes_com_atb: number;
+  pacientes_acamados: number;
+  pacientes_risco_queda_alto: number;
+  pacientes_lesao_pressao: number;
+}
+
 interface AnaliseGeral {
   timestamp: string;
   resumo_executivo: string;
   alertas_criticos_enfermagem: string[];
   classificacao_por_problema: ClassificacaoProblemas;
   leitos_prioridade_maxima: LeitoClassificado[];
+  leitos_detalhados: LeitoDetalhado[];
+  protocolos_enfermagem: ProtocoloEnfermagem[];
+  indicadores: IndicadoresPlantao;
   estatisticas: {
     total: number;
     vermelho: number;
@@ -98,8 +157,8 @@ interface ClinicalBatchResult {
   success: number;
   summary: { vermelho: number; amarelo: number; verde: number; errors: number };
   analiseGeral?: AnaliseGeral;
-  leitosAtencao: LeitoDetalhado[];
-  leitosAlerta: LeitoDetalhado[];
+  leitosAtencao: LeitoDetalhadoSimples[];
+  leitosAlerta: LeitoDetalhadoSimples[];
   failedPatients: string[];
 }
 
@@ -693,11 +752,77 @@ export default function ShiftHandoverPage() {
                           </Card>
                         )}
 
-                        {/* Estatísticas */}
+                        {/* Indicadores Avançados */}
+                        {clinicalBatchResult.analiseGeral?.indicadores && (
+                          <Card className="p-4">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                              <TrendingUp className="w-4 h-4 text-primary" />
+                              Indicadores do Plantão
+                            </h3>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                <Users className="w-4 h-4 text-primary" />
+                                <div>
+                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.total_pacientes}</div>
+                                  <div className="text-[10px] text-muted-foreground">Total Pacientes</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                <Shield className="w-4 h-4 text-blue-500" />
+                                <div>
+                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.media_braden}</div>
+                                  <div className="text-[10px] text-muted-foreground">Média Braden</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                <Clock className="w-4 h-4 text-orange-500" />
+                                <div>
+                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.media_dias_internacao}d</div>
+                                  <div className="text-[10px] text-muted-foreground">Média Internação</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                <FileText className="w-4 h-4 text-green-500" />
+                                <div>
+                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.taxa_completude_documentacao}%</div>
+                                  <div className="text-[10px] text-muted-foreground">Completude Doc.</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-2">
+                              <div className="text-center p-2 bg-red-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-red-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_alta_complexidade}</div>
+                                <div className="text-[9px] text-muted-foreground">Alta Complex.</div>
+                              </div>
+                              <div className="text-center p-2 bg-purple-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-purple-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_com_dispositivos}</div>
+                                <div className="text-[9px] text-muted-foreground">C/ Dispositivos</div>
+                              </div>
+                              <div className="text-center p-2 bg-orange-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-orange-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_com_atb}</div>
+                                <div className="text-[9px] text-muted-foreground">Em ATB</div>
+                              </div>
+                              <div className="text-center p-2 bg-blue-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-blue-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_acamados}</div>
+                                <div className="text-[9px] text-muted-foreground">Acamados</div>
+                              </div>
+                              <div className="text-center p-2 bg-yellow-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-yellow-600">{clinicalBatchResult.analiseGeral.indicadores.pacientes_risco_queda_alto}</div>
+                                <div className="text-[9px] text-muted-foreground">Risco Queda</div>
+                              </div>
+                              <div className="text-center p-2 bg-pink-500/10 rounded-lg">
+                                <div className="text-sm font-bold text-pink-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_lesao_pressao}</div>
+                                <div className="text-[9px] text-muted-foreground">Risco LPP</div>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Classificação por Nível */}
                         <Card className="p-4">
                           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                             <Activity className="w-4 h-4" />
-                            Classificação Geral
+                            Classificação por Nível
                           </h3>
                           <div className="grid grid-cols-4 gap-2 text-center">
                             <div className="bg-red-500/20 rounded-lg p-2">
@@ -725,7 +850,7 @@ export default function ShiftHandoverPage() {
                           <Card className="p-4 border-red-500/30 bg-red-500/5">
                             <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-500">
                               <AlertTriangle className="w-4 h-4" />
-                              ALERTAS IMPORTANTES - Enfermagem
+                              ALERTAS CRÍTICOS
                             </h3>
                             <ul className="space-y-2">
                               {clinicalBatchResult.analiseGeral.alertas_criticos_enfermagem.map((alerta, idx) => (
@@ -738,74 +863,232 @@ export default function ShiftHandoverPage() {
                           </Card>
                         )}
 
-                        {/* Leitos Críticos com Recomendações */}
-                        {clinicalBatchResult.leitosAtencao.length > 0 && (
-                          <Card className="p-4 border-red-500/30 bg-red-500/5">
-                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-500">
-                              <AlertTriangle className="w-4 h-4" />
-                              Leitos CRÍTICOS - Atenção Imediata
+                        {/* Protocolos de Enfermagem por Categoria */}
+                        {clinicalBatchResult.analiseGeral?.protocolos_enfermagem && 
+                         clinicalBatchResult.analiseGeral.protocolos_enfermagem.length > 0 && (
+                          <Card className="p-4">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                              <Stethoscope className="w-4 h-4 text-primary" />
+                              Protocolos de Enfermagem Ativos
                             </h3>
                             <div className="space-y-3">
-                              {clinicalBatchResult.leitosAtencao.map((leito, idx) => (
-                                <div key={idx} className="border-l-2 border-red-500 pl-3 py-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className="bg-red-500 text-white text-xs">
-                                      Leito {leito.leito}
-                                    </Badge>
-                                    <span className="text-xs font-medium truncate">{leito.nome}</span>
+                              {clinicalBatchResult.analiseGeral.protocolos_enfermagem.map((protocolo, idx) => {
+                                const getProtocolIcon = (icone: string) => {
+                                  switch(icone) {
+                                    case "AlertTriangle": return <AlertTriangle className="w-4 h-4" />;
+                                    case "Shield": return <Shield className="w-4 h-4" />;
+                                    case "Bug": return <Bug className="w-4 h-4" />;
+                                    case "Wind": return <Wind className="w-4 h-4" />;
+                                    case "Utensils": return <Utensils className="w-4 h-4" />;
+                                    case "Heart": return <Heart className="w-4 h-4" />;
+                                    default: return <Activity className="w-4 h-4" />;
+                                  }
+                                };
+                                const getProtocolColor = (cor: string) => {
+                                  switch(cor) {
+                                    case "yellow": return "border-yellow-500/30 bg-yellow-500/5";
+                                    case "red": return "border-red-500/30 bg-red-500/5";
+                                    case "orange": return "border-orange-500/30 bg-orange-500/5";
+                                    case "blue": return "border-blue-500/30 bg-blue-500/5";
+                                    case "green": return "border-green-500/30 bg-green-500/5";
+                                    case "purple": return "border-purple-500/30 bg-purple-500/5";
+                                    default: return "border-muted bg-muted/10";
+                                  }
+                                };
+                                const getTextColor = (cor: string) => {
+                                  switch(cor) {
+                                    case "yellow": return "text-yellow-600";
+                                    case "red": return "text-red-500";
+                                    case "orange": return "text-orange-500";
+                                    case "blue": return "text-blue-500";
+                                    case "green": return "text-green-500";
+                                    case "purple": return "text-purple-500";
+                                    default: return "text-muted-foreground";
+                                  }
+                                };
+                                return (
+                                  <div key={idx} className={`p-3 rounded-lg border ${getProtocolColor(protocolo.cor)}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className={`flex items-center gap-2 font-semibold text-sm ${getTextColor(protocolo.cor)}`}>
+                                        {getProtocolIcon(protocolo.icone)}
+                                        {protocolo.categoria}
+                                      </div>
+                                      <Badge variant="secondary" className="text-[10px]">
+                                        {protocolo.quantidade} leito(s)
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mb-2">{protocolo.protocolo_resumo}</p>
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                      {protocolo.leitos_afetados.slice(0, 6).map((leito, lIdx) => (
+                                        <Badge key={lIdx} variant="outline" className="text-[9px]">
+                                          {leito}
+                                        </Badge>
+                                      ))}
+                                      {protocolo.leitos_afetados.length > 6 && (
+                                        <Badge variant="outline" className="text-[9px]">
+                                          +{protocolo.leitos_afetados.length - 6}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="text-[10px] font-semibold uppercase text-muted-foreground">Ações:</div>
+                                      {protocolo.acoes_principais.slice(0, 3).map((acao, aIdx) => (
+                                        <div key={aIdx} className="text-[10px] text-muted-foreground flex items-start gap-1">
+                                          <ChevronRight className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                          <span>{acao}</span>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
-                                  {leito.alertas && leito.alertas.length > 0 && (
-                                    <div className="space-y-1 mt-2">
-                                      {leito.alertas.slice(0, 2).map((alerta, aIdx) => (
-                                        <div key={aIdx} className="text-xs text-red-700 dark:text-red-300">
-                                          <span className="font-medium">{alerta.titulo}</span>
+                                );
+                              })}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Leitos Detalhados */}
+                        {clinicalBatchResult.analiseGeral?.leitos_detalhados && 
+                         clinicalBatchResult.analiseGeral.leitos_detalhados.length > 0 && (
+                          <Card className="p-4">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                              <Bed className="w-4 h-4 text-primary" />
+                              Detalhes por Leito ({clinicalBatchResult.analiseGeral.leitos_detalhados.length})
+                            </h3>
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                              {clinicalBatchResult.analiseGeral.leitos_detalhados.map((leito, idx) => (
+                                <div 
+                                  key={idx} 
+                                  className={`p-3 rounded-lg border ${
+                                    leito.nivel_alerta === "VERMELHO" 
+                                      ? "border-red-500/30 bg-red-500/5" 
+                                      : leito.nivel_alerta === "AMARELO"
+                                      ? "border-yellow-500/30 bg-yellow-500/5"
+                                      : "border-green-500/30 bg-green-500/5"
+                                  }`}
+                                >
+                                  {/* Header do Leito */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge 
+                                        className={`text-xs ${
+                                          leito.nivel_alerta === "VERMELHO" 
+                                            ? "bg-red-500 text-white" 
+                                            : leito.nivel_alerta === "AMARELO"
+                                            ? "bg-yellow-500 text-black"
+                                            : "bg-green-500 text-white"
+                                        }`}
+                                      >
+                                        {leito.leito}
+                                      </Badge>
+                                      <span className="text-xs font-medium truncate max-w-[150px]">{leito.nome}</span>
+                                    </div>
+                                    <Badge variant="outline" className="text-[9px]">
+                                      {leito.tipo_enfermidade}
+                                    </Badge>
+                                  </div>
+
+                                  {/* Diagnóstico */}
+                                  <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                    <span className="font-medium">Dx:</span> {leito.diagnostico_principal}
+                                  </div>
+
+                                  {/* Indicadores do Leito */}
+                                  <div className="flex flex-wrap gap-2 mb-2">
+                                    <Badge variant="secondary" className="text-[9px]">
+                                      Braden: {leito.braden}
+                                    </Badge>
+                                    <Badge variant="secondary" className="text-[9px]">
+                                      {leito.dias_internacao}d internado
+                                    </Badge>
+                                    <Badge variant="secondary" className="text-[9px]">
+                                      Mob: {leito.mobilidade}
+                                    </Badge>
+                                    <Badge variant="secondary" className="text-[9px]">
+                                      Score: {leito.score_qualidade}%
+                                    </Badge>
+                                  </div>
+
+                                  {/* Riscos Identificados */}
+                                  {leito.riscos_identificados.length > 0 && (
+                                    <div className="mb-2">
+                                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Riscos:</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {leito.riscos_identificados.map((risco, rIdx) => (
+                                          <Badge 
+                                            key={rIdx} 
+                                            variant="outline" 
+                                            className={`text-[9px] ${
+                                              risco.nivel === "ALTO" 
+                                                ? "border-red-500/50 text-red-500" 
+                                                : risco.nivel === "MODERADO"
+                                                ? "border-yellow-500/50 text-yellow-600"
+                                                : "border-green-500/50 text-green-500"
+                                            }`}
+                                          >
+                                            {risco.tipo}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Protocolos Ativos */}
+                                  {leito.protocolos_ativos.length > 0 && (
+                                    <div className="mb-2">
+                                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Protocolos:</div>
+                                      {leito.protocolos_ativos.map((protocolo, pIdx) => (
+                                        <div key={pIdx} className="text-[10px] text-muted-foreground flex items-start gap-1 mb-1">
+                                          <Stethoscope className="w-3 h-3 mt-0.5 flex-shrink-0 text-primary" />
+                                          <div>
+                                            <span className="font-medium">{protocolo.nome}</span>
+                                            {protocolo.frequencia && <span className="text-[9px]"> ({protocolo.frequencia})</span>}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
                                   )}
-                                  {leito.recomendacoes && leito.recomendacoes.length > 0 && (
-                                    <div className="mt-2 space-y-1">
-                                      <div className="text-[10px] font-semibold text-red-600 uppercase">Recomendações:</div>
-                                      {leito.recomendacoes.slice(0, 2).map((rec, rIdx) => (
-                                        <div key={rIdx} className="text-xs text-muted-foreground flex items-start gap-1">
-                                          <CheckCircle className="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0" />
+
+                                  {/* Dispositivos e ATB */}
+                                  {(leito.dispositivos.length > 0 || leito.antibioticos.length > 0) && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                      {leito.dispositivos.length > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <Stethoscope className="w-3 h-3 text-purple-500" />
+                                          <span className="text-[9px] text-muted-foreground">{leito.dispositivos.length} disp.</span>
+                                        </div>
+                                      )}
+                                      {leito.antibioticos.length > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <Pill className="w-3 h-3 text-orange-500" />
+                                          <span className="text-[9px] text-muted-foreground">{leito.antibioticos.length} ATB</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Recomendações de Enfermagem */}
+                                  {leito.recomendacoes_enfermagem.length > 0 && (
+                                    <div>
+                                      <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Recomendações:</div>
+                                      {leito.recomendacoes_enfermagem.slice(0, 2).map((rec, rIdx) => (
+                                        <div key={rIdx} className="text-[10px] text-muted-foreground flex items-start gap-1">
+                                          <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0 text-primary" />
                                           <span>{rec}</span>
                                         </div>
                                       ))}
                                     </div>
                                   )}
-                                </div>
-                              ))}
-                            </div>
-                          </Card>
-                        )}
 
-                        {/* Leitos com Alertas Moderados */}
-                        {clinicalBatchResult.leitosAlerta.length > 0 && (
-                          <Card className="p-4 border-yellow-500/30 bg-yellow-500/5">
-                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-yellow-600">
-                              <Activity className="w-4 h-4" />
-                              Leitos com ALERTAS - Monitorar
-                            </h3>
-                            <div className="space-y-3">
-                              {clinicalBatchResult.leitosAlerta.map((leito, idx) => (
-                                <div key={idx} className="border-l-2 border-yellow-500 pl-3 py-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className="bg-yellow-500 text-black text-xs">
-                                      Leito {leito.leito}
-                                    </Badge>
-                                    <span className="text-xs font-medium truncate">{leito.nome}</span>
-                                  </div>
-                                  {leito.alertas && leito.alertas.length > 0 && (
-                                    <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                                      {leito.alertas[0]?.titulo}
-                                    </div>
-                                  )}
-                                  {leito.recomendacoes && leito.recomendacoes.length > 0 && (
-                                    <div className="mt-2">
-                                      <div className="text-xs text-muted-foreground flex items-start gap-1">
-                                        <CheckCircle className="w-3 h-3 text-yellow-600 mt-0.5 flex-shrink-0" />
-                                        <span>{leito.recomendacoes[0]}</span>
+                                  {/* Gaps de Documentação */}
+                                  {leito.gaps_documentacao.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-dashed">
+                                      <div className="text-[10px] font-semibold uppercase text-orange-500 mb-1">Gaps de Documentação:</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {leito.gaps_documentacao.map((gap, gIdx) => (
+                                          <Badge key={gIdx} variant="outline" className="text-[9px] border-orange-500/50 text-orange-500">
+                                            {gap}
+                                          </Badge>
+                                        ))}
                                       </div>
                                     </div>
                                   )}
@@ -821,7 +1104,7 @@ export default function ShiftHandoverPage() {
                           <Card className="p-4 border-primary/20 bg-primary/5">
                             <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
                               <CheckCircle className="w-4 h-4 text-primary" />
-                              Recomendações para o Plantão
+                              Recomendações Gerais
                             </h3>
                             <ul className="space-y-1">
                               {clinicalBatchResult.analiseGeral.recomendacoes_gerais_plantao.map((rec, idx) => (

@@ -170,6 +170,39 @@ export interface PatientClinicalInsights {
   analise_completa?: ClinicalAnalysisResult;
 }
 
+// Estrutura detalhada de cada leito para análise rica
+export interface LeitoDetalhado {
+  leito: string;
+  nome: string;
+  diagnostico_principal: string;
+  tipo_enfermidade: string;
+  dias_internacao: number;
+  nivel_alerta: "VERMELHO" | "AMARELO" | "VERDE";
+  score_qualidade: number;
+  braden: string;
+  mobilidade: string;
+  riscos_identificados: Array<{
+    tipo: string;
+    nivel: "ALTO" | "MODERADO" | "BAIXO";
+    descricao: string;
+  }>;
+  protocolos_ativos: Array<{
+    nome: string;
+    descricao: string;
+    frequencia?: string;
+  }>;
+  recomendacoes_enfermagem: string[];
+  alertas: Array<{
+    tipo: string;
+    nivel: "VERMELHO" | "AMARELO" | "VERDE";
+    titulo: string;
+    descricao?: string;
+  }>;
+  gaps_documentacao: string[];
+  dispositivos: string[];
+  antibioticos: string[];
+}
+
 // Estrutura para classificação de leitos por problema
 export interface LeitoClassificado {
   leito: string;
@@ -189,12 +222,40 @@ export interface ClassificacaoProblemas {
   risco_respiratorio: LeitoClassificado[];
 }
 
+// Protocolo de enfermagem por categoria de risco
+export interface ProtocoloEnfermagem {
+  categoria: string;
+  icone: string;
+  cor: string;
+  leitos_afetados: string[];
+  quantidade: number;
+  protocolo_resumo: string;
+  acoes_principais: string[];
+}
+
+// Indicadores avançados do plantão
+export interface IndicadoresPlantao {
+  total_pacientes: number;
+  media_braden: number;
+  media_dias_internacao: number;
+  taxa_completude_documentacao: number;
+  pacientes_alta_complexidade: number;
+  pacientes_com_dispositivos: number;
+  pacientes_com_atb: number;
+  pacientes_acamados: number;
+  pacientes_risco_queda_alto: number;
+  pacientes_lesao_pressao: number;
+}
+
 export interface AnaliseGeralMelhorada {
   timestamp: string;
   resumo_executivo: string;
   alertas_criticos_enfermagem: string[];
   classificacao_por_problema: ClassificacaoProblemas;
   leitos_prioridade_maxima: LeitoClassificado[];
+  leitos_detalhados: LeitoDetalhado[];
+  protocolos_enfermagem: ProtocoloEnfermagem[];
+  indicadores: IndicadoresPlantao;
   estatisticas: {
     total: number;
     vermelho: number;
@@ -626,7 +687,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
   }
 
   /**
-   * Generate enhanced general analysis with problem classification
+   * Generate enhanced general analysis with problem classification and detailed bed information
    */
   async generateEnhancedGeneralAnalysis(
     patients: PatientData[],
@@ -643,6 +704,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
     };
 
     const leitosPrioridadeMaxima: LeitoClassificado[] = [];
+    const leitosDetalhados: LeitoDetalhado[] = [];
     const stats = {
       total: patients.length,
       vermelho: 0,
@@ -650,6 +712,17 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       verde: 0,
       por_tipo_risco: {} as Record<string, number>,
     };
+
+    // Indicadores avançados
+    let totalBraden = 0;
+    let bradenCount = 0;
+    let totalDiasInternacao = 0;
+    let totalScoreQualidade = 0;
+    let pacientesComDispositivos = 0;
+    let pacientesComAtb = 0;
+    let pacientesAcamados = 0;
+    let pacientesRiscoQuedaAlto = 0;
+    let pacientesLesaoPressao = 0;
 
     for (const patient of patients) {
       const insights = patientInsights.get(patient.id || "");
@@ -659,6 +732,89 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       if (insights.nivel_alerta === "VERMELHO") stats.vermelho++;
       else if (insights.nivel_alerta === "AMARELO") stats.amarelo++;
       else stats.verde++;
+
+      // Calcular indicadores
+      const bradenValue = parseInt(patient.braden || "0");
+      if (bradenValue > 0) {
+        totalBraden += bradenValue;
+        bradenCount++;
+        if (bradenValue <= 12) pacientesLesaoPressao++;
+      }
+
+      // Calcular dias de internação
+      let diasInternacao = 0;
+      if (patient.dataInternacao) {
+        const dataInt = new Date(patient.dataInternacao.split("/").reverse().join("-"));
+        if (!isNaN(dataInt.getTime())) {
+          diasInternacao = Math.floor((Date.now() - dataInt.getTime()) / (1000 * 60 * 60 * 24));
+          totalDiasInternacao += diasInternacao;
+        }
+      }
+
+      totalScoreQualidade += insights.score_qualidade || 0;
+
+      if (patient.dispositivos && patient.dispositivos.trim() !== "" && patient.dispositivos !== "-") {
+        pacientesComDispositivos++;
+      }
+      if (patient.atb && patient.atb.trim() !== "" && patient.atb !== "-") {
+        pacientesComAtb++;
+      }
+      if (patient.mobilidade?.toLowerCase().includes("acamado") || patient.mobilidade === "A") {
+        pacientesAcamados++;
+      }
+
+      // Detectar tipo de enfermidade baseado no diagnóstico
+      const tipoEnfermidade = this.detectarTipoEnfermidade(patient.diagnostico || "");
+
+      // Criar leito detalhado
+      const leitoDetalhado: LeitoDetalhado = {
+        leito: patient.leito || "",
+        nome: patient.nome || "",
+        diagnostico_principal: patient.diagnostico || "Não informado",
+        tipo_enfermidade: tipoEnfermidade,
+        dias_internacao: diasInternacao,
+        nivel_alerta: insights.nivel_alerta,
+        score_qualidade: insights.score_qualidade || 0,
+        braden: patient.braden || "-",
+        mobilidade: patient.mobilidade || "-",
+        riscos_identificados: [],
+        protocolos_ativos: [],
+        recomendacoes_enfermagem: insights.recomendacoes_enfermagem || [],
+        alertas: insights.principais_alertas?.map(a => ({
+          tipo: a.tipo,
+          nivel: a.nivel as "VERMELHO" | "AMARELO" | "VERDE",
+          titulo: a.titulo,
+          descricao: a.descricao
+        })) || [],
+        gaps_documentacao: insights.gaps_criticos || [],
+        dispositivos: patient.dispositivos?.split(",").map(d => d.trim()).filter(d => d) || [],
+        antibioticos: patient.atb?.split(",").map(a => a.trim()).filter(a => a) || [],
+      };
+
+      // Identificar riscos e protocolos baseados nos alertas
+      for (const alerta of insights.principais_alertas || []) {
+        const tipo = alerta.tipo;
+        stats.por_tipo_risco[tipo] = (stats.por_tipo_risco[tipo] || 0) + 1;
+
+        // Adicionar risco identificado
+        leitoDetalhado.riscos_identificados.push({
+          tipo: this.formatarTipoRisco(tipo),
+          nivel: alerta.nivel === "VERMELHO" ? "ALTO" : alerta.nivel === "AMARELO" ? "MODERADO" : "BAIXO",
+          descricao: alerta.titulo,
+        });
+
+        // Adicionar protocolo correspondente
+        const protocolo = this.getProtocoloParaRisco(tipo, alerta.nivel);
+        if (protocolo && !leitoDetalhado.protocolos_ativos.some(p => p.nome === protocolo.nome)) {
+          leitoDetalhado.protocolos_ativos.push(protocolo);
+        }
+
+        if (tipo === "RISCO_QUEDA" && (alerta.nivel === "VERMELHO" || alerta.nivel === "AMARELO")) {
+          pacientesRiscoQuedaAlto++;
+        }
+      }
+
+      leitosDetalhados.push(leitoDetalhado);
 
       const leitoInfo: LeitoClassificado = {
         leito: patient.leito || "",
@@ -672,7 +828,6 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       // Classificar por tipo de problema
       for (const alerta of insights.principais_alertas || []) {
         const tipo = alerta.tipo;
-        stats.por_tipo_risco[tipo] = (stats.por_tipo_risco[tipo] || 0) + 1;
         leitoInfo.problemas.push(alerta.titulo);
 
         if (tipo === "RISCO_QUEDA") {
@@ -696,32 +851,56 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       }
     }
 
+    // Calcular indicadores
+    const indicadores: IndicadoresPlantao = {
+      total_pacientes: patients.length,
+      media_braden: bradenCount > 0 ? Math.round((totalBraden / bradenCount) * 10) / 10 : 0,
+      media_dias_internacao: patients.length > 0 ? Math.round(totalDiasInternacao / patients.length) : 0,
+      taxa_completude_documentacao: patients.length > 0 ? Math.round(totalScoreQualidade / patients.length) : 0,
+      pacientes_alta_complexidade: stats.vermelho + stats.amarelo,
+      pacientes_com_dispositivos: pacientesComDispositivos,
+      pacientes_com_atb: pacientesComAtb,
+      pacientes_acamados: pacientesAcamados,
+      pacientes_risco_queda_alto: pacientesRiscoQuedaAlto,
+      pacientes_lesao_pressao: pacientesLesaoPressao,
+    };
+
+    // Gerar protocolos de enfermagem consolidados
+    const protocolosEnfermagem: ProtocoloEnfermagem[] = this.gerarProtocolosConsolidados(classificacao);
+
     // Gerar alertas críticos consolidados para enfermagem
     const alertasCriticos: string[] = [];
     
     if (stats.vermelho > 0) {
-      alertasCriticos.push(`🔴 ${stats.vermelho} paciente(s) em estado CRÍTICO requer(em) atenção imediata`);
+      alertasCriticos.push(`${stats.vermelho} paciente(s) em estado CRÍTICO requer(em) atenção imediata`);
     }
     
     if (classificacao.risco_queda.filter(l => l.nivel === "VERMELHO").length > 0) {
       const leitos = classificacao.risco_queda.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
-      alertasCriticos.push(`⚠️ RISCO DE QUEDA ELEVADO: Leitos ${leitos} - Verificar grades, contenção e supervisão`);
+      alertasCriticos.push(`RISCO DE QUEDA ELEVADO: Leitos ${leitos} - Verificar grades, contenção e supervisão`);
     }
     
     if (classificacao.risco_lesao_pressao.filter(l => l.nivel === "VERMELHO").length > 0) {
       const leitos = classificacao.risco_lesao_pressao.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
-      alertasCriticos.push(`⚠️ RISCO DE LESÃO POR PRESSÃO: Leitos ${leitos} - Mudança de decúbito a cada 2h, colchão especial`);
+      alertasCriticos.push(`RISCO DE LESÃO POR PRESSÃO: Leitos ${leitos} - Mudança de decúbito a cada 2h`);
     }
     
     if (classificacao.risco_broncoaspiracao.filter(l => l.nivel === "VERMELHO").length > 0) {
       const leitos = classificacao.risco_broncoaspiracao.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
-      alertasCriticos.push(`⚠️ RISCO DE BRONCOASPIRAÇÃO: Leitos ${leitos} - Cabeceira elevada 30-45°, supervisão da dieta`);
+      alertasCriticos.push(`RISCO DE BRONCOASPIRAÇÃO: Leitos ${leitos} - Cabeceira elevada 30-45°`);
+    }
+
+    if (classificacao.risco_infeccao.filter(l => l.nivel === "VERMELHO").length > 0) {
+      const leitos = classificacao.risco_infeccao.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
+      alertasCriticos.push(`RISCO DE INFECÇÃO: Leitos ${leitos} - Revisar dispositivos e técnica asséptica`);
     }
 
     // Recomendações gerais para o plantão
-    const recomendacoesGerais: string[] = [
-      `Priorizar rounds nos ${stats.vermelho} leitos críticos: ${leitosPrioridadeMaxima.map(l => l.leito).join(", ")}`,
-    ];
+    const recomendacoesGerais: string[] = [];
+    
+    if (stats.vermelho > 0) {
+      recomendacoesGerais.push(`Priorizar rounds nos ${stats.vermelho} leitos críticos: ${leitosPrioridadeMaxima.map(l => l.leito).join(", ")}`);
+    }
 
     if (classificacao.risco_queda.length > 0) {
       recomendacoesGerais.push(`Verificar protocolo de prevenção de quedas em ${classificacao.risco_queda.length} paciente(s)`);
@@ -731,8 +910,23 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       recomendacoesGerais.push(`Revisar técnica asséptica e troca de dispositivos em ${classificacao.risco_infeccao.length} paciente(s)`);
     }
 
+    if (pacientesAcamados > 0) {
+      recomendacoesGerais.push(`${pacientesAcamados} paciente(s) acamado(s) - Atenção à mudança de decúbito e prevenção de lesões`);
+    }
+
+    if (pacientesComAtb > 0) {
+      recomendacoesGerais.push(`${pacientesComAtb} paciente(s) em uso de ATB - Verificar horários e observar reações`);
+    }
+
     // Resumo executivo
-    const resumoExecutivo = `Plantão com ${stats.total} pacientes: ${stats.vermelho} críticos (VERMELHO), ${stats.amarelo} com alertas (AMARELO), ${stats.verde} estáveis (VERDE). Principais riscos identificados: ${Object.entries(stats.por_tipo_risco).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tipo, count]) => `${tipo.replace("RISCO_", "")} (${count})`).join(", ") || "Nenhum"}.`;
+    const resumoExecutivo = `Plantão com ${stats.total} pacientes: ${stats.vermelho} críticos (VERMELHO), ${stats.amarelo} com alertas (AMARELO), ${stats.verde} estáveis (VERDE). Média Braden: ${indicadores.media_braden}. Taxa de completude documental: ${indicadores.taxa_completude_documentacao}%. Principais riscos: ${Object.entries(stats.por_tipo_risco).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tipo, count]) => `${this.formatarTipoRisco(tipo)} (${count})`).join(", ") || "Nenhum identificado"}.`;
+
+    // Ordenar leitos detalhados por prioridade (vermelho primeiro)
+    leitosDetalhados.sort((a, b) => {
+      const prioridadeA = a.nivel_alerta === "VERMELHO" ? 0 : a.nivel_alerta === "AMARELO" ? 1 : 2;
+      const prioridadeB = b.nivel_alerta === "VERMELHO" ? 0 : b.nivel_alerta === "AMARELO" ? 1 : 2;
+      return prioridadeA - prioridadeB;
+    });
 
     return {
       timestamp: new Date().toISOString(),
@@ -740,9 +934,206 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       alertas_criticos_enfermagem: alertasCriticos,
       classificacao_por_problema: classificacao,
       leitos_prioridade_maxima: leitosPrioridadeMaxima,
+      leitos_detalhados: leitosDetalhados,
+      protocolos_enfermagem: protocolosEnfermagem,
+      indicadores,
       estatisticas: stats,
       recomendacoes_gerais_plantao: recomendacoesGerais,
     };
+  }
+
+  private detectarTipoEnfermidade(diagnostico: string): string {
+    const diag = diagnostico.toLowerCase();
+    if (diag.includes("pneumonia") || diag.includes("bronquite") || diag.includes("asma") || diag.includes("dpoc") || diag.includes("respirat")) {
+      return "Respiratória";
+    }
+    if (diag.includes("cardio") || diag.includes("infarto") || diag.includes("arritmia") || diag.includes("insuficiência cardíaca") || diag.includes("hipertens")) {
+      return "Cardiovascular";
+    }
+    if (diag.includes("diabetes") || diag.includes("tireoide") || diag.includes("endocrin")) {
+      return "Endócrina";
+    }
+    if (diag.includes("renal") || diag.includes("rim") || diag.includes("nefr")) {
+      return "Renal";
+    }
+    if (diag.includes("neuro") || diag.includes("avc") || diag.includes("convuls") || diag.includes("epilep")) {
+      return "Neurológica";
+    }
+    if (diag.includes("cancer") || diag.includes("tumor") || diag.includes("neoplasia") || diag.includes("oncol")) {
+      return "Oncológica";
+    }
+    if (diag.includes("cirurg") || diag.includes("pós-op") || diag.includes("fratura") || diag.includes("ortop")) {
+      return "Cirúrgica/Ortopédica";
+    }
+    if (diag.includes("infec") || diag.includes("sepse") || diag.includes("sepsis")) {
+      return "Infecciosa";
+    }
+    if (diag.includes("gastro") || diag.includes("intestin") || diag.includes("hepat") || diag.includes("fígado")) {
+      return "Gastrointestinal";
+    }
+    return "Clínica Geral";
+  }
+
+  private formatarTipoRisco(tipo: string): string {
+    const mapa: Record<string, string> = {
+      "RISCO_QUEDA": "Risco de Queda",
+      "RISCO_LESAO": "Lesão por Pressão",
+      "RISCO_INFECCAO": "Infecção",
+      "RISCO_ASPIRACAO": "Broncoaspiração",
+      "RISCO_NUTRICIONAL": "Nutricional",
+      "RISCO_RESPIRATORIO": "Respiratório",
+    };
+    return mapa[tipo] || tipo;
+  }
+
+  private getProtocoloParaRisco(tipo: string, nivel: string): { nome: string; descricao: string; frequencia?: string } | null {
+    const protocolos: Record<string, { nome: string; descricao: string; frequencia?: string }> = {
+      "RISCO_QUEDA": {
+        nome: "Protocolo de Prevenção de Quedas",
+        descricao: "Grades elevadas, campainha ao alcance, ambiente livre de obstáculos, supervisão durante deambulação",
+        frequencia: "Contínuo"
+      },
+      "RISCO_LESAO": {
+        nome: "Protocolo de Prevenção de Lesão por Pressão",
+        descricao: "Mudança de decúbito, hidratação da pele, colchão pneumático, inspeção diária da pele",
+        frequencia: "A cada 2 horas"
+      },
+      "RISCO_INFECCAO": {
+        nome: "Protocolo de Prevenção de Infecção",
+        descricao: "Técnica asséptica rigorosa, troca de curativos, higiene das mãos, monitorar sinais de infecção",
+        frequencia: "A cada procedimento"
+      },
+      "RISCO_ASPIRACAO": {
+        nome: "Protocolo de Prevenção de Broncoaspiração",
+        descricao: "Cabeceira elevada 30-45°, supervisão da dieta, avaliação da deglutição, pausar dieta se necessário",
+        frequencia: "Durante alimentação"
+      },
+      "RISCO_NUTRICIONAL": {
+        nome: "Protocolo de Suporte Nutricional",
+        descricao: "Avaliação nutricional, controle de ingesta, peso semanal, suplementação se indicado",
+        frequencia: "Diário"
+      },
+      "RISCO_RESPIRATORIO": {
+        nome: "Protocolo de Suporte Respiratório",
+        descricao: "Monitorar saturação, oxigenoterapia conforme prescrição, cabeceira elevada, fisioterapia respiratória",
+        frequencia: "A cada 4 horas"
+      }
+    };
+    return protocolos[tipo] || null;
+  }
+
+  private gerarProtocolosConsolidados(classificacao: ClassificacaoProblemas): ProtocoloEnfermagem[] {
+    const protocolos: ProtocoloEnfermagem[] = [];
+
+    if (classificacao.risco_queda.length > 0) {
+      protocolos.push({
+        categoria: "Prevenção de Quedas",
+        icone: "AlertTriangle",
+        cor: "yellow",
+        leitos_afetados: [...new Set(classificacao.risco_queda.map(l => l.leito))],
+        quantidade: classificacao.risco_queda.length,
+        protocolo_resumo: "Pacientes com risco identificado de queda requerem supervisão aumentada",
+        acoes_principais: [
+          "Manter grades do leito elevadas",
+          "Campainha ao alcance do paciente",
+          "Piso seco e ambiente iluminado",
+          "Supervisionar deambulação",
+          "Revisar medicações que causam tontura"
+        ]
+      });
+    }
+
+    if (classificacao.risco_lesao_pressao.length > 0) {
+      protocolos.push({
+        categoria: "Prevenção de Lesão por Pressão",
+        icone: "Shield",
+        cor: "red",
+        leitos_afetados: [...new Set(classificacao.risco_lesao_pressao.map(l => l.leito))],
+        quantidade: classificacao.risco_lesao_pressao.length,
+        protocolo_resumo: "Pacientes com Braden baixo ou mobilidade reduzida requerem cuidados intensivos de pele",
+        acoes_principais: [
+          "Mudança de decúbito a cada 2 horas",
+          "Avaliar e documentar integridade da pele",
+          "Manter pele limpa e hidratada",
+          "Usar colchão pneumático/caixa de ovo",
+          "Proteger proeminências ósseas"
+        ]
+      });
+    }
+
+    if (classificacao.risco_infeccao.length > 0) {
+      protocolos.push({
+        categoria: "Prevenção de Infecção",
+        icone: "Bug",
+        cor: "orange",
+        leitos_afetados: [...new Set(classificacao.risco_infeccao.map(l => l.leito))],
+        quantidade: classificacao.risco_infeccao.length,
+        protocolo_resumo: "Pacientes com dispositivos invasivos ou imunossuprimidos requerem técnica asséptica rigorosa",
+        acoes_principais: [
+          "Higiene rigorosa das mãos",
+          "Técnica asséptica em procedimentos",
+          "Trocar curativos conforme protocolo",
+          "Avaliar sinais flogísticos",
+          "Monitorar temperatura"
+        ]
+      });
+    }
+
+    if (classificacao.risco_broncoaspiracao.length > 0) {
+      protocolos.push({
+        categoria: "Prevenção de Broncoaspiração",
+        icone: "Wind",
+        cor: "blue",
+        leitos_afetados: [...new Set(classificacao.risco_broncoaspiracao.map(l => l.leito))],
+        quantidade: classificacao.risco_broncoaspiracao.length,
+        protocolo_resumo: "Pacientes com disfagia ou rebaixamento de consciência requerem supervisão durante alimentação",
+        acoes_principais: [
+          "Manter cabeceira elevada 30-45°",
+          "Supervisionar durante alimentação",
+          "Avaliar deglutição antes de ofertar VO",
+          "Pausar dieta se vômitos ou distensão",
+          "Aspirar secreções se necessário"
+        ]
+      });
+    }
+
+    if (classificacao.risco_nutricional.length > 0) {
+      protocolos.push({
+        categoria: "Suporte Nutricional",
+        icone: "Utensils",
+        cor: "green",
+        leitos_afetados: [...new Set(classificacao.risco_nutricional.map(l => l.leito))],
+        quantidade: classificacao.risco_nutricional.length,
+        protocolo_resumo: "Pacientes com risco nutricional requerem monitoramento da ingesta e peso",
+        acoes_principais: [
+          "Controlar aceitação da dieta",
+          "Pesar semanalmente",
+          "Avaliar necessidade de suplementação",
+          "Comunicar nutricionista se baixa aceitação",
+          "Documentar ingesta hídrica"
+        ]
+      });
+    }
+
+    if (classificacao.risco_respiratorio.length > 0) {
+      protocolos.push({
+        categoria: "Suporte Respiratório",
+        icone: "Heart",
+        cor: "purple",
+        leitos_afetados: [...new Set(classificacao.risco_respiratorio.map(l => l.leito))],
+        quantidade: classificacao.risco_respiratorio.length,
+        protocolo_resumo: "Pacientes com comprometimento respiratório requerem monitorização contínua",
+        acoes_principais: [
+          "Monitorar saturação de O2",
+          "Administrar O2 conforme prescrição",
+          "Manter cabeceira elevada",
+          "Avaliar padrão respiratório",
+          "Comunicar desconforto respiratório"
+        ]
+      });
+    }
+
+    return protocolos;
   }
 
   private buildClinicalAnalysisPrompt(patient: PatientData): string {
