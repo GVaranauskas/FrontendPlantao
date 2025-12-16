@@ -98,6 +98,20 @@ export class PostgresStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  async replaceAllPatients(newPatients: InsertPatient[]): Promise<{ deleted: number; created: number }> {
+    const deleteResult = await db.delete(patients);
+    const deleted = deleteResult.rowCount || 0;
+    
+    let created = 0;
+    for (const patient of newPatients) {
+      const encryptedPatient = this.encryptPatientData(patient);
+      await db.insert(patients).values(encryptedPatient);
+      created++;
+    }
+    
+    return { deleted, created };
+  }
+
   async getAllAlerts(): Promise<Alert[]> {
     return await db.select().from(alerts);
   }

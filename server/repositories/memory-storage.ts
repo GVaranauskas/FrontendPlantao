@@ -117,6 +117,20 @@ export class MemStorage implements IStorage {
     return this.patients.delete(id);
   }
 
+  async replaceAllPatients(newPatients: InsertPatient[]): Promise<{ deleted: number; created: number }> {
+    const deleted = this.patients.size;
+    this.patients.clear();
+    
+    let created = 0;
+    for (const patient of newPatients) {
+      const id = randomUUID();
+      this.patients.set(id, { ...patient, id } as Patient);
+      created++;
+    }
+    
+    return { deleted, created };
+  }
+
   async getAllAlerts(): Promise<Alert[]> {
     return Array.from(this.alerts.values());
   }
