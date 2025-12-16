@@ -32,9 +32,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   
-  N8N_WEBHOOK_SECRET: isProduction
-    ? z.string().min(16, 'N8N_WEBHOOK_SECRET must be at least 16 characters in production')
-    : z.string().default('dev-secret'),
+  N8N_WEBHOOK_SECRET: z.string().default('dev-secret'),
   N8N_ALLOWED_IPS: z.string().optional(),
   
   LOG_DIR: z.string().default('./logs'),
