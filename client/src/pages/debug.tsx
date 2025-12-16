@@ -1,27 +1,15 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Copy, RefreshCw, ArrowLeft, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, RefreshCw, ArrowLeft } from "lucide-react";
 import type { Patient, Alert } from "@shared/schema";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface Enfermaria {
   codigo: string;
   nome: string;
-}
-
-interface BulkImportResult {
-  success: boolean;
-  message: string;
-  stats: {
-    total: number;
-    created: number;
-    deleted: number;
-    errors: Array<{ index: number; leito: string; error: string }>;
-  };
 }
 
 export default function DebugPage() {
@@ -30,31 +18,9 @@ export default function DebugPage() {
     patients: true,
     alerts: true,
     enfermarias: true,
-    bulkImport: true,
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedEnfermaria, setSelectedEnfermaria] = useState("10A02");
-  const [jsonInput, setJsonInput] = useState("");
-  const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const bulkImportMutation = useMutation({
-    mutationFn: async (data: unknown[]) => {
-      const response = await apiRequest("POST", "/api/import/bulk-json", { data });
-      return response.json() as Promise<BulkImportResult>;
-    },
-    onSuccess: (result) => {
-      setImportResult(result);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
-    },
-    onError: (error) => {
-      setImportResult({
-        success: false,
-        message: error instanceof Error ? error.message : "Erro desconhecido",
-        stats: { total: 0, created: 0, deleted: 0, errors: [] }
-      });
-    }
-  });
 
   const { data: patients, refetch: refetchPatients } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -126,182 +92,6 @@ export default function DebugPage() {
               Importar {selectedEnfermaria}
             </Button>
           </div>
-        </Card>
-
-        {/* BULK JSON IMPORT SECTION */}
-        <Card className="overflow-hidden">
-          <div
-            className="p-4 bg-gradient-to-r from-amber-500/10 to-transparent cursor-pointer hover:bg-amber-500/20 transition-colors flex items-center justify-between"
-            onClick={() => toggleSection("bulkImport")}
-            data-testid="section-bulk-import-toggle"
-          >
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Upload className="w-5 h-5" /> Importação JSON em Massa
-            </h2>
-            {expandedSections.bulkImport ? (
-              <ChevronUp className="w-5 h-5" />
-            ) : (
-              <ChevronDown className="w-5 h-5" />
-            )}
-          </div>
-
-          {expandedSections.bulkImport && (
-            <div className="p-4 space-y-4">
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>
-                    <strong>Atenção:</strong> Esta importação irá <strong>SUBSTITUIR TODOS</strong> os dados de pacientes existentes. 
-                    Faça backup dos dados atuais antes de prosseguir.
-                  </span>
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept=".json"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          const content = event.target?.result as string;
-                          setJsonInput(content);
-                          setImportResult(null);
-                        };
-                        reader.readAsText(file);
-                      }
-                    }}
-                    data-testid="input-json-file"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    data-testid="button-upload-file"
-                  >
-                    <Upload className="w-3 h-3 mr-1" />
-                    Carregar arquivo JSON
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setJsonInput("");
-                      setImportResult(null);
-                    }}
-                    data-testid="button-clear-json"
-                  >
-                    Limpar
-                  </Button>
-                </div>
-
-                <textarea
-                  value={jsonInput}
-                  onChange={(e) => {
-                    setJsonInput(e.target.value);
-                    setImportResult(null);
-                  }}
-                  placeholder='Cole aqui o JSON com array de pacientes, ex: [{"leito": "101A", "nome": "Paciente 1"}, ...]'
-                  className="w-full h-48 p-3 rounded-lg border bg-background font-mono text-xs resize-y"
-                  data-testid="textarea-json-input"
-                />
-
-                <div className="flex gap-2 flex-wrap items-center">
-                  <Button
-                    onClick={() => {
-                      try {
-                        const parsed = JSON.parse(jsonInput);
-                        const dataArray = Array.isArray(parsed) ? parsed : parsed.data || parsed.patients || [parsed];
-                        if (dataArray.length === 0) {
-                          setImportResult({
-                            success: false,
-                            message: "O JSON não contém dados para importar",
-                            stats: { total: 0, created: 0, deleted: 0, errors: [] }
-                          });
-                          return;
-                        }
-                        bulkImportMutation.mutate(dataArray);
-                      } catch (e) {
-                        setImportResult({
-                          success: false,
-                          message: "JSON inválido: " + (e instanceof Error ? e.message : String(e)),
-                          stats: { total: 0, created: 0, deleted: 0, errors: [] }
-                        });
-                      }
-                    }}
-                    disabled={!jsonInput.trim() || bulkImportMutation.isPending}
-                    data-testid="button-import-json"
-                  >
-                    {bulkImportMutation.isPending ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Importando...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Importar e Substituir Dados
-                      </>
-                    )}
-                  </Button>
-                  {jsonInput && (
-                    <span className="text-xs text-muted-foreground">
-                      {jsonInput.length.toLocaleString()} caracteres
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {importResult && (
-                <div
-                  className={`p-4 rounded-lg border ${
-                    importResult.success
-                      ? "bg-emerald-500/10 border-emerald-500/30"
-                      : "bg-red-500/10 border-red-500/30"
-                  }`}
-                  data-testid="import-result"
-                >
-                  <div className="flex items-start gap-2">
-                    {importResult.success ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
-                    )}
-                    <div className="space-y-2">
-                      <p className={importResult.success ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}>
-                        {importResult.message}
-                      </p>
-                      {importResult.stats && (
-                        <div className="text-sm space-y-1">
-                          <p>Total processado: <strong>{importResult.stats.total}</strong></p>
-                          <p>Registros criados: <strong>{importResult.stats.created}</strong></p>
-                          <p>Registros anteriores removidos: <strong>{importResult.stats.deleted}</strong></p>
-                          {importResult.stats.errors.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-red-600 dark:text-red-400 font-medium">Erros ({importResult.stats.errors.length}):</p>
-                              <ul className="list-disc ml-4 text-xs mt-1">
-                                {importResult.stats.errors.slice(0, 5).map((err, i) => (
-                                  <li key={i}>Leito {err.leito}: {err.error}</li>
-                                ))}
-                                {importResult.stats.errors.length > 5 && (
-                                  <li>... e mais {importResult.stats.errors.length - 5} erros</li>
-                                )}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </Card>
 
         {/* PATIENTS SECTION */}
