@@ -700,18 +700,27 @@ export default function ShiftHandoverPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPatients.map((patient, idx) => (
+                  {filteredPatients.map((patient, idx) => {
+                    const getRowBackground = () => {
+                      if (patient.alerta === "critical") {
+                        return "bg-destructive/10 hover:bg-destructive/20";
+                      }
+                      if (patient.alerta === "medium") {
+                        return "bg-orange-400/15 hover:bg-orange-400/25 dark:bg-orange-500/15 dark:hover:bg-orange-500/25";
+                      }
+                      if (patient.status === "complete") {
+                        return "bg-emerald-500/15 hover:bg-emerald-500/25 dark:bg-emerald-400/15 dark:hover:bg-emerald-400/25";
+                      }
+                      if (patient.status === "pending") {
+                        return "bg-yellow-400/20 hover:bg-yellow-400/30 dark:bg-yellow-500/20 dark:hover:bg-yellow-500/30";
+                      }
+                      return idx % 2 === 0 ? "bg-muted/30 hover:bg-muted/50" : "hover:bg-muted/30";
+                    };
+                    
+                    return (
                     <tr 
                       key={patient.id}
-                      className={`transition-colors ${
-                        patient.alerta === "critical"
-                          ? "bg-destructive/10 hover:bg-destructive/20"
-                          : patient.alerta === "medium"
-                          ? "bg-chart-3/10 hover:bg-chart-3/20"
-                          : idx % 2 === 0
-                          ? "bg-muted/30 hover:bg-muted/50"
-                          : "hover:bg-muted/30"
-                      }`}
+                      className={`transition-colors ${getRowBackground()}`}
                       data-testid={`row-patient-${patient.id}`}
                     >
                       <td className="px-2 py-2 text-center font-bold text-primary border border-border sticky left-0 bg-inherit z-10">{patient.leito}</td>
@@ -738,7 +747,8 @@ export default function ShiftHandoverPage() {
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.observacoes || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.previsaoAlta || "-"}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
