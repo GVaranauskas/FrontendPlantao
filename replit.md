@@ -66,10 +66,44 @@ Preferred communication style: Simple, everyday language.
 ```
 
 ### Clinical Analysis (clinical-analysis-batch)
-A análise clínica em lote processa todos os pacientes e retorna:
+A análise clínica em lote processa todos os pacientes e retorna uma estrutura rica com:
+
+#### Análise Individual por Paciente
 - **nivel_alerta**: VERMELHO (crítico), AMARELO (moderado), VERDE (ok)
 - **score_qualidade**: 0-100% indicando completude da documentação
 - **principais_alertas**: Lista de alertas identificados pela IA
 - **gaps_criticos**: Campos de documentação ausentes
+- **recomendacoes_enfermagem**: Recomendações específicas por paciente
 
-Resultados são armazenados no campo `clinicalInsights` (JSONB) de cada paciente e exibidos como badges coloridos na tabela de passagem de plantão.
+#### Análise Geral do Plantão (`analiseGeral`)
+A resposta inclui uma análise consolidada (`AnaliseGeralMelhorada`) com:
+
+1. **leitos_detalhados**: Informações completas por leito:
+   - Diagnóstico principal e tipo de enfermidade (Respiratória, Cardiovascular, Neurológica, etc.)
+   - Dias de internação, score Braden, mobilidade
+   - Riscos identificados com níveis (ALTO, MODERADO, BAIXO)
+   - Protocolos ativos com frequência de execução
+   - Dispositivos e antibióticos em uso
+   - Gaps de documentação específicos
+
+2. **protocolos_enfermagem**: Protocolos consolidados por categoria:
+   - Prevenção de Quedas, Lesão por Pressão, Infecção, Broncoaspiração, Nutricional, Respiratório
+   - Ícones e cores para visualização rápida
+   - Leitos afetados e ações principais
+
+3. **indicadores**: Métricas avançadas do plantão:
+   - Total de pacientes e média Braden
+   - Média de dias de internação
+   - Taxa de completude documental
+   - Pacientes de alta complexidade, com dispositivos, em ATB
+   - Pacientes acamados, com risco de queda alto, risco de lesão por pressão
+
+4. **classificacao_por_problema**: Leitos agrupados por tipo de risco:
+   - risco_queda, risco_lesao_pressao, risco_infeccao
+   - risco_broncoaspiracao, risco_nutricional, risco_respiratorio
+
+5. **alertas_criticos_enfermagem**: Alertas prioritários consolidados
+
+6. **recomendacoes_gerais_plantao**: Recomendações gerais para a equipe
+
+Resultados são armazenados no campo `clinicalInsights` (JSONB) de cada paciente e exibidos como badges coloridos na tabela de passagem de plantão. O painel lateral de análise IA mostra todos os dados detalhados com cards por protocolo, indicadores visuais e informações expandidas por leito.
