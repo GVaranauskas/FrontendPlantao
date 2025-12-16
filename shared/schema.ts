@@ -54,6 +54,10 @@ export const patients = pgTable("patients", {
   fonteDados: text("fonte_dados").default("N8N_IAMSPE"),
   dadosBrutosJson: jsonb("dados_brutos_json"),
   importedAt: timestamp("imported_at").defaultNow(),
+  
+  // Análise clínica de IA para passagem de plantão
+  clinicalInsights: jsonb("clinical_insights"),
+  clinicalInsightsUpdatedAt: timestamp("clinical_insights_updated_at"),
 });
 
 export const alerts = pgTable("alerts", {

@@ -852,6 +852,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ recomendacoes: recommendations });
   }));
 
+  // Clinical analysis for shift handover - single patient
+  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+    const { aiService } = await import("./services/ai-service");
+    const patient = await storage.getPatient(req.params.id);
+    if (!patient) {
+      throw new AppError(404, "Paciente não encontrado");
+    }
+    
+    const analysis = await aiService.performClinicalAnalysis(patient);
+    const insights = aiService.extractClinicalInsights(analysis);
+    
+    // Store insights in patient record
+    await storage.updatePatient(patient.id, {
+      clinicalInsights: insights,
+      clinicalInsightsUpdatedAt: new Date(),
+    });
+    
+    logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta}`);
+    res.json({ insights, analysis });
+  }));
+
+  // Clinical analysis for shift handover - all patients (batch)
+  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+    const { aiService } = await import("./services/ai-service");
+    const patients = await storage.getAllPatients();
+    
+    if (patients.length === 0) {
+      throw new AppError(404, "Nenhum paciente encontrado");
+    }
+
+    const results: Array<{ id: string; leito: string; insights: any; error?: string }> = [];
+    const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, errors: 0 };
+    const failedPatients: string[] = [];
+
+    // Process patients in sequence to avoid rate limiting
+    for (const patient of patients) {
+      try {
+        const analysis = await aiService.performClinicalAnalysis(patient);
+        const insights = aiService.extractClinicalInsights(analysis);
+        
+        // Ensure insights has required fields
+        if (!insights || !insights.nivel_alerta) {
+          throw new Error("Análise retornou dados incompletos");
+        }
+        
+        await storage.updatePatient(patient.id, {
+          clinicalInsights: insights,
+          clinicalInsightsUpdatedAt: new Date(),
+        });
+        
+        results.push({ id: patient.id, leito: patient.leito, insights });
+        
+        if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
+        else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
+        else summaryStats.verde++;
+        
+        logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} analyzed: ${insights.nivel_alerta}`);
+        
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
+        summaryStats.errors++;
+        failedPatients.push(patient.leito);
+        results.push({ 
+          id: patient.id, 
+          leito: patient.leito, 
+          insights: null, 
+          error: errorMsg 
+        });
+        logger.warn(`[${getTimestamp()}] [AI] Failed to analyze patient ${patient.leito}: ${errorMsg}`);
+      }
+    }
+    
+    const successCount = summaryStats.vermelho + summaryStats.amarelo + summaryStats.verde;
+    logger.info(`[${getTimestamp()}] [AI] Batch clinical analysis completed: ${successCount}/${patients.length} successful (${summaryStats.vermelho} critical, ${summaryStats.amarelo} warning, ${summaryStats.verde} ok), ${summaryStats.errors} errors`);
+    
+    if (failedPatients.length > 0) {
+      logger.warn(`[${getTimestamp()}] [AI] Failed patients: ${failedPatients.join(", ")}`);
+    }
+    
+    res.json({
+      total: patients.length,
+      success: successCount,
+      summary: summaryStats,
+      leitosAtencao: results
+        .filter(r => r.insights?.nivel_alerta === "VERMELHO")
+        .map(r => r.leito),
+      leitosAlerta: results
+        .filter(r => r.insights?.nivel_alerta === "AMARELO")
+        .map(r => r.leito),
+      failedPatients,
+      results,
+    });
+  }));
+
   // Register authentication routes
   registerAuthRoutes(app);
   registerUserRoutes(app);
