@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitManualSchema, updateNursingUnitSchema } from "@shared/schema";
+import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitManualSchema, updateNursingUnitSchema, type InsertPatient } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
 import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEvolucoesByEnfermaria, syncEvolucoesByUnitIds, syncAllEvolucoes } from "./sync";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
@@ -511,6 +511,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to cleanup old logs" });
     }
   });
+
+  // Bulk JSON import - overwrites all patient data
+  app.post("/api/import/bulk-json", asyncHandler(async (req, res) => {
+    const { data } = req.body;
+    
+    if (!data || !Array.isArray(data)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "O campo 'data' é obrigatório e deve ser um array de pacientes" 
+      });
+    }
+
+    if (data.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "O array de dados não pode estar vazio" 
+      });
+    }
+
+    logger.info(`[${getTimestamp()}] [BulkImport] Starting bulk import with ${data.length} records`);
+
+    const stats = {
+      total: data.length,
+      created: 0,
+      deleted: 0,
+      errors: [] as Array<{ index: number; leito: string; error: string }>
+    };
+
+    // Map and validate incoming data
+    const patientsToInsert: InsertPatient[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      try {
+        const patient: InsertPatient = {
+          leito: item.leito || item.ds_leito_completo || `IMPORT-${i + 1}`,
+          nome: item.nome || item.nm_paciente || "Nome não informado",
+          dataInternacao: item.dataInternacao || item.dt_internacao || new Date().toISOString().split('T')[0],
+          registro: item.registro || item.cd_paciente || null,
+          dataNascimento: item.dataNascimento || item.dt_nascimento || null,
+          especialidadeRamal: item.especialidadeRamal || item.ds_especialidade || null,
+          braden: item.braden || null,
+          diagnostico: item.diagnostico || null,
+          alergias: item.alergias || null,
+          mobilidade: item.mobilidade || null,
+          dieta: item.dieta || null,
+          eliminacoes: item.eliminacoes || null,
+          dispositivos: item.dispositivos || null,
+          atb: item.atb || null,
+          curativos: item.curativos || null,
+          aporteSaturacao: item.aporteSaturacao || null,
+          exames: item.exames || null,
+          cirurgia: item.cirurgia || null,
+          observacoes: item.observacoes || null,
+          previsaoAlta: item.previsaoAlta || null,
+          alerta: item.alerta || null,
+          status: item.status || "pending",
+          idEvolucao: item.idEvolucao || item.id_evolucao || null,
+          dsEnfermaria: item.dsEnfermaria || item.ds_enfermaria || null,
+          dsLeitoCompleto: item.dsLeitoCompleto || item.ds_leito_completo || null,
+          dsEspecialidade: item.dsEspecialidade || item.ds_especialidade || null,
+          codigoAtendimento: item.codigoAtendimento || item.cd_atendimento || null,
+          dsEvolucaoCompleta: item.dsEvolucaoCompleta || item.ds_evolucao || null,
+          dhCriacaoEvolucao: item.dhCriacaoEvolucao ? new Date(item.dhCriacaoEvolucao) : null,
+          fonteDados: item.fonteDados || "BULK_IMPORT",
+          dadosBrutosJson: item.dadosBrutosJson || item,
+          importedAt: new Date(),
+        };
+        patientsToInsert.push(patient);
+      } catch (error) {
+        stats.errors.push({
+          index: i,
+          leito: item.leito || item.ds_leito_completo || `UNKNOWN-${i}`,
+          error: error instanceof Error ? error.message : "Erro ao processar registro"
+        });
+      }
+    }
+
+    // Replace all patients with the new data
+    const result = await storage.replaceAllPatients(patientsToInsert);
+    stats.deleted = result.deleted;
+    stats.created = result.created;
+
+    // Save import history
+    await storage.createImportHistory({
+      enfermaria: "BULK_IMPORT",
+      total: stats.total,
+      importados: stats.created,
+      erros: stats.errors.length,
+      detalhes: stats.errors.length > 0 ? stats.errors : [{ leito: "ALL", status: "success", mensagem: `${stats.created} registros importados` }],
+      duracao: 0
+    });
+
+    logger.info(`[${getTimestamp()}] [BulkImport] Completed: deleted=${stats.deleted}, created=${stats.created}, errors=${stats.errors.length}`);
+
+    res.json({
+      success: stats.errors.length === 0,
+      message: stats.errors.length === 0 
+        ? `Importação concluída: ${stats.created} registros importados, ${stats.deleted} registros anteriores removidos`
+        : `Importação concluída com ${stats.errors.length} erros`,
+      stats
+    });
+  }));
 
   const httpServer = createServer(app);
 
