@@ -70,8 +70,8 @@ export function setupRateLimit(app: Express): void {
     skipSuccessfulRequests: true, // Don't count successful requests
   });
   
-  // You can apply stricter limits to sensitive endpoints if needed
-  // app.use("/api/auth/", authLimiter);
+  // Apply stricter limits to auth endpoints to prevent brute force attacks
+  app.use("/api/auth/", authLimiter);
 }
 
 /**
