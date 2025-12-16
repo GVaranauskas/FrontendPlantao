@@ -35,6 +35,7 @@ interface ClinicalAlert {
   tipo: string;
   nivel: "VERMELHO" | "AMARELO" | "VERDE";
   titulo: string;
+  descricao?: string;
 }
 
 interface ClinicalInsights {
@@ -46,14 +47,57 @@ interface ClinicalInsights {
   score_qualidade: number;
   categoria_qualidade: string;
   prioridade_acao: string | null;
+  recomendacoes_enfermagem: string[];
+}
+
+interface LeitoDetalhado {
+  leito: string;
+  nome: string;
+  recomendacoes: string[];
+  alertas: ClinicalAlert[];
+}
+
+interface LeitoClassificado {
+  leito: string;
+  nome: string;
+  nivel: "VERMELHO" | "AMARELO" | "VERDE";
+  problemas: string[];
+  recomendacoes: string[];
+  alertas_prioritarios: string[];
+}
+
+interface ClassificacaoProblemas {
+  risco_queda: LeitoClassificado[];
+  risco_lesao_pressao: LeitoClassificado[];
+  risco_infeccao: LeitoClassificado[];
+  risco_broncoaspiracao: LeitoClassificado[];
+  risco_nutricional: LeitoClassificado[];
+  risco_respiratorio: LeitoClassificado[];
+}
+
+interface AnaliseGeral {
+  timestamp: string;
+  resumo_executivo: string;
+  alertas_criticos_enfermagem: string[];
+  classificacao_por_problema: ClassificacaoProblemas;
+  leitos_prioridade_maxima: LeitoClassificado[];
+  estatisticas: {
+    total: number;
+    vermelho: number;
+    amarelo: number;
+    verde: number;
+    por_tipo_risco: Record<string, number>;
+  };
+  recomendacoes_gerais_plantao: string[];
 }
 
 interface ClinicalBatchResult {
   total: number;
   success: number;
   summary: { vermelho: number; amarelo: number; verde: number; errors: number };
-  leitosAtencao: string[];
-  leitosAlerta: string[];
+  analiseGeral?: AnaliseGeral;
+  leitosAtencao: LeitoDetalhado[];
+  leitosAlerta: LeitoDetalhado[];
   failedPatients: string[];
 }
 
@@ -603,10 +647,24 @@ export default function ShiftHandoverPage() {
 
                     {clinicalBatchResult && !clinicalAnalysisMutation.isPending && (
                       <div className="space-y-4">
-                        <Card className="p-4 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                        {/* Resumo Executivo */}
+                        {clinicalBatchResult.analiseGeral && (
+                          <Card className="p-4 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                              <Brain className="w-4 h-4" />
+                              Resumo Executivo do Plantão
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {clinicalBatchResult.analiseGeral.resumo_executivo}
+                            </p>
+                          </Card>
+                        )}
+
+                        {/* Estatísticas */}
+                        <Card className="p-4">
                           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                             <Activity className="w-4 h-4" />
-                            Resultado da Análise Clínica
+                            Classificação Geral
                           </h3>
                           <div className="grid grid-cols-4 gap-2 text-center">
                             <div className="bg-red-500/20 rounded-lg p-2">
@@ -628,38 +686,122 @@ export default function ShiftHandoverPage() {
                           </div>
                         </Card>
 
+                        {/* Alertas Críticos para Enfermagem */}
+                        {clinicalBatchResult.analiseGeral?.alertas_criticos_enfermagem && 
+                         clinicalBatchResult.analiseGeral.alertas_criticos_enfermagem.length > 0 && (
+                          <Card className="p-4 border-red-500/30 bg-red-500/5">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-500">
+                              <AlertTriangle className="w-4 h-4" />
+                              ALERTAS IMPORTANTES - Enfermagem
+                            </h3>
+                            <ul className="space-y-2">
+                              {clinicalBatchResult.analiseGeral.alertas_criticos_enfermagem.map((alerta, idx) => (
+                                <li key={idx} className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
+                                  <span className="text-red-500 mt-0.5">•</span>
+                                  <span>{alerta}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        )}
+
+                        {/* Leitos Críticos com Recomendações */}
                         {clinicalBatchResult.leitosAtencao.length > 0 && (
                           <Card className="p-4 border-red-500/30 bg-red-500/5">
-                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2 text-red-500">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-500">
                               <AlertTriangle className="w-4 h-4" />
-                              Leitos que Requerem Atenção Imediata
+                              Leitos CRÍTICOS - Atenção Imediata
                             </h3>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="space-y-3">
                               {clinicalBatchResult.leitosAtencao.map((leito, idx) => (
-                                <Badge key={idx} className="bg-red-500 text-white text-xs">
-                                  {leito}
-                                </Badge>
+                                <div key={idx} className="border-l-2 border-red-500 pl-3 py-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge className="bg-red-500 text-white text-xs">
+                                      Leito {leito.leito}
+                                    </Badge>
+                                    <span className="text-xs font-medium truncate">{leito.nome}</span>
+                                  </div>
+                                  {leito.alertas && leito.alertas.length > 0 && (
+                                    <div className="space-y-1 mt-2">
+                                      {leito.alertas.slice(0, 2).map((alerta, aIdx) => (
+                                        <div key={aIdx} className="text-xs text-red-700 dark:text-red-300">
+                                          <span className="font-medium">{alerta.titulo}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {leito.recomendacoes && leito.recomendacoes.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="text-[10px] font-semibold text-red-600 uppercase">Recomendações:</div>
+                                      {leito.recomendacoes.slice(0, 2).map((rec, rIdx) => (
+                                        <div key={rIdx} className="text-xs text-muted-foreground flex items-start gap-1">
+                                          <CheckCircle className="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0" />
+                                          <span>{rec}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           </Card>
                         )}
 
+                        {/* Leitos com Alertas Moderados */}
                         {clinicalBatchResult.leitosAlerta.length > 0 && (
                           <Card className="p-4 border-yellow-500/30 bg-yellow-500/5">
-                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2 text-yellow-600">
+                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2 text-yellow-600">
                               <Activity className="w-4 h-4" />
-                              Leitos com Alertas Moderados
+                              Leitos com ALERTAS - Monitorar
                             </h3>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="space-y-3">
                               {clinicalBatchResult.leitosAlerta.map((leito, idx) => (
-                                <Badge key={idx} className="bg-yellow-500 text-black text-xs">
-                                  {leito}
-                                </Badge>
+                                <div key={idx} className="border-l-2 border-yellow-500 pl-3 py-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge className="bg-yellow-500 text-black text-xs">
+                                      Leito {leito.leito}
+                                    </Badge>
+                                    <span className="text-xs font-medium truncate">{leito.nome}</span>
+                                  </div>
+                                  {leito.alertas && leito.alertas.length > 0 && (
+                                    <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                                      {leito.alertas[0]?.titulo}
+                                    </div>
+                                  )}
+                                  {leito.recomendacoes && leito.recomendacoes.length > 0 && (
+                                    <div className="mt-2">
+                                      <div className="text-xs text-muted-foreground flex items-start gap-1">
+                                        <CheckCircle className="w-3 h-3 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                        <span>{leito.recomendacoes[0]}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           </Card>
                         )}
 
+                        {/* Recomendações Gerais para o Plantão */}
+                        {clinicalBatchResult.analiseGeral?.recomendacoes_gerais_plantao && 
+                         clinicalBatchResult.analiseGeral.recomendacoes_gerais_plantao.length > 0 && (
+                          <Card className="p-4 border-primary/20 bg-primary/5">
+                            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-primary" />
+                              Recomendações para o Plantão
+                            </h3>
+                            <ul className="space-y-1">
+                              {clinicalBatchResult.analiseGeral.recomendacoes_gerais_plantao.map((rec, idx) => (
+                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                                  <span className="text-primary">•</span>
+                                  <span>{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        )}
+
+                        {/* Falhas */}
                         {clinicalBatchResult.failedPatients && clinicalBatchResult.failedPatients.length > 0 && (
                           <Card className="p-4 border-muted bg-muted/10">
                             <h3 className="font-semibold text-sm mb-2 flex items-center gap-2 text-muted-foreground">
@@ -673,15 +815,11 @@ export default function ShiftHandoverPage() {
                                 </Badge>
                               ))}
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-2">
-                              Tente novamente ou verifique os dados destes pacientes.
-                            </p>
                           </Card>
                         )}
 
                         <p className="text-xs text-muted-foreground text-center">
-                          {clinicalBatchResult.success}/{clinicalBatchResult.total} pacientes analisados com sucesso.
-                          Os badges de alerta foram atualizados na tabela.
+                          {clinicalBatchResult.success}/{clinicalBatchResult.total} pacientes analisados.
                         </p>
 
                         <Button

@@ -161,12 +161,48 @@ export interface PatientClinicalInsights {
   timestamp: string;
   nivel_alerta: "VERMELHO" | "AMARELO" | "VERDE";
   alertas_count: { vermelho: number; amarelo: number; verde: number };
-  principais_alertas: Array<{ tipo: string; nivel: string; titulo: string }>;
+  principais_alertas: Array<{ tipo: string; nivel: string; titulo: string; descricao?: string }>;
   gaps_criticos: string[];
   score_qualidade: number;
   categoria_qualidade: string;
   prioridade_acao: string | null;
+  recomendacoes_enfermagem: string[];
   analise_completa?: ClinicalAnalysisResult;
+}
+
+// Estrutura para classificação de leitos por problema
+export interface LeitoClassificado {
+  leito: string;
+  nome: string;
+  nivel: "VERMELHO" | "AMARELO" | "VERDE";
+  problemas: string[];
+  recomendacoes: string[];
+  alertas_prioritarios: string[];
+}
+
+export interface ClassificacaoProblemas {
+  risco_queda: LeitoClassificado[];
+  risco_lesao_pressao: LeitoClassificado[];
+  risco_infeccao: LeitoClassificado[];
+  risco_broncoaspiracao: LeitoClassificado[];
+  risco_nutricional: LeitoClassificado[];
+  risco_respiratorio: LeitoClassificado[];
+}
+
+export interface AnaliseGeralMelhorada {
+  timestamp: string;
+  resumo_executivo: string;
+  alertas_criticos_enfermagem: string[];
+  classificacao_por_problema: ClassificacaoProblemas;
+  leitos_prioridade_maxima: LeitoClassificado[];
+  estatisticas: {
+    total: number;
+    vermelho: number;
+    amarelo: number;
+    verde: number;
+    por_tipo_risco: Record<string, number>;
+  };
+  recomendacoes_gerais_plantao: string[];
 }
 
 const SYSTEM_PROMPT_PATIENT = `Você é um assistente clínico especializado em enfermagem hospitalar.
@@ -548,20 +584,164 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       (p) => p.prazo === "IMEDIATO"
     );
 
+    // Extrair recomendações prioritárias para enfermagem
+    const recomendacoes_enfermagem: string[] = [];
+    
+    // Recomendações imediatas dos alertas
+    alertas.filter(a => a.nivel === "VERMELHO" || a.nivel === "AMARELO")
+      .slice(0, 3)
+      .forEach(a => {
+        if (a.recomendacao_imediata) {
+          recomendacoes_enfermagem.push(a.recomendacao_imediata);
+        }
+      });
+    
+    // Prioridades de ação do enfermeiro
+    (analysis.prioridades_acao || [])
+      .filter(p => p.responsavel === "ENFERMEIRO" && p.prazo !== "24H")
+      .slice(0, 2)
+      .forEach(p => {
+        if (!recomendacoes_enfermagem.includes(p.acao)) {
+          recomendacoes_enfermagem.push(p.acao);
+        }
+      });
+
     return {
       timestamp: new Date().toISOString(),
       nivel_alerta,
       alertas_count: { vermelho, amarelo, verde },
-      principais_alertas: alertas.slice(0, 3).map((a) => ({
+      principais_alertas: alertas.slice(0, 5).map((a) => ({
         tipo: a.tipo,
         nivel: a.nivel,
         titulo: a.titulo,
+        descricao: a.descricao,
       })),
       gaps_criticos,
       score_qualidade: analysis.score_qualidade?.pontuacao_total || 0,
       categoria_qualidade: analysis.score_qualidade?.categoria || "NAO_AVALIADO",
       prioridade_acao: prioridadeImediata?.acao || null,
+      recomendacoes_enfermagem,
       analise_completa: analysis,
+    };
+  }
+
+  /**
+   * Generate enhanced general analysis with problem classification
+   */
+  async generateEnhancedGeneralAnalysis(
+    patients: PatientData[],
+    patientInsights: Map<string, PatientClinicalInsights>
+  ): Promise<AnaliseGeralMelhorada> {
+    // Classificar leitos por tipo de problema
+    const classificacao: ClassificacaoProblemas = {
+      risco_queda: [],
+      risco_lesao_pressao: [],
+      risco_infeccao: [],
+      risco_broncoaspiracao: [],
+      risco_nutricional: [],
+      risco_respiratorio: [],
+    };
+
+    const leitosPrioridadeMaxima: LeitoClassificado[] = [];
+    const stats = {
+      total: patients.length,
+      vermelho: 0,
+      amarelo: 0,
+      verde: 0,
+      por_tipo_risco: {} as Record<string, number>,
+    };
+
+    for (const patient of patients) {
+      const insights = patientInsights.get(patient.id || "");
+      if (!insights) continue;
+
+      // Contar por nível
+      if (insights.nivel_alerta === "VERMELHO") stats.vermelho++;
+      else if (insights.nivel_alerta === "AMARELO") stats.amarelo++;
+      else stats.verde++;
+
+      const leitoInfo: LeitoClassificado = {
+        leito: patient.leito || "",
+        nome: patient.nome || "",
+        nivel: insights.nivel_alerta,
+        problemas: [],
+        recomendacoes: insights.recomendacoes_enfermagem || [],
+        alertas_prioritarios: insights.principais_alertas?.map(a => a.titulo) || [],
+      };
+
+      // Classificar por tipo de problema
+      for (const alerta of insights.principais_alertas || []) {
+        const tipo = alerta.tipo;
+        stats.por_tipo_risco[tipo] = (stats.por_tipo_risco[tipo] || 0) + 1;
+        leitoInfo.problemas.push(alerta.titulo);
+
+        if (tipo === "RISCO_QUEDA") {
+          classificacao.risco_queda.push({ ...leitoInfo });
+        } else if (tipo === "RISCO_LESAO") {
+          classificacao.risco_lesao_pressao.push({ ...leitoInfo });
+        } else if (tipo === "RISCO_INFECCAO") {
+          classificacao.risco_infeccao.push({ ...leitoInfo });
+        } else if (tipo === "RISCO_ASPIRACAO") {
+          classificacao.risco_broncoaspiracao.push({ ...leitoInfo });
+        } else if (tipo === "RISCO_NUTRICIONAL") {
+          classificacao.risco_nutricional.push({ ...leitoInfo });
+        } else if (tipo === "RISCO_RESPIRATORIO") {
+          classificacao.risco_respiratorio.push({ ...leitoInfo });
+        }
+      }
+
+      // Adicionar aos de prioridade máxima se vermelho
+      if (insights.nivel_alerta === "VERMELHO") {
+        leitosPrioridadeMaxima.push(leitoInfo);
+      }
+    }
+
+    // Gerar alertas críticos consolidados para enfermagem
+    const alertasCriticos: string[] = [];
+    
+    if (stats.vermelho > 0) {
+      alertasCriticos.push(`🔴 ${stats.vermelho} paciente(s) em estado CRÍTICO requer(em) atenção imediata`);
+    }
+    
+    if (classificacao.risco_queda.filter(l => l.nivel === "VERMELHO").length > 0) {
+      const leitos = classificacao.risco_queda.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
+      alertasCriticos.push(`⚠️ RISCO DE QUEDA ELEVADO: Leitos ${leitos} - Verificar grades, contenção e supervisão`);
+    }
+    
+    if (classificacao.risco_lesao_pressao.filter(l => l.nivel === "VERMELHO").length > 0) {
+      const leitos = classificacao.risco_lesao_pressao.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
+      alertasCriticos.push(`⚠️ RISCO DE LESÃO POR PRESSÃO: Leitos ${leitos} - Mudança de decúbito a cada 2h, colchão especial`);
+    }
+    
+    if (classificacao.risco_broncoaspiracao.filter(l => l.nivel === "VERMELHO").length > 0) {
+      const leitos = classificacao.risco_broncoaspiracao.filter(l => l.nivel === "VERMELHO").map(l => l.leito).join(", ");
+      alertasCriticos.push(`⚠️ RISCO DE BRONCOASPIRAÇÃO: Leitos ${leitos} - Cabeceira elevada 30-45°, supervisão da dieta`);
+    }
+
+    // Recomendações gerais para o plantão
+    const recomendacoesGerais: string[] = [
+      `Priorizar rounds nos ${stats.vermelho} leitos críticos: ${leitosPrioridadeMaxima.map(l => l.leito).join(", ")}`,
+    ];
+
+    if (classificacao.risco_queda.length > 0) {
+      recomendacoesGerais.push(`Verificar protocolo de prevenção de quedas em ${classificacao.risco_queda.length} paciente(s)`);
+    }
+    
+    if (classificacao.risco_infeccao.length > 0) {
+      recomendacoesGerais.push(`Revisar técnica asséptica e troca de dispositivos em ${classificacao.risco_infeccao.length} paciente(s)`);
+    }
+
+    // Resumo executivo
+    const resumoExecutivo = `Plantão com ${stats.total} pacientes: ${stats.vermelho} críticos (VERMELHO), ${stats.amarelo} com alertas (AMARELO), ${stats.verde} estáveis (VERDE). Principais riscos identificados: ${Object.entries(stats.por_tipo_risco).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tipo, count]) => `${tipo.replace("RISCO_", "")} (${count})`).join(", ") || "Nenhum"}.`;
+
+    return {
+      timestamp: new Date().toISOString(),
+      resumo_executivo: resumoExecutivo,
+      alertas_criticos_enfermagem: alertasCriticos,
+      classificacao_por_problema: classificacao,
+      leitos_prioridade_maxima: leitosPrioridadeMaxima,
+      estatisticas: stats,
+      recomendacoes_gerais_plantao: recomendacoesGerais,
     };
   }
 

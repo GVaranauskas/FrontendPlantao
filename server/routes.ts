@@ -882,9 +882,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new AppError(404, "Nenhum paciente encontrado");
     }
 
-    const results: Array<{ id: string; leito: string; insights: any; error?: string }> = [];
+    const results: Array<{ id: string; leito: string; nome: string; insights: any; error?: string }> = [];
     const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, errors: 0 };
     const failedPatients: string[] = [];
+    const patientInsightsMap = new Map<string, any>();
 
     // Process patients in sequence to avoid rate limiting
     for (const patient of patients) {
@@ -902,7 +903,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clinicalInsightsUpdatedAt: new Date(),
         });
         
-        results.push({ id: patient.id, leito: patient.leito, insights });
+        results.push({ id: patient.id, leito: patient.leito, nome: patient.nome, insights });
+        patientInsightsMap.set(patient.id, insights);
         
         if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
         else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
@@ -917,12 +919,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results.push({ 
           id: patient.id, 
           leito: patient.leito, 
+          nome: patient.nome,
           insights: null, 
           error: errorMsg 
         });
         logger.warn(`[${getTimestamp()}] [AI] Failed to analyze patient ${patient.leito}: ${errorMsg}`);
       }
     }
+    
+    // Generate enhanced analysis with problem classification
+    const analiseGeral = await aiService.generateEnhancedGeneralAnalysis(patients, patientInsightsMap);
     
     const successCount = summaryStats.vermelho + summaryStats.amarelo + summaryStats.verde;
     logger.info(`[${getTimestamp()}] [AI] Batch clinical analysis completed: ${successCount}/${patients.length} successful (${summaryStats.vermelho} critical, ${summaryStats.amarelo} warning, ${summaryStats.verde} ok), ${summaryStats.errors} errors`);
@@ -935,12 +941,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       total: patients.length,
       success: successCount,
       summary: summaryStats,
+      analiseGeral,
       leitosAtencao: results
         .filter(r => r.insights?.nivel_alerta === "VERMELHO")
-        .map(r => r.leito),
+        .map(r => ({ leito: r.leito, nome: r.nome, recomendacoes: r.insights?.recomendacoes_enfermagem || [], alertas: r.insights?.principais_alertas || [] })),
       leitosAlerta: results
         .filter(r => r.insights?.nivel_alerta === "AMARELO")
-        .map(r => r.leito),
+        .map(r => ({ leito: r.leito, nome: r.nome, recomendacoes: r.insights?.recomendacoes_enfermagem || [], alertas: r.insights?.principais_alertas || [] })),
       failedPatients,
       results,
     });
