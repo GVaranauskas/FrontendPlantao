@@ -168,11 +168,6 @@ interface NursingTemplate {
   description?: string;
 }
 
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
-
 export default function ShiftHandoverPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
@@ -182,7 +177,6 @@ export default function ShiftHandoverPage() {
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [clinicalBatchResult, setClinicalBatchResult] = useState<ClinicalBatchResult | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
@@ -262,7 +256,7 @@ export default function ShiftHandoverPage() {
   
   // TEMPORARIAMENTE DESATIVADO: Auto-sync a cada 15 minutos
   // Para reativar, mude enabled para true
-  const { isSyncing: isAutoSyncing, lastSyncTimeAgo, triggerSync } = useAutoSync({
+  const { isSyncing: isAutoSyncing, triggerSync } = useAutoSync({
     enabled: false, // DESATIVADO TEMPORARIAMENTE PARA TESTES
     syncInterval: 900000, // 15 minutes
   });
@@ -304,9 +298,6 @@ export default function ShiftHandoverPage() {
     queryKey: ["/api/templates"],
   });
 
-  const { data: enfermarias } = useQuery<Enfermaria[]>({
-    queryKey: ["/api/enfermarias"],
-  });
 
   const filteredPatients = patients?.filter(p =>
     p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -352,50 +343,12 @@ export default function ShiftHandoverPage() {
                 <h1 className="text-xl sm:text-[22px] font-bold text-primary leading-tight">
                   Passagem de Plantão (SBAR)
                 </h1>
-                <div className="flex items-center gap-2 flex-wrap mt-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm text-muted-foreground">UNIDADE:</span>
-                    <SelectPrimitive.Root 
-                      value={selectedEnfermaria} 
-                      onValueChange={setSelectedEnfermaria}
-                    >
-                      <SelectPrimitive.Trigger 
-                        className="flex items-center justify-between px-2 py-1 text-xs sm:text-sm border rounded-md bg-background h-8"
-                        data-testid="select-enfermaria"
-                      >
-                        <SelectPrimitive.Value placeholder="Selecione..." />
-                        <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
-                      </SelectPrimitive.Trigger>
-                      <SelectPrimitive.Content className="border rounded-md bg-card shadow-md">
-                        <SelectPrimitive.Viewport className="p-2">
-                          {enfermarias?.map((e) => (
-                            <SelectPrimitive.Item 
-                              key={e.codigo}
-                              value={e.codigo}
-                              className="px-3 py-2 hover:bg-accent rounded cursor-pointer text-sm"
-                            >
-                              <SelectPrimitive.ItemText>{e.nome}</SelectPrimitive.ItemText>
-                            </SelectPrimitive.Item>
-                          ))}
-                        </SelectPrimitive.Viewport>
-                      </SelectPrimitive.Content>
-                    </SelectPrimitive.Root>
+                {isAutoSyncing && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary mt-1 w-fit">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Sincronizando...
                   </div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    | ENFERMEIRO: ANDRESSA / LIDIA / GUSTAVO
-                  </p>
-                  {isAutoSyncing && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Sincronizando...
-                    </div>
-                  )}
-                  {!isAutoSyncing && lastSyncTimeAgo && (
-                    <div className="text-xs text-muted-foreground px-2 py-1">
-                      Última sincronização: {lastSyncTimeAgo}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
