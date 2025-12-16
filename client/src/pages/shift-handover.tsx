@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
   Menu, Home, RefreshCcw, Filter, Search, Bell, Printer,
@@ -122,6 +124,9 @@ export default function ShiftHandoverPage() {
   const [clinicalBatchResult, setClinicalBatchResult] = useState<ClinicalBatchResult | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
+  const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -167,6 +172,34 @@ export default function ShiftHandoverPage() {
       });
     },
   });
+
+  const individualAnalysisMutation = useMutation({
+    mutationFn: async (patientId: string) => {
+      const response = await apiRequest("POST", `/api/ai/clinical-analysis/${patientId}`);
+      return response.json();
+    },
+    onSuccess: (data: { insights: ClinicalInsights; analysis: any }) => {
+      setIndividualAnalysis(data.insights);
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      toast({
+        title: "Análise Individual Concluída",
+        description: `Nível de alerta: ${data.insights.nivel_alerta}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro na análise individual",
+        description: error.message || "Não foi possível analisar este paciente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openPatientDetails = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIndividualAnalysis((patient.clinicalInsights as ClinicalInsights) || null);
+    setPatientDetailsOpen(true);
+  };
   
   // TEMPORARIAMENTE DESATIVADO: Auto-sync a cada 15 minutos
   // Para reativar, mude enabled para true
@@ -1047,7 +1080,8 @@ export default function ShiftHandoverPage() {
                     return (
                     <tr 
                       key={patient.id}
-                      className={`transition-colors ${getRowBackground()}`}
+                      className={`transition-colors cursor-pointer ${getRowBackground()}`}
+                      onClick={() => openPatientDetails(patient)}
                       data-testid={`row-patient-${patient.id}`}
                     >
                       <td className="px-2 py-2 text-center font-bold text-primary border border-border sticky left-0 bg-inherit z-10">{patient.leito}</td>
@@ -1115,6 +1149,219 @@ export default function ShiftHandoverPage() {
           </Card>
         )}
       </div>
+
+      {/* Modal de Detalhes do Paciente com Análise Individual */}
+      <Dialog open={patientDetailsOpen} onOpenChange={setPatientDetailsOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                Leito {selectedPatient?.leito}
+              </Badge>
+              <span className="text-lg">{selectedPatient?.nome}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPatient && (
+            <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+              <div className="space-y-4">
+                {/* Informações Básicas */}
+                <Card className="p-4">
+                  <h3 className="font-semibold text-sm mb-3">Informações do Paciente</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Registro:</span>{" "}
+                      <span className="font-medium">{selectedPatient.registro || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Data Nascimento:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dataNascimento || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Data Internação:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dataInternacao || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Enfermaria:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dsEnfermaria || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Diagnóstico:</span>{" "}
+                      <span className="font-medium">{selectedPatient.diagnostico || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Alergias:</span>{" "}
+                      <span className="font-medium text-red-600">{selectedPatient.alergias || "Nenhuma informada"}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Informações Clínicas */}
+                <Card className="p-4">
+                  <h3 className="font-semibold text-sm mb-3">Dados Clínicos</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Braden:</span>{" "}
+                      <span className={`font-medium ${parseInt(selectedPatient.braden || "0") < 12 ? "text-red-600" : parseInt(selectedPatient.braden || "0") < 15 ? "text-yellow-600" : ""}`}>
+                        {selectedPatient.braden || "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Mobilidade:</span>{" "}
+                      <span className="font-medium">{selectedPatient.mobilidade || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Dieta:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dieta || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Eliminações:</span>{" "}
+                      <span className="font-medium">{selectedPatient.eliminacoes || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Dispositivos:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dispositivos || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">ATB:</span>{" "}
+                      <span className="font-medium">{selectedPatient.atb || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Aporte/Saturação:</span>{" "}
+                      <span className="font-medium">{selectedPatient.aporteSaturacao || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Curativos:</span>{" "}
+                      <span className="font-medium">{selectedPatient.curativos || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Observações:</span>{" "}
+                      <span className="font-medium">{selectedPatient.observacoes || "-"}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Análise Clínica IA */}
+                <Card className="p-4 border-primary/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Brain className="w-4 h-4" />
+                      Análise Clínica por IA
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => individualAnalysisMutation.mutate(selectedPatient.id)}
+                      disabled={individualAnalysisMutation.isPending}
+                      data-testid="button-analyze-patient"
+                    >
+                      {individualAnalysisMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="w-4 h-4 mr-2" />
+                          {individualAnalysis ? "Reanalisar" : "Analisar"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {!individualAnalysis && !individualAnalysisMutation.isPending && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Clique em "Analisar" para obter insights clínicos e recomendações personalizadas.
+                    </p>
+                  )}
+
+                  {individualAnalysis && (
+                    <div className="space-y-4">
+                      {/* Nível de Alerta */}
+                      <div className="flex items-center gap-3">
+                        <Badge 
+                          className={`px-3 py-1 ${
+                            individualAnalysis.nivel_alerta === "VERMELHO"
+                              ? "bg-red-500 text-white"
+                              : individualAnalysis.nivel_alerta === "AMARELO"
+                              ? "bg-yellow-500 text-black"
+                              : "bg-green-500 text-white"
+                          }`}
+                        >
+                          {individualAnalysis.nivel_alerta === "VERMELHO" && <AlertTriangle className="w-4 h-4 mr-1" />}
+                          {individualAnalysis.nivel_alerta === "AMARELO" && <Activity className="w-4 h-4 mr-1" />}
+                          {individualAnalysis.nivel_alerta === "VERDE" && <CheckCircle className="w-4 h-4 mr-1" />}
+                          {individualAnalysis.nivel_alerta}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          Score: {individualAnalysis.score_qualidade}% - {individualAnalysis.categoria_qualidade}
+                        </span>
+                      </div>
+
+                      {/* Alertas Principais */}
+                      {individualAnalysis.principais_alertas && individualAnalysis.principais_alertas.length > 0 && (
+                        <div className="border-l-2 border-red-500 pl-3">
+                          <h4 className="font-semibold text-xs text-red-500 uppercase mb-2">Alertas Identificados</h4>
+                          <ul className="space-y-1">
+                            {individualAnalysis.principais_alertas.map((alerta, idx) => (
+                              <li key={idx} className="text-sm flex items-start gap-2">
+                                <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                                  alerta.nivel === "VERMELHO" ? "text-red-500" :
+                                  alerta.nivel === "AMARELO" ? "text-yellow-500" : "text-green-500"
+                                }`} />
+                                <span>{alerta.titulo}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Gaps Críticos */}
+                      {individualAnalysis.gaps_criticos && individualAnalysis.gaps_criticos.length > 0 && (
+                        <div className="border-l-2 border-yellow-500 pl-3">
+                          <h4 className="font-semibold text-xs text-yellow-600 uppercase mb-2">Gaps de Documentação</h4>
+                          <ul className="space-y-1">
+                            {individualAnalysis.gaps_criticos.map((gap, idx) => (
+                              <li key={idx} className="text-sm text-muted-foreground">• {gap}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Recomendações de Enfermagem */}
+                      {individualAnalysis.recomendacoes_enfermagem && individualAnalysis.recomendacoes_enfermagem.length > 0 && (
+                        <div className="border-l-2 border-primary pl-3">
+                          <h4 className="font-semibold text-xs text-primary uppercase mb-2">Recomendações de Enfermagem</h4>
+                          <ul className="space-y-1">
+                            {individualAnalysis.recomendacoes_enfermagem.map((rec, idx) => (
+                              <li key={idx} className="text-sm flex items-start gap-2">
+                                <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Prioridade de Ação */}
+                      {individualAnalysis.prioridade_acao && (
+                        <Card className="p-3 bg-primary/5 border-primary/20">
+                          <h4 className="font-semibold text-xs uppercase mb-1">Prioridade de Ação</h4>
+                          <p className="text-sm">{individualAnalysis.prioridade_acao}</p>
+                        </Card>
+                      )}
+
+                      <p className="text-xs text-muted-foreground text-center">
+                        Análise gerada em: {new Date(individualAnalysis.timestamp).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
