@@ -51,6 +51,8 @@ Preferred communication style: Simple, everyday language.
 - `POST /api/ai/analyze-patient/:id` - Analisa dados de um paciente específico
 - `POST /api/ai/analyze-patients` - Analisa todos os pacientes e gera resumo
 - `POST /api/ai/care-recommendations/:id` - Gera recomendações de cuidados
+- `POST /api/ai/clinical-analysis/:id` - Análise clínica individual para passagem de plantão
+- `POST /api/ai/clinical-analysis-batch` - Análise clínica em lote de todos os pacientes
 
 ### Response Format (analyze-patient)
 ```json
@@ -62,3 +64,12 @@ Preferred communication style: Simple, everyday language.
   "prioridade": "baixa|media|alta|critica"
 }
 ```
+
+### Clinical Analysis (clinical-analysis-batch)
+A análise clínica em lote processa todos os pacientes e retorna:
+- **nivel_alerta**: VERMELHO (crítico), AMARELO (moderado), VERDE (ok)
+- **score_qualidade**: 0-100% indicando completude da documentação
+- **principais_alertas**: Lista de alertas identificados pela IA
+- **gaps_criticos**: Campos de documentação ausentes
+
+Resultados são armazenados no campo `clinicalInsights` (JSONB) de cada paciente e exibidos como badges coloridos na tabela de passagem de plantão.
