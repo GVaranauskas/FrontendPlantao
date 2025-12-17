@@ -178,50 +178,50 @@ export default function AdminUsersPage() {
     return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: ptBR });
   };
 
-  const UserForm = ({ isEdit = false, onSubmit }: { isEdit?: boolean; onSubmit: (e: React.FormEvent) => void }) => (
-    <form onSubmit={onSubmit} className="space-y-4 mt-4" autoComplete="off">
+  const renderFormFields = (isEdit: boolean) => (
+    <>
       <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-name" : "name"}>Nome Completo</Label>
+        <Label htmlFor={isEdit ? "edit-name" : "create-name"}>Nome Completo</Label>
         <Input
-          id={isEdit ? "edit-name" : "name"}
+          id={isEdit ? "edit-name" : "create-name"}
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           required
           autoComplete="off"
           data-testid={isEdit ? "input-edit-name" : "input-name"}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-username" : "username"}>Usuário</Label>
+        <Label htmlFor={isEdit ? "edit-username" : "create-username"}>Usuário</Label>
         <Input
-          id={isEdit ? "edit-username" : "username"}
+          id={isEdit ? "edit-username" : "create-username"}
           value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
           required
           autoComplete="off"
           data-testid={isEdit ? "input-edit-username" : "input-username"}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-email" : "email"}>E-mail</Label>
+        <Label htmlFor={isEdit ? "edit-email" : "create-email"}>E-mail</Label>
         <Input
-          id={isEdit ? "edit-email" : "email"}
+          id={isEdit ? "edit-email" : "create-email"}
           type="email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
           autoComplete="off"
           data-testid={isEdit ? "input-edit-email" : "input-email"}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={isEdit ? "edit-password" : "password"}>
+        <Label htmlFor={isEdit ? "edit-password" : "create-password"}>
           {isEdit ? "Nova Senha (deixe em branco para manter)" : "Senha"}
         </Label>
         <Input
-          id={isEdit ? "edit-password" : "password"}
+          id={isEdit ? "edit-password" : "create-password"}
           type="password"
           value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
           required={!isEdit}
           minLength={6}
           autoComplete="new-password"
@@ -232,7 +232,7 @@ export default function AdminUsersPage() {
         <Label>Perfil</Label>
         <SelectPrimitive.Root
           value={formData.role}
-          onValueChange={(value: UserRole) => setFormData({ ...formData, role: value })}
+          onValueChange={(value: UserRole) => setFormData(prev => ({ ...prev, role: value }))}
         >
           <SelectPrimitive.Trigger
             className="flex items-center justify-between w-full px-3 py-2 h-9 text-sm border rounded-md bg-background"
@@ -261,19 +261,7 @@ export default function AdminUsersPage() {
           </SelectPrimitive.Content>
         </SelectPrimitive.Root>
       </div>
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          type="submit"
-          disabled={isEdit ? updateUserMutation.isPending : createUserMutation.isPending}
-          data-testid={isEdit ? "button-submit-edit" : "button-submit-create"}
-        >
-          {(isEdit ? updateUserMutation.isPending : createUserMutation.isPending) ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : null}
-          {isEdit ? "Salvar Alterações" : "Criar Usuário"}
-        </Button>
-      </div>
-    </form>
+    </>
   );
 
   return (
@@ -313,7 +301,21 @@ export default function AdminUsersPage() {
                 <SheetHeader>
                   <SheetTitle>Criar Novo Usuário</SheetTitle>
                 </SheetHeader>
-                <UserForm onSubmit={handleCreateSubmit} />
+                <form onSubmit={handleCreateSubmit} className="space-y-4 mt-4" autoComplete="off">
+                  {renderFormFields(false)}
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="submit"
+                      disabled={createUserMutation.isPending}
+                      data-testid="button-submit-create"
+                    >
+                      {createUserMutation.isPending && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      Criar Usuário
+                    </Button>
+                  </div>
+                </form>
               </SheetContent>
             </Sheet>
           </div>
@@ -452,7 +454,21 @@ export default function AdminUsersPage() {
           <SheetHeader>
             <SheetTitle>Editar Usuário</SheetTitle>
           </SheetHeader>
-          <UserForm isEdit onSubmit={handleEditSubmit} />
+          <form onSubmit={handleEditSubmit} className="space-y-4 mt-4" autoComplete="off">
+            {renderFormFields(true)}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={updateUserMutation.isPending}
+                data-testid="button-submit-edit"
+              >
+                {updateUserMutation.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Salvar Alterações
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>
