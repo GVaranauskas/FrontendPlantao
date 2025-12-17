@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Patient, Alert } from "@shared/schema";
@@ -173,7 +173,10 @@ export default function ShiftHandoverPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
+    const saved = localStorage.getItem('lastSyncTime');
+    return saved ? new Date(saved) : null;
+  });
   const [aiOpen, setAiOpen] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [clinicalBatchResult, setClinicalBatchResult] = useState<ClinicalBatchResult | null>(null);
@@ -273,7 +276,9 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data) => {
       refetch();
-      setLastSyncTime(new Date());
+      const now = new Date();
+      setLastSyncTime(now);
+      localStorage.setItem('lastSyncTime', now.toISOString());
       toast({
         title: "Sincronização Manual Concluída",
         description: `Dados do N8N atualizados`,
@@ -383,9 +388,15 @@ export default function ShiftHandoverPage() {
                   )}
                 </Button>
                 {lastSyncTime && (
-                  <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1" data-testid="text-last-sync">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-last-sync">
                     <Clock className="w-3 h-3" />
                     {lastSyncTime.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} {lastSyncTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+                {!lastSyncTime && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-last-sync">
+                    <Clock className="w-3 h-3" />
+                    Nunca sincronizado
                   </span>
                 )}
               </div>
