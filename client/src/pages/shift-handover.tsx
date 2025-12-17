@@ -302,7 +302,11 @@ export default function ShiftHandoverPage() {
   const filteredPatients = patients?.filter(p =>
     p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.leito.includes(searchTerm)
-  ) || [];
+  ).sort((a, b) => {
+    const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
+    const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
+    return leitoA - leitoB;
+  }) || [];
 
   const stats = {
     complete: patients?.filter(p => p.status === "complete").length || 0,
