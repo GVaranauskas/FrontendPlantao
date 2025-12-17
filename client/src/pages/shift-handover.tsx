@@ -173,6 +173,7 @@ export default function ShiftHandoverPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [clinicalBatchResult, setClinicalBatchResult] = useState<ClinicalBatchResult | null>(null);
@@ -272,6 +273,7 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data) => {
       refetch();
+      setLastSyncTime(new Date());
       toast({
         title: "Sincronização Manual Concluída",
         description: `Dados do N8N atualizados`,
@@ -357,28 +359,36 @@ export default function ShiftHandoverPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Botão de Sincronização Manual N8N - TEMPORÁRIO PARA TESTES */}
-              <Button 
-                variant="default"
-                size="sm"
-                onClick={() => manualSyncMutation.mutate()}
-                disabled={manualSyncMutation.isPending}
-                data-testid="button-manual-n8n-sync"
-                title="Sincronização Manual N8N"
-                className="bg-chart-3 hover:bg-chart-3/90 text-white"
-              >
-                {manualSyncMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sincronizando...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCcw className="w-4 h-4 mr-2" />
-                    Sync N8N
-                  </>
+              {/* Botão de Sincronização Manual N8N */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="default"
+                  size="sm"
+                  onClick={() => manualSyncMutation.mutate()}
+                  disabled={manualSyncMutation.isPending}
+                  data-testid="button-manual-n8n-sync"
+                  title="Sincronização Manual N8N"
+                  className="bg-chart-3 hover:bg-chart-3/90 text-white"
+                >
+                  {manualSyncMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCcw className="w-4 h-4 mr-2" />
+                      Sync N8N
+                    </>
+                  )}
+                </Button>
+                {lastSyncTime && (
+                  <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1" data-testid="text-last-sync">
+                    <Clock className="w-3 h-3" />
+                    {lastSyncTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 )}
-              </Button>
+              </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
