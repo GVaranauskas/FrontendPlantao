@@ -179,7 +179,7 @@ export default function AdminUsersPage() {
   };
 
   const UserForm = ({ isEdit = false, onSubmit }: { isEdit?: boolean; onSubmit: (e: React.FormEvent) => void }) => (
-    <form onSubmit={onSubmit} className="space-y-4 mt-4">
+    <form onSubmit={onSubmit} className="space-y-4 mt-4" autoComplete="off">
       <div className="space-y-2">
         <Label htmlFor={isEdit ? "edit-name" : "name"}>Nome Completo</Label>
         <Input
@@ -187,6 +187,7 @@ export default function AdminUsersPage() {
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           required
+          autoComplete="off"
           data-testid={isEdit ? "input-edit-name" : "input-name"}
         />
       </div>
@@ -197,6 +198,7 @@ export default function AdminUsersPage() {
           value={formData.username}
           onChange={(e) => setFormData({ ...formData, username: e.target.value })}
           required
+          autoComplete="off"
           data-testid={isEdit ? "input-edit-username" : "input-username"}
         />
       </div>
@@ -207,6 +209,7 @@ export default function AdminUsersPage() {
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          autoComplete="off"
           data-testid={isEdit ? "input-edit-email" : "input-email"}
         />
       </div>
@@ -221,6 +224,7 @@ export default function AdminUsersPage() {
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           required={!isEdit}
           minLength={6}
+          autoComplete="new-password"
           data-testid={isEdit ? "input-edit-password" : "input-password"}
         />
       </div>
