@@ -295,8 +295,7 @@
     margin: 0.3cm;
   }
 
-  /* Hide non-essential elements */
-  header,
+  /* Hide non-essential elements but keep print-header visible */
   .container > div:nth-child(2),
   button,
   input[type="search"],
@@ -310,6 +309,18 @@
   .mb-4,
   .grid {
     display: none !important;
+  }
+
+  /* Hide regular header */
+  header {
+    display: none !important;
+  }
+
+  /* Show print header */
+  .print-header {
+    display: block !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 0.2rem !important;
   }
 
   /* Page setup */
@@ -470,5 +481,50 @@
   body {
     width: 279mm;
     height: 215mm;
+  }
+
+  /* Print header styling */
+  .print-header {
+    background: #0056b3 !important;
+    color: white !important;
+    padding: 0.3rem 0.5rem !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    border-bottom: 2px solid #333 !important;
+    margin-bottom: 0.3rem !important;
+  }
+
+  .print-header .logo {
+    display: block !important;
+    font-size: 14px !important;
+    margin-bottom: 0.15rem !important;
+  }
+
+  .print-header .title {
+    display: block !important;
+    font-size: 11px !important;
+    margin-bottom: 0.1rem !important;
+  }
+
+  .print-header .timestamp {
+    display: block !important;
+    font-size: 9px !important;
+    margin-top: 0.1rem !important;
+    opacity: 0.9 !important;
+  }
+
+  /* Ensure page breaks work correctly */
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Allow more rows per page */
+  table {
+    page-break-inside: auto;
+  }
+
+  tbody tr {
+    page-break-inside: avoid !important;
   }
 }
