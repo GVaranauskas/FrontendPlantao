@@ -1295,7 +1295,7 @@ export default function ShiftHandoverPage() {
         ) : (
           <>
             {/* Print Header - Hidden on screen, visible on print */}
-            <div className="print-header">
+            <div className="print-header hidden">
               <div className="logo">11Care - Passagem de Plantão (SBAR)</div>
               <div className="title">Relatório de Passagem de Plantão</div>
               <div className="timestamp">Gerado em: {new Date().toLocaleString('pt-BR', { 
@@ -1309,8 +1309,8 @@ export default function ShiftHandoverPage() {
             </div>
 
             <Card className="overflow-hidden">
-            <div className="overflow-x-auto print:max-h-none max-h-[calc(100vh-320px)] overflow-y-auto">
-              <table className="w-full text-[11px] border-collapse print:text-[6.5px]">
+            <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
+              <table className="w-full text-[11px] border-collapse">
                 <thead className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground sticky top-0 z-20">
                   <tr>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap sticky left-0 bg-primary z-30">LEITO</th>
