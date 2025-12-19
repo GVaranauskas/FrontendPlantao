@@ -6,12 +6,14 @@ const anthropic = new Anthropic({
   apiKey: env.ANTHROPIC_API_KEY,
 });
 
-const openai = new OpenAI({
+// Only initialize OpenAI client if API key is available
+const openai = env.OPENAI_API_KEY ? new OpenAI({
   apiKey: env.OPENAI_API_KEY,
-});
+}) : null;
 
 const CLAUDE_MODEL = env.ANTHROPIC_MODEL;
 const OPENAI_MODEL = env.OPENAI_MODEL;
+const HAS_OPENAI = !!env.OPENAI_API_KEY;
 
 interface PatientAnalysisResult {
   resumo: string;
@@ -362,9 +364,16 @@ export class AIService {
       this.provider = "claude";
       return result;
     } catch (claudeError) {
-      console.warn("[AI] Claude failed, falling back to OpenAI:", claudeError);
+      console.warn("[AI] Claude failed:", claudeError);
+      
+      // Only try OpenAI fallback if it's available
+      if (!HAS_OPENAI || !openai) {
+        console.error("[AI] OpenAI fallback not available (no API key configured)");
+        throw claudeError;
+      }
+      
       try {
-        console.log(`[AI] Attempting with OpenAI (${OPENAI_MODEL})...`);
+        console.log(`[AI] Falling back to OpenAI (${OPENAI_MODEL})...`);
         const result = await openaiCall();
         this.provider = "openai";
         return result;
@@ -419,7 +428,7 @@ export class AIService {
       },
       // OpenAI fallback
       async () => {
-        const response = await openai.chat.completions.create({
+        const response = await openai!.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: SYSTEM_PROMPT_PATIENT },
@@ -484,7 +493,7 @@ export class AIService {
       },
       // OpenAI fallback
       async () => {
-        const response = await openai.chat.completions.create({
+        const response = await openai!.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: SYSTEM_PROMPT_MULTIPLE },
@@ -550,7 +559,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
         },
         // OpenAI fallback
         async () => {
-          const response = await openai.chat.completions.create({
+          const response = await openai!.chat.completions.create({
             model: OPENAI_MODEL,
             messages: [
               { role: "system", content: SYSTEM_PROMPT_CARE },
@@ -603,7 +612,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
         return JSON.parse(jsonMatch[0]) as ClinicalAnalysisResult;
       },
       async () => {
-        const response = await openai.chat.completions.create({
+        const response = await openai!.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: CLINICAL_ANALYSIS_PROMPT },
