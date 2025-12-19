@@ -25,6 +25,7 @@ export const patients = pgTable("patients", {
   nome: text("nome").notNull(),
   registro: text("registro"),
   dataNascimento: text("data_nascimento"),
+  sexo: text("sexo"),
   dataInternacao: text("data_internacao").notNull(),
   braden: text("braden"),
   diagnostico: text("diagnostico"),

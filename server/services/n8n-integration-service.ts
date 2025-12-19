@@ -124,7 +124,8 @@ export class N8NIntegrationService {
         registro,
         codigoAtendimento,
         especialidadeRamal: dadosBrutos.dsEpecialid || "",
-        dataNascimento: "",
+        dataNascimento: dadosBrutos.dataNascimento || "",
+        sexo: dadosBrutos.sexo || "",
         dataInternacao: dadosBrutos.dataInternacao || this.getTodayDate(),
 
         braden: dadosBrutos.braden || "",
