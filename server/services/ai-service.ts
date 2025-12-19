@@ -2,18 +2,19 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { env } from "../config/env";
 
-const anthropic = new Anthropic({
-  apiKey: env.ANTHROPIC_API_KEY,
+// OpenAI is the primary provider
+const openai = new OpenAI({
+  apiKey: env.OPENAI_API_KEY,
 });
 
-// Only initialize OpenAI client if API key is available
-const openai = env.OPENAI_API_KEY ? new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
+// Claude/Anthropic is the fallback provider (optional)
+const anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({
+  apiKey: env.ANTHROPIC_API_KEY,
 }) : null;
 
 const CLAUDE_MODEL = env.ANTHROPIC_MODEL;
 const OPENAI_MODEL = env.OPENAI_MODEL;
-const HAS_OPENAI = !!env.OPENAI_API_KEY;
+const HAS_CLAUDE = !!env.ANTHROPIC_API_KEY;
 
 interface PatientAnalysisResult {
   resumo: string;
@@ -352,34 +353,34 @@ export class AIService {
   private provider: "claude" | "openai" = "claude";
 
   /**
-   * Try Claude first, fallback to OpenAI if it fails
+   * Try OpenAI first, fallback to Claude if it fails
    */
   private async callWithFallback<T>(
     claudeCall: () => Promise<T>,
     openaiCall: () => Promise<T>
   ): Promise<T> {
     try {
-      console.log(`[AI] Attempting with Claude (${CLAUDE_MODEL})...`);
-      const result = await claudeCall();
-      this.provider = "claude";
+      console.log(`[AI] Attempting with OpenAI (${OPENAI_MODEL})...`);
+      const result = await openaiCall();
+      this.provider = "openai";
       return result;
-    } catch (claudeError) {
-      console.warn("[AI] Claude failed:", claudeError);
+    } catch (openaiError) {
+      console.warn("[AI] OpenAI failed:", openaiError);
       
-      // Only try OpenAI fallback if it's available
-      if (!HAS_OPENAI || !openai) {
-        console.error("[AI] OpenAI fallback not available (no API key configured)");
-        throw claudeError;
+      // Only try Claude fallback if it's available
+      if (!HAS_CLAUDE || !anthropic) {
+        console.error("[AI] Claude fallback not available (no API key configured)");
+        throw openaiError;
       }
       
       try {
-        console.log(`[AI] Falling back to OpenAI (${OPENAI_MODEL})...`);
-        const result = await openaiCall();
-        this.provider = "openai";
+        console.log(`[AI] Falling back to Claude (${CLAUDE_MODEL})...`);
+        const result = await claudeCall();
+        this.provider = "claude";
         return result;
-      } catch (openaiError) {
+      } catch (claudeError) {
         console.error("[AI] Both providers failed");
-        throw openaiError;
+        throw claudeError;
       }
     }
   }
@@ -398,9 +399,9 @@ export class AIService {
     const userPrompt = this.buildPatientAnalysisPrompt(patient);
 
     return this.callWithFallback(
-      // Claude call
+      // Claude fallback
       async () => {
-        const response = await anthropic.messages.create({
+        const response = await anthropic!.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 1000,
           temperature: 0,
@@ -426,9 +427,9 @@ export class AIService {
 
         return JSON.parse(jsonMatch[0]) as PatientAnalysisResult;
       },
-      // OpenAI fallback
+      // OpenAI primary
       async () => {
-        const response = await openai!.chat.completions.create({
+        const response = await openai.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: SYSTEM_PROMPT_PATIENT },
@@ -464,9 +465,9 @@ export class AIService {
     const userPrompt = `Analise estes ${patients.length} pacientes:\n${JSON.stringify(patientsSummary, null, 2)}`;
 
     return this.callWithFallback(
-      // Claude call
+      // Claude fallback
       async () => {
-        const response = await anthropic.messages.create({
+        const response = await anthropic!.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 1500,
           temperature: 0,
@@ -491,9 +492,9 @@ export class AIService {
 
         return JSON.parse(jsonMatch[0]) as MultiplePatientAnalysis;
       },
-      // OpenAI fallback
+      // OpenAI primary
       async () => {
-        const response = await openai!.chat.completions.create({
+        const response = await openai.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: SYSTEM_PROMPT_MULTIPLE },
@@ -529,9 +530,9 @@ Gere 3-5 recomendações de cuidados prioritários.`;
 
     try {
       return await this.callWithFallback(
-        // Claude call
+        // Claude fallback
         async () => {
-          const response = await anthropic.messages.create({
+          const response = await anthropic!.messages.create({
             model: CLAUDE_MODEL,
             max_tokens: 500,
             temperature: 0,
@@ -557,9 +558,9 @@ Gere 3-5 recomendações de cuidados prioritários.`;
           const parsed = JSON.parse(jsonMatch[0]);
           return parsed.recomendacoes || [];
         },
-        // OpenAI fallback
+        // OpenAI primary
         async () => {
-          const response = await openai!.chat.completions.create({
+          const response = await openai.chat.completions.create({
             model: OPENAI_MODEL,
             messages: [
               { role: "system", content: SYSTEM_PROMPT_CARE },
@@ -590,8 +591,9 @@ Gere 3-5 recomendações de cuidados prioritários.`;
     const userPrompt = this.buildClinicalAnalysisPrompt(patient);
 
     return this.callWithFallback(
+      // Claude fallback
       async () => {
-        const response = await anthropic.messages.create({
+        const response = await anthropic!.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: 4000,
           temperature: 0,
@@ -611,8 +613,9 @@ Gere 3-5 recomendações de cuidados prioritários.`;
 
         return JSON.parse(jsonMatch[0]) as ClinicalAnalysisResult;
       },
+      // OpenAI primary
       async () => {
-        const response = await openai!.chat.completions.create({
+        const response = await openai.chat.completions.create({
           model: OPENAI_MODEL,
           messages: [
             { role: "system", content: CLINICAL_ANALYSIS_PROMPT },
