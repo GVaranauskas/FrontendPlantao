@@ -239,41 +239,36 @@ export class AutoSyncSchedulerGPT4o {
   private async saveToDatabase(patients: InsertPatient[]): Promise<void> {
     // Cache all patients once to avoid repeated queries
     const allPatients = await storage.getAllPatients();
-    console.log(`[AutoSync] 📋 Pacientes no banco: ${allPatients.length}`);
-    
-    let updates = 0;
-    let creates = 0;
     
     for (const patient of patients) {
-      // LEITO is the PRIMARY key for patient location
-      // Each bed can only have ONE active patient at a time
-      // When a new patient enters a bed, they REPLACE the previous one (discharge)
-      
-      // Priority 1: Match by LEITO (bed is the physical location - always unique)
-      // This ensures when a new patient enters a bed, they replace the previous one
-      let existing = allPatients.find(p => p.leito === patient.leito);
-      
-      // Priority 2: If no bed match, check if same admission moved to different bed
-      if (!existing && patient.codigoAtendimento) {
-        existing = allPatients.find(p => p.codigoAtendimento === patient.codigoAtendimento);
-      }
+      // Use codigoAtendimento as PRIMARY key for deduplication (unique per admission)
+      // Fallback to registro, then leito only if codigoAtendimento is not available
+      const existing = allPatients.find(p => {
+        // Priority 1: Match by codigoAtendimento (most reliable - unique per admission)
+        if (patient.codigoAtendimento && p.codigoAtendimento === patient.codigoAtendimento) {
+          return true;
+        }
+        // Priority 2: Match by registro (patient medical record number)
+        if (patient.registro && p.registro === patient.registro) {
+          return true;
+        }
+        // Priority 3: Match by leito (fallback - least reliable)
+        // Only use if no other identifiers are available
+        if (!patient.codigoAtendimento && !patient.registro && p.leito === patient.leito) {
+          return true;
+        }
+        return false;
+      });
       
       if (existing) {
-        // Update existing record (either same bed or same admission)
-        console.log(`[AutoSync] 🔄 UPDATE leito ${patient.leito}: AT ${existing.codigoAtendimento} → ${patient.codigoAtendimento}`);
         await storage.updatePatient(existing.id, patient);
-        // Update cached record to reflect changes
-        Object.assign(existing, patient);
-        updates++;
       } else {
         // Create new patient and add to cache to prevent duplicates within same batch
-        console.log(`[AutoSync] ➕ CREATE leito ${patient.leito}: AT ${patient.codigoAtendimento}`);
         const created = await storage.createPatient(patient);
         allPatients.push(created);
-        creates++;
       }
     }
-    console.log(`[AutoSync] ✅ ${patients.length} registros salvos (${updates} updates, ${creates} creates)`);
+    console.log(`[AutoSync] ✅ ${patients.length} registros salvos`);
   }
 
   private logSyncResult(result: SyncResult): void {
