@@ -133,7 +133,7 @@ app.use((req, res, next) => {
       // Inicia scheduler automático (a cada 15 minutos)
       autoSyncSchedulerGPT4o.start({
         cronExpression: '*/15 * * * *',
-        enfermarias: ['22', '23'], // Enfermarias ativas: 22 e 23
+        enfermarias: [], // Vazio = todas
         enableAI: true,
         batchSize: 10
       });

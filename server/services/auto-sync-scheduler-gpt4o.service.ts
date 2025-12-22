@@ -52,7 +52,7 @@ export class AutoSyncSchedulerGPT4o {
   
   private config: SchedulerConfig = {
     cronExpression: '*/15 * * * *', // A cada 15 minutos
-    enfermarias: ['22', '23'], // Enfermarias ativas no sistema
+    enfermarias: [],
     enableAI: true,
     batchSize: 10
   };
@@ -187,21 +187,13 @@ export class AutoSyncSchedulerGPT4o {
         await this.processAIInBatches(patientsToProcess, result);
       }
 
-      // 4. SALVAR NO BANCO E REMOVER PACIENTES COM ALTA
+      // 4. SALVAR NO BANCO
       if (patientsToProcess.length > 0) {
         console.log(`[AutoSync] 💾 Salvando ${patientsToProcess.length} registros...`);
         await this.saveToDatabase(patientsToProcess);
       }
-      
-      // 5. REMOVER PACIENTES QUE NÃO ESTÃO MAIS NO N8N (alta hospitalar)
-      // Apenas os leitos retornados pelo N8N são pacientes internados atualmente
-      const activeBeds = new Set(rawData.map(p => p.leito).filter(Boolean));
-      const removedCount = await this.removeDischargedPatients(activeBeds);
-      if (removedCount > 0) {
-        console.log(`[AutoSync] 🏥 ${removedCount} pacientes removidos (alta hospitalar)`);
-      }
 
-      // 6. CALCULAR ECONOMIA
+      // 5. CALCULAR ECONOMIA
       const metricsAI = aiServiceGPT4oMini.getMetrics();
       const cacheStats = intelligentCache.getStats();
       
@@ -282,27 +274,6 @@ export class AutoSyncSchedulerGPT4o {
       }
     }
     console.log(`[AutoSync] ✅ ${patients.length} registros salvos (${updates} updates, ${creates} creates)`);
-  }
-
-  /**
-   * Remove pacientes que não estão mais internados (não retornaram na resposta do N8N)
-   * @param activeBeds - Set com os leitos que têm pacientes internados
-   * @returns Número de pacientes removidos
-   */
-  private async removeDischargedPatients(activeBeds: Set<string>): Promise<number> {
-    const allPatients = await storage.getAllPatients();
-    let removed = 0;
-    
-    for (const patient of allPatients) {
-      // Se o leito do paciente não está na lista de leitos ativos, ele teve alta
-      if (!activeBeds.has(patient.leito)) {
-        console.log(`[AutoSync] 🏥 Removendo paciente alta: leito ${patient.leito} (AT: ${patient.codigoAtendimento})`);
-        await storage.deletePatient(patient.id);
-        removed++;
-      }
-    }
-    
-    return removed;
   }
 
   private logSyncResult(result: SyncResult): void {
