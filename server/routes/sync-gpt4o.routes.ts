@@ -8,15 +8,19 @@ const router = Router();
 
 // POST /api/sync-gpt4o/manual
 router.post('/manual', (req, res) => {
+  // Support specific unit IDs via request body
+  const { unitIds } = req.body || {};
+  
   // Retorna imediatamente sem aguardar a conclusão
   res.status(202).json({ 
     success: true, 
     message: 'Sincronização iniciada em background',
-    statusCheckUrl: '/api/sync-gpt4o/status'
+    statusCheckUrl: '/api/sync-gpt4o/status',
+    unitIds: unitIds || 'all'
   });
   
   // Executa sincronização em background (sem await)
-  autoSyncSchedulerGPT4o.runManualSync().catch(error => {
+  autoSyncSchedulerGPT4o.runManualSync(unitIds).catch(error => {
     console.error('[AutoSync] Erro na sincronização manual em background:', error);
   });
 });

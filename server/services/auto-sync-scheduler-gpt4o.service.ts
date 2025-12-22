@@ -85,7 +85,7 @@ export class AutoSyncSchedulerGPT4o {
     console.log('[AutoSync] Scheduler parado');
   }
 
-  async runSyncCycle(): Promise<SyncResult> {
+  async runSyncCycle(overrideUnitIds?: string): Promise<SyncResult> {
     const startTime = Date.now();
     console.log('');
     console.log('='.repeat(80));
@@ -115,7 +115,32 @@ export class AutoSyncSchedulerGPT4o {
     try {
       // 1. BUSCAR DADOS DO N8N
       console.log('[AutoSync] 📥 Buscando dados do N8N...');
-      const unitIds = this.config.enfermarias.join(',');
+      
+      // Use override unitIds if provided, otherwise get from config or database
+      let unitIds = overrideUnitIds || this.config.enfermarias.join(',');
+      
+      if (!unitIds) {
+        try {
+          const nursingUnits = await storage.getActiveNursingUnits();
+          // Extract numeric IDs from 'nu-XX' format
+          const numericIds = nursingUnits
+            .map(u => u.id.replace('nu-', ''))
+            .filter(id => /^\d+$/.test(id));
+          
+          if (numericIds.length > 0) {
+            // Limit to first 10 units to avoid N8N timeout
+            const limitedIds = numericIds.slice(0, 10);
+            unitIds = limitedIds.join(',');
+            console.log(`[AutoSync] 📋 Usando ${limitedIds.length} de ${numericIds.length} unidades: ${unitIds}`);
+          } else {
+            console.log('[AutoSync] ⚠️  Nenhuma unidade de internação ativa encontrada');
+          }
+        } catch (err) {
+          console.warn('[AutoSync] Erro ao buscar unidades:', err);
+        }
+      }
+      
+      console.log(`[AutoSync] 🔗 Request unitIds: ${unitIds}`);
       const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, false);
 
       if (!rawData || rawData.length === 0) {
@@ -343,9 +368,12 @@ export class AutoSyncSchedulerGPT4o {
     };
   }
 
-  async runManualSync(): Promise<SyncResult> {
+  async runManualSync(specificUnitIds?: string): Promise<SyncResult> {
     console.log('[AutoSync] 🔧 Executando sincronização manual...');
-    return await this.runSyncCycle();
+    if (specificUnitIds) {
+      console.log(`[AutoSync] 📋 Usando unidades específicas: ${specificUnitIds}`);
+    }
+    return await this.runSyncCycle(specificUnitIds);
   }
 }
 
