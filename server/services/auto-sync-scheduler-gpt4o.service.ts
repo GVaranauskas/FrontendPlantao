@@ -51,9 +51,12 @@ export class AutoSyncSchedulerGPT4o {
   private lastRun: Date | null = null;
   private syncHistory: SyncResult[] = [];
   
+  // PRODUÇÃO: Apenas unidades 22 e 23 (conforme requisito)
+  private static readonly DEFAULT_UNITS = '22,23';
+  
   private config: SchedulerConfig = {
     cronExpression: '*/15 * * * *', // A cada 15 minutos
-    enfermarias: [],
+    enfermarias: ['22', '23'], // Unidades fixas de produção
     enableAI: true,
     batchSize: 10
   };
@@ -121,29 +124,10 @@ export class AutoSyncSchedulerGPT4o {
       // 1. BUSCAR DADOS DO N8N
       console.log('[AutoSync] 📥 Buscando dados do N8N...');
       
-      // Use override unitIds if provided, otherwise get from config or database
-      let unitIds = overrideUnitIds || this.config.enfermarias.join(',');
-      
-      if (!unitIds) {
-        try {
-          const nursingUnits = await storage.getActiveNursingUnits();
-          // Extract numeric IDs from 'nu-XX' format
-          const numericIds = nursingUnits
-            .map(u => u.id.replace('nu-', ''))
-            .filter(id => /^\d+$/.test(id));
-          
-          if (numericIds.length > 0) {
-            // Limit to first 10 units to avoid N8N timeout
-            const limitedIds = numericIds.slice(0, 10);
-            unitIds = limitedIds.join(',');
-            console.log(`[AutoSync] 📋 Usando ${limitedIds.length} de ${numericIds.length} unidades: ${unitIds}`);
-          } else {
-            console.log('[AutoSync] ⚠️  Nenhuma unidade de internação ativa encontrada');
-          }
-        } catch (err) {
-          console.warn('[AutoSync] Erro ao buscar unidades:', err);
-        }
-      }
+      // PRODUÇÃO: Sempre usar unidades 22,23 (requisito fixo)
+      // Override pode ser passado para testes, mas padrão é 22,23
+      const unitIds = overrideUnitIds || AutoSyncSchedulerGPT4o.DEFAULT_UNITS;
+      console.log(`[AutoSync] 📋 Usando unidades fixas de produção: ${unitIds}`);
       
       console.log(`[AutoSync] 🔗 Request unitIds: ${unitIds}`);
       const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, false);
