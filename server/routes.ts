@@ -856,6 +856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
+    const { intelligentCache } = await import("./services/intelligent-cache.service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Paciente não encontrado");
@@ -881,34 +882,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sexo: patient.sexo,
     });
 
+    const cacheKey = `clinical-analysis:${req.params.id}`;
     let analysis;
     let insights;
+    let fromCache = false;
 
-    if (!changeDetection.hasChanged && patient.clinicalInsights) {
-      // Use cached insights if no changes
+    // Try intelligent cache first
+    const cachedInsights = intelligentCache.get(cacheKey, changeDetection.currentHash);
+    
+    if (cachedInsights && !changeDetection.hasChanged) {
+      insights = cachedInsights;
+      fromCache = true;
+      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using intelligent cache`);
+    } else if (!changeDetection.hasChanged && patient.clinicalInsights) {
+      // Use database cache if no changes
       insights = patient.clinicalInsights;
-      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using cache (no changes detected)`);
+      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using database cache (no changes detected)`);
     } else {
       // Call AI for new or changed data
       analysis = await aiService.performClinicalAnalysis(patient);
       insights = aiService.extractClinicalInsights(analysis);
       
-      // Store insights in patient record
+      // Store in database
       await storage.updatePatient(patient.id, {
         clinicalInsights: insights,
         clinicalInsightsUpdatedAt: new Date(),
       });
       
+      // Store in intelligent cache with criticality based on alert level
+      const criticality = insights.nivel_alerta === "VERMELHO" ? "critical" : 
+                         insights.nivel_alerta === "AMARELO" ? "high" : "medium";
+      intelligentCache.set(cacheKey, insights, {
+        contentHash: changeDetection.currentHash,
+        criticality,
+        dataStability: changeDetection.changePercentage === 0 ? 100 : 50
+      });
+      
       logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
     }
     
-    res.json({ insights, analysis, changeDetection });
+    res.json({ insights, analysis, changeDetection, fromCache });
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
   app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
+    const { intelligentCache } = await import("./services/intelligent-cache.service");
     const patients = await storage.getAllPatients();
     
     if (patients.length === 0) {
@@ -945,13 +965,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let insights: any;
         let usedCache = false;
+        const cacheKey = `clinical-analysis:${patient.id}`;
 
-        if (!changeDetection.hasChanged && patient.clinicalInsights) {
-          // Use cached insights if no changes
+        // Try intelligent cache first
+        const cachedInsights = intelligentCache.get(cacheKey, changeDetection.currentHash);
+        
+        if (cachedInsights && !changeDetection.hasChanged) {
+          insights = cachedInsights;
+          usedCache = true;
+          summaryStats.cached++;
+          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using intelligent cache`);
+        } else if (!changeDetection.hasChanged && patient.clinicalInsights) {
+          // Use database cache if no changes
           insights = patient.clinicalInsights as any;
           usedCache = true;
           summaryStats.cached++;
-          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using cached analysis (no changes)`);
+          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using database cache (no changes)`);
         } else {
           // Call AI for new or changed data
           const analysis = await aiService.performClinicalAnalysis(patient);
@@ -960,6 +989,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updatePatient(patient.id, {
             clinicalInsights: insights,
             clinicalInsightsUpdatedAt: new Date(),
+          });
+          
+          // Store in intelligent cache with criticality based on alert level
+          const criticality = insights.nivel_alerta === "VERMELHO" ? "critical" : 
+                             insights.nivel_alerta === "AMARELO" ? "high" : "medium";
+          intelligentCache.set(cacheKey, insights, {
+            contentHash: changeDetection.currentHash,
+            criticality,
+            dataStability: changeDetection.changePercentage === 0 ? 100 : 50
           });
           
           logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} analyzed: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
@@ -1015,6 +1053,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(r => ({ leito: r.leito, nome: r.nome, recomendacoes: r.insights?.recomendacoes_enfermagem || [], alertas: r.insights?.principais_alertas || [] })),
       failedPatients,
       results,
+    });
+  }));
+
+  // Cache monitoring endpoint (admin only)
+  app.get("/api/admin/cache-stats", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { intelligentCache } = await import("./services/intelligent-cache.service");
+    const stats = intelligentCache.getStats();
+    res.json({
+      cacheStats: stats,
+      recommendation: stats.hitRate > 70 ? "Cache working efficiently" : "Cache needs optimization"
     });
   }));
 
