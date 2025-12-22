@@ -4,9 +4,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  APP_ENV: z.enum(['homologacao', 'producao']).optional(),
   PORT: z.string().default('5000').transform(Number),
   
   DATABASE_URL: z.string().optional(),
+  HOMOLOG_DATABASE_URL: z.string().optional(),
   
   SESSION_SECRET: isProduction 
     ? z.string().min(32, 'SESSION_SECRET must be at least 32 characters in production')
