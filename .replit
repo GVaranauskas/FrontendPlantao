@@ -47,3 +47,7 @@ integrations = ["javascript_mem_db:1.0.0"]
 LOG_DIR = "./logs"
 OPENAI_MODEL = "gpt-4o-mini"
 ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
+AUTO_SYNC_ENABLED = "true"
+SYNC_INTERVAL = "15"
+ENABLE_AI_ANALYSIS = "true"
+MONTHLY_BUDGET = "1000"
