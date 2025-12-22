@@ -58,12 +58,14 @@ export class N8NIntegrationService {
         flowId: flowId,
         forceUpdate: forceUpdate,
         meta: {
-          params: [unitIds],
+          params: [unitIds], // ["22,23"] - single string with comma-separated IDs
           formJson: JSON.stringify(formJsonObject)
         }
       };
 
-      console.log(`[N8N] Fetching evolucoes with params: ["${unitIds}"]`);
+      // Log FULL payload for debugging
+      console.log(`[N8N] REQUEST PAYLOAD:`);
+      console.log(JSON.stringify(payload, null, 2));
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
