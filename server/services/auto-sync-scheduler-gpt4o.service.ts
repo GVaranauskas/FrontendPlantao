@@ -278,6 +278,17 @@ export class AutoSyncSchedulerGPT4o {
   private async processAIInBatches(patients: InsertPatient[], result: SyncResult): Promise<void> {
     const results = await aiServiceGPT4oMini.analyzeBatch(patients, { useCache: true });
     result.stats.aiCallsMade = results.length;
+    
+    // IMPORTANTE: Salvar os insights nos dados dos pacientes
+    for (let i = 0; i < patients.length && i < results.length; i++) {
+      const insights = results[i];
+      if (insights) {
+        // Adicionar clinicalInsights ao paciente para ser salvo no banco
+        (patients[i] as any).clinicalInsights = insights;
+        (patients[i] as any).clinicalInsightsUpdatedAt = new Date();
+      }
+    }
+    
     console.log(`[AutoSync] ✅ ${results.length} análises concluídas`);
   }
 
