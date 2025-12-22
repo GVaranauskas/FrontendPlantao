@@ -237,13 +237,28 @@ export class AutoSyncSchedulerGPT4o {
   }
 
   private async saveToDatabase(patients: InsertPatient[]): Promise<void> {
+    // Cache all patients once to avoid repeated queries
+    const allPatients = await storage.getAllPatients();
+    
     for (const patient of patients) {
-      // Get all patients to find by registration number or leito
-      const allPatients = await storage.getAllPatients();
-      const existing = allPatients.find(p => 
-        (patient.registro && p.registro === patient.registro) || 
-        p.leito === patient.leito
-      );
+      // Use codigoAtendimento as PRIMARY key for deduplication (unique per admission)
+      // Fallback to registro, then leito only if codigoAtendimento is not available
+      const existing = allPatients.find(p => {
+        // Priority 1: Match by codigoAtendimento (most reliable - unique per admission)
+        if (patient.codigoAtendimento && p.codigoAtendimento === patient.codigoAtendimento) {
+          return true;
+        }
+        // Priority 2: Match by registro (patient medical record number)
+        if (patient.registro && p.registro === patient.registro) {
+          return true;
+        }
+        // Priority 3: Match by leito (fallback - least reliable)
+        // Only use if no other identifiers are available
+        if (!patient.codigoAtendimento && !patient.registro && p.leito === patient.leito) {
+          return true;
+        }
+        return false;
+      });
       
       if (existing) {
         await storage.updatePatient(existing.id, patient);
