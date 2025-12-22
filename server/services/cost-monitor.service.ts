@@ -1,0 +1,403 @@
+/**
+ * COST MONITOR SERVICE
+ * 
+ * Monitora e rastreia custos de APIs em tempo real
+ * - Tracking de tokens usados (OpenAI + Anthropic)
+ * - Cálculo de custos por período
+ * - Comparativo com/sem otimizações
+ * - Alertas de orçamento
+ * - Dashboard de economia
+ * 
+ * ORÇAMENTO MENSAL: R$ 1.000,00
+ */
+
+interface APICall {
+  timestamp: Date;
+  service: 'openai' | 'anthropic';
+  model: string;
+  operation: string;
+  tokensInput: number;
+  tokensOutput: number;
+  tokensCached?: number;
+  cost: number;
+  cached: boolean;
+  patientId?: string;
+}
+
+interface CostSummary {
+  period: string;
+  totalCalls: number;
+  cachedCalls: number;
+  actualAPICalls: number;
+  tokensInput: number;
+  tokensOutput: number;
+  tokensCached: number;
+  totalCost: number;
+  estimatedCostWithoutOptimization: number;
+  savings: number;
+  savingsPercentage: number;
+}
+
+interface BudgetAlert {
+  level: 'info' | 'warning' | 'critical';
+  message: string;
+  currentSpend: number;
+  budget: number;
+  percentage: number;
+}
+
+export class CostMonitorService {
+  private calls: APICall[] = [];
+  private monthlyBudget: number = 1000; // R$ 1.000 por mês
+  
+  // Preços das APIs (em R$ por 1K tokens) - Aproximados
+  private readonly PRICES = {
+    openai: {
+      'gpt-4o': { input: 0.0150, output: 0.0600 },
+      'gpt-4o-mini': { input: 0.0008, output: 0.0024 },
+      'whisper': { perMinute: 0.036 }
+    },
+    anthropic: {
+      'claude-sonnet-4': { 
+        input: 0.0180, 
+        output: 0.0900,
+        cached: 0.00108 // 90% desconto no cache
+      },
+      'claude-sonnet-3.5': {
+        input: 0.0180,
+        output: 0.0900,
+        cached: 0.00108
+      }
+    }
+  };
+
+  /**
+   * Registra uma chamada de API
+   */
+  trackCall(call: Omit<APICall, 'timestamp' | 'cost'>): void {
+    const cost = this.calculateCost(call);
+    
+    const fullCall: APICall = {
+      ...call,
+      timestamp: new Date(),
+      cost
+    };
+
+    this.calls.push(fullCall);
+
+    // Log se custo alto
+    if (cost > 1.0) {
+      console.warn(`[CostMonitor] ⚠️  Chamada cara detectada: R$ ${cost.toFixed(2)} - ${call.operation}`);
+    }
+
+    // Verifica orçamento
+    this.checkBudget();
+  }
+
+  /**
+   * Calcula custo de uma chamada
+   */
+  private calculateCost(call: Omit<APICall, 'timestamp' | 'cost'>): number {
+    let cost = 0;
+
+    if (call.service === 'openai') {
+      const prices = this.PRICES.openai[call.model as keyof typeof this.PRICES.openai];
+      if (prices && 'input' in prices) {
+        cost = (call.tokensInput / 1000) * prices.input + 
+               (call.tokensOutput / 1000) * prices.output;
+      }
+    } else if (call.service === 'anthropic') {
+      const prices = this.PRICES.anthropic[call.model as keyof typeof this.PRICES.anthropic];
+      if (prices) {
+        // Tokens em cache pagam 90% menos
+        const cachedCost = (call.tokensCached || 0) / 1000 * prices.cached;
+        const inputCost = (call.tokensInput / 1000) * prices.input;
+        const outputCost = (call.tokensOutput / 1000) * prices.output;
+        cost = cachedCost + inputCost + outputCost;
+      }
+    }
+
+    return Math.round(cost * 100) / 100;
+  }
+
+  /**
+   * Retorna resumo de custos por período
+   */
+  getSummary(period: 'today' | 'week' | 'month' | 'all' = 'today'): CostSummary {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'all':
+        startDate = new Date(0);
+        break;
+    }
+
+    const periodCalls = this.calls.filter(c => c.timestamp >= startDate);
+
+    const summary = periodCalls.reduce(
+      (acc, call) => ({
+        totalCalls: acc.totalCalls + 1,
+        cachedCalls: acc.cachedCalls + (call.cached ? 1 : 0),
+        actualAPICalls: acc.actualAPICalls + (call.cached ? 0 : 1),
+        tokensInput: acc.tokensInput + call.tokensInput,
+        tokensOutput: acc.tokensOutput + call.tokensOutput,
+        tokensCached: acc.tokensCached + (call.tokensCached || 0),
+        totalCost: acc.totalCost + call.cost
+      }),
+      {
+        totalCalls: 0,
+        cachedCalls: 0,
+        actualAPICalls: 0,
+        tokensInput: 0,
+        tokensOutput: 0,
+        tokensCached: 0,
+        totalCost: 0
+      }
+    );
+
+    // Estima custo sem otimizações (todas as chamadas pagando preço cheio)
+    const estimatedCostWithoutOptimization = summary.totalCalls * 0.50; // R$ por análise média
+    const savings = estimatedCostWithoutOptimization - summary.totalCost;
+    const savingsPercentage = estimatedCostWithoutOptimization > 0
+      ? (savings / estimatedCostWithoutOptimization) * 100
+      : 0;
+
+    return {
+      period,
+      ...summary,
+      estimatedCostWithoutOptimization: Math.round(estimatedCostWithoutOptimization * 100) / 100,
+      savings: Math.round(savings * 100) / 100,
+      savingsPercentage: Math.round(savingsPercentage * 100) / 100
+    };
+  }
+
+  /**
+   * Verifica se está dentro do orçamento
+   */
+  private checkBudget(): void {
+    const monthlySummary = this.getSummary('month');
+    const percentage = (monthlySummary.totalCost / this.monthlyBudget) * 100;
+
+    if (percentage >= 90) {
+      console.error(`[CostMonitor] 🚨 CRÍTICO: ${percentage.toFixed(1)}% do orçamento mensal usado!`);
+    } else if (percentage >= 75) {
+      console.warn(`[CostMonitor] ⚠️  ALERTA: ${percentage.toFixed(1)}% do orçamento mensal usado`);
+    }
+  }
+
+  /**
+   * Retorna alertas de orçamento
+   */
+  getBudgetAlerts(): BudgetAlert[] {
+    const monthlySummary = this.getSummary('month');
+    const percentage = (monthlySummary.totalCost / this.monthlyBudget) * 100;
+    const alerts: BudgetAlert[] = [];
+
+    if (percentage >= 90) {
+      alerts.push({
+        level: 'critical',
+        message: 'Orçamento mensal quase esgotado! Considere reduzir uso ou aumentar orçamento.',
+        currentSpend: monthlySummary.totalCost,
+        budget: this.monthlyBudget,
+        percentage
+      });
+    } else if (percentage >= 75) {
+      alerts.push({
+        level: 'warning',
+        message: 'Orçamento mensal acima de 75%. Monitore o uso com atenção.',
+        currentSpend: monthlySummary.totalCost,
+        budget: this.monthlyBudget,
+        percentage
+      });
+    } else if (percentage >= 50) {
+      alerts.push({
+        level: 'info',
+        message: 'Orçamento mensal na metade. Uso normal.',
+        currentSpend: monthlySummary.totalCost,
+        budget: this.monthlyBudget,
+        percentage
+      });
+    }
+
+    return alerts;
+  }
+
+  /**
+   * Define orçamento mensal
+   */
+  setMonthlyBudget(budget: number): void {
+    this.monthlyBudget = budget;
+    console.log(`[CostMonitor] Orçamento mensal atualizado: R$ ${budget.toFixed(2)}`);
+  }
+
+  /**
+   * Retorna top operações mais caras
+   */
+  getTopExpensiveOperations(limit: number = 10): Array<{
+    operation: string;
+    count: number;
+    totalCost: number;
+    avgCost: number;
+  }> {
+    const operationCosts = new Map<string, { count: number; totalCost: number }>();
+
+    for (const call of this.calls) {
+      const existing = operationCosts.get(call.operation) || { count: 0, totalCost: 0 };
+      operationCosts.set(call.operation, {
+        count: existing.count + 1,
+        totalCost: existing.totalCost + call.cost
+      });
+    }
+
+    return Array.from(operationCosts.entries())
+      .map(([operation, data]) => ({
+        operation,
+        count: data.count,
+        totalCost: Math.round(data.totalCost * 100) / 100,
+        avgCost: Math.round((data.totalCost / data.count) * 100) / 100
+      }))
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, limit);
+  }
+
+  /**
+   * Gera dashboard visual (para console)
+   */
+  printDashboard(): void {
+    console.log('');
+    console.log('='.repeat(80));
+    console.log('💰 DASHBOARD DE CUSTOS E ECONOMIA');
+    console.log('='.repeat(80));
+
+    const today = this.getSummary('today');
+    const month = this.getSummary('month');
+    const alerts = this.getBudgetAlerts();
+
+    console.log('');
+    console.log('📊 RESUMO MENSAL:');
+    console.log(`   Total de chamadas: ${month.totalCalls.toLocaleString()}`);
+    console.log(`   Chamadas em cache: ${month.cachedCalls.toLocaleString()} (${((month.cachedCalls / month.totalCalls) * 100).toFixed(1)}%)`);
+    console.log(`   Tokens processados: ${(month.tokensInput + month.tokensOutput).toLocaleString()}`);
+    console.log(`   Tokens em cache: ${month.tokensCached.toLocaleString()}`);
+    console.log(`   Custo real: R$ ${month.totalCost.toFixed(2)}`);
+    console.log(`   Custo sem otimização: R$ ${month.estimatedCostWithoutOptimization.toFixed(2)}`);
+    console.log(`   💸 ECONOMIA: R$ ${month.savings.toFixed(2)} (${month.savingsPercentage.toFixed(1)}%)`);
+
+    console.log('');
+    console.log('📅 HOJE:');
+    console.log(`   Chamadas: ${today.totalCalls}`);
+    console.log(`   Custo: R$ ${today.totalCost.toFixed(2)}`);
+    console.log(`   Economia: R$ ${today.savings.toFixed(2)} (${today.savingsPercentage.toFixed(1)}%)`);
+
+    console.log('');
+    console.log('💳 ORÇAMENTO:');
+    console.log(`   Limite mensal: R$ ${this.monthlyBudget.toFixed(2)}`);
+    console.log(`   Gasto atual: R$ ${month.totalCost.toFixed(2)}`);
+    console.log(`   Disponível: R$ ${(this.monthlyBudget - month.totalCost).toFixed(2)}`);
+    console.log(`   Uso: ${((month.totalCost / this.monthlyBudget) * 100).toFixed(1)}%`);
+
+    if (alerts.length > 0) {
+      console.log('');
+      console.log('⚠️  ALERTAS:');
+      alerts.forEach(alert => {
+        const icon = alert.level === 'critical' ? '🚨' : alert.level === 'warning' ? '⚠️' : 'ℹ️';
+        console.log(`   ${icon} ${alert.message}`);
+      });
+    }
+
+    const topOps = this.getTopExpensiveOperations(5);
+    if (topOps.length > 0) {
+      console.log('');
+      console.log('🔝 TOP 5 OPERAÇÕES MAIS CARAS:');
+      topOps.forEach((op, i) => {
+        console.log(`   ${i + 1}. ${op.operation}`);
+        console.log(`      ${op.count} chamadas | R$ ${op.totalCost.toFixed(2)} total | R$ ${op.avgCost.toFixed(2)} média`);
+      });
+    }
+
+    console.log('');
+    console.log('='.repeat(80));
+    console.log('');
+  }
+
+  /**
+   * Exporta dados para análise
+   */
+  exportData(): {
+    calls: APICall[];
+    summaries: {
+      today: CostSummary;
+      week: CostSummary;
+      month: CostSummary;
+      all: CostSummary;
+    };
+    topOperations: Array<{
+      operation: string;
+      count: number;
+      totalCost: number;
+      avgCost: number;
+    }>;
+    alerts: BudgetAlert[];
+  } {
+    return {
+      calls: this.calls,
+      summaries: {
+        today: this.getSummary('today'),
+        week: this.getSummary('week'),
+        month: this.getSummary('month'),
+        all: this.getSummary('all')
+      },
+      topOperations: this.getTopExpensiveOperations(),
+      alerts: this.getBudgetAlerts()
+    };
+  }
+
+  /**
+   * Limpa dados antigos (manter últimos N dias)
+   */
+  cleanup(daysToKeep: number = 90): number {
+    const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000);
+    const before = this.calls.length;
+    
+    this.calls = this.calls.filter(call => call.timestamp >= cutoffDate);
+    
+    const removed = before - this.calls.length;
+    if (removed > 0) {
+      console.log(`[CostMonitor] Limpeza: ${removed} registros removidos`);
+    }
+    
+    return removed;
+  }
+
+  /**
+   * Reseta todos os dados
+   */
+  reset(): void {
+    this.calls = [];
+    console.log('[CostMonitor] Dados resetados');
+  }
+
+  /**
+   * Retorna estatísticas gerais
+   */
+  getStats() {
+    return {
+      totalCalls: this.calls.length,
+      oldestCall: this.calls.length > 0 ? this.calls[0].timestamp : null,
+      newestCall: this.calls.length > 0 ? this.calls[this.calls.length - 1].timestamp : null,
+      monthlyBudget: this.monthlyBudget
+    };
+  }
+}
+
+export const costMonitorService = new CostMonitorService();
