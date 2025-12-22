@@ -25,6 +25,7 @@ interface SyncResult {
     changedRecords: number;
     unchangedRecords: number;
     newRecords: number;
+    removedRecords: number;
     aiCallsMade: number;
     aiCallsAvoided: number;
     errors: number;
@@ -92,6 +93,9 @@ export class AutoSyncSchedulerGPT4o {
     console.log('[AutoSync] 🔄 INICIANDO CICLO DE SINCRONIZAÇÃO (GPT-4o-mini)');
     console.log('='.repeat(80));
 
+    // Collect all codigoAtendimento from N8N response for cleanup later
+    const n8nCodigosAtendimento = new Set<string>();
+    
     const result: SyncResult = {
       timestamp: new Date(),
       duration: 0,
@@ -99,6 +103,7 @@ export class AutoSyncSchedulerGPT4o {
         totalRecords: 0,
         changedRecords: 0,
         unchangedRecords: 0,
+        removedRecords: 0,
         newRecords: 0,
         aiCallsMade: 0,
         aiCallsAvoided: 0,
@@ -169,6 +174,11 @@ export class AutoSyncSchedulerGPT4o {
             continue;
           }
 
+          // Collect codigoAtendimento for cleanup later
+          if (processed.dadosProcessados.codigoAtendimento) {
+            n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
+          }
+          
           // CHANGE DETECTION
           const patientId = processed.registro || leito;
           const changeResult = changeDetectionService.detectChanges(
@@ -218,7 +228,17 @@ export class AutoSyncSchedulerGPT4o {
         await this.saveToDatabase(patientsToProcess);
       }
 
-      // 5. CALCULAR ECONOMIA
+      // 5. REMOVER PACIENTES QUE NÃO VIERAM NA RESPOSTA DO N8N (alta hospitalar)
+      if (n8nCodigosAtendimento.size > 0) {
+        console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
+        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento);
+        result.stats.removedRecords = removedCount;
+        if (removedCount > 0) {
+          console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
+        }
+      }
+
+      // 6. CALCULAR ECONOMIA
       const metricsAI = aiServiceGPT4oMini.getMetrics();
       const cacheStats = intelligentCache.getStats();
       
@@ -226,7 +246,7 @@ export class AutoSyncSchedulerGPT4o {
       result.savings.costSaved = metricsAI.estimatedSavings;
       result.savings.cacheHitRate = cacheStats.hitRate;
 
-      // 6. LIMPEZA
+      // 7. LIMPEZA
       changeDetectionService.cleanupOldSnapshots(24);
 
       result.duration = Date.now() - startTime;
@@ -259,6 +279,30 @@ export class AutoSyncSchedulerGPT4o {
     const results = await aiServiceGPT4oMini.analyzeBatch(patients, { useCache: true });
     result.stats.aiCallsMade = results.length;
     console.log(`[AutoSync] ✅ ${results.length} análises concluídas`);
+  }
+
+  private async removeDischargedPatients(currentCodigosAtendimento: Set<string>): Promise<number> {
+    // Get all patients from database
+    const allPatients = await storage.getAllPatients();
+    let removedCount = 0;
+    
+    for (const patient of allPatients) {
+      // Only check patients that have codigoAtendimento (proper N8N records)
+      if (patient.codigoAtendimento) {
+        // If patient is not in the current N8N response, they had "alta" (discharged)
+        if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
+          try {
+            await storage.deletePatient(patient.id);
+            removedCount++;
+            console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - alta hospitalar`);
+          } catch (error) {
+            console.error(`[AutoSync] Erro ao remover paciente ${patient.id}:`, error);
+          }
+        }
+      }
+    }
+    
+    return removedCount;
   }
 
   private async saveToDatabase(patients: InsertPatient[]): Promise<void> {
@@ -301,6 +345,9 @@ export class AutoSyncSchedulerGPT4o {
     console.log('📊 RESUMO:');
     console.log(`   ⏱️  Duração: ${(result.duration / 1000).toFixed(2)}s`);
     console.log(`   📦 Total: ${result.stats.totalRecords}`);
+    console.log(`   ➕ Novos: ${result.stats.newRecords}`);
+    console.log(`   🔄 Alterados: ${result.stats.changedRecords}`);
+    console.log(`   🚪 Removidos (alta): ${result.stats.removedRecords}`);
     console.log(`   🤖 IA processada: ${result.stats.aiCallsMade}`);
     console.log(`   💰 IA evitada: ${result.stats.aiCallsAvoided}`);
     console.log(`   💸 Economia: R$ ${result.savings.costSaved.toFixed(2)}`);
