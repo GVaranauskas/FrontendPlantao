@@ -205,10 +205,11 @@ export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: 
 }
 
 /**
- * Sync all evolucoes from N8N (params: [""])
+ * Sync all evolucoes from N8N - PRODUÇÃO: apenas unidades 22,23
  */
 export async function syncAllEvolucoes(): Promise<Patient[]> {
-  return syncEvolucoesByUnitIds("");
+  // PRODUÇÃO: Forçar apenas unidades 22,23
+  return syncEvolucoesByUnitIds("22,23");
 }
 
 /**

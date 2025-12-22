@@ -184,14 +184,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // N8N Evolucoes sync endpoint - all units (params: [""])
+  // PRODUÇÃO: Unidades fixas 22,23
+  const PRODUCTION_UNIT_IDS = "22,23";
+  
+  // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
   app.post("/api/sync/evolucoes", async (req, res) => {
     try {
       logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
       
       const { unitIds, forceUpdate } = req.body || {};
-      // unitIds can be empty string for all units, or comma-separated IDs like "22,23"
-      const params = unitIds !== undefined ? unitIds : "";
+      // PRODUÇÃO: Sempre usar 22,23 como padrão, ignorar string vazia
+      const params = (unitIds && unitIds.trim() !== "") ? unitIds : PRODUCTION_UNIT_IDS;
       const force = forceUpdate === true;
       
       logger.info(`[${getTimestamp()}] [Sync] Syncing evolucoes with params: ["${params}"], forceUpdate: ${force}`);

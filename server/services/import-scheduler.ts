@@ -32,8 +32,8 @@ export class ImportScheduler {
   }
 
   /**
-   * Inicia scheduler com configurações padrão
-   * Note: Nursing units sync is handled by NursingUnitsScheduler (06:00 daily)
+   * DESABILITADO - Use AutoSyncSchedulerGPT4o em vez disso
+   * O sync de pacientes agora é feito via /api/sync-gpt4o com unidades 22,23
    */
   async startDefaultSchedule(): Promise<void> {
     if (this.enabled) {
@@ -41,13 +41,13 @@ export class ImportScheduler {
       return;
     }
 
-    this.enabled = true;
-
-    // Schedule imports for main enfermarias a cada hora
-    await this.scheduleImport("10A", "0 * * * *");  // A cada hora
-    await this.scheduleImport("10B", "30 * * * *"); // A cada hora, 30 minutos
-
-    console.log("[Scheduler] Default schedule started");
+    // DESABILITADO: Sync agora é via AutoSyncSchedulerGPT4o (unidades 22,23)
+    console.log("[Scheduler] ImportScheduler desabilitado - use AutoSyncSchedulerGPT4o");
+    this.enabled = false;
+    
+    // NÃO agendar imports automáticos - AutoSyncSchedulerGPT4o cuida disso
+    // await this.scheduleImport("10A", "0 * * * *");
+    // await this.scheduleImport("10B", "30 * * * *");
   }
 
   /**

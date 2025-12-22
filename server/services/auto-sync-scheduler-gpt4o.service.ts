@@ -138,13 +138,16 @@ export class AutoSyncSchedulerGPT4o {
         return result;
       }
 
-      result.stats.totalRecords = rawData.length;
-      console.log(`[AutoSync] ✅ ${rawData.length} registros recebidos`);
+      console.log(`[AutoSync] ✅ ${rawData.length} registros recebidos do N8N`);
+
+      // PRODUÇÃO: Filtrar apenas enfermarias das unidades 22,23 (padrão 10A*)
+      const ALLOWED_ENFERMARIA_PATTERN = /^10A/; // Unidades 22,23 = enfermarias 10A*
 
       // 2. PROCESSAR E DETECTAR MUDANÇAS
-      console.log('[AutoSync] 🔍 Detectando mudanças...');
+      console.log('[AutoSync] 🔍 Processando registros...');
       
       const patientsToProcess: InsertPatient[] = [];
+      let skippedCount = 0;
 
       for (const rawPatient of rawData) {
         const leito = rawPatient.leito || 'DESCONHECIDO';
@@ -158,7 +161,16 @@ export class AutoSyncSchedulerGPT4o {
             continue;
           }
 
-          // Collect codigoAtendimento for cleanup later
+          // PRODUÇÃO: Filtrar apenas enfermarias das unidades 22,23 (padrão 10A*)
+          // Filtro aplicado APÓS processamento para garantir que dsEnfermaria está preenchido
+          const dsEnfermaria = processed.dadosProcessados.dsEnfermaria || '';
+          if (!ALLOWED_ENFERMARIA_PATTERN.test(dsEnfermaria)) {
+            console.log(`[AutoSync] ⚠️  Ignorando paciente leito ${leito} - enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*)`);
+            skippedCount++;
+            continue;
+          }
+
+          // Collect codigoAtendimento for cleanup later (only for valid enfermarias)
           if (processed.dadosProcessados.codigoAtendimento) {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
@@ -194,7 +206,11 @@ export class AutoSyncSchedulerGPT4o {
         }
       }
 
+      result.stats.totalRecords = rawData.length - skippedCount;
       console.log(`[AutoSync] 📊 Estatísticas:`);
+      console.log(`   - Recebidos: ${rawData.length}`);
+      console.log(`   - Filtrados (outras enfermarias): ${skippedCount}`);
+      console.log(`   - Válidos (10A*): ${result.stats.totalRecords}`);
       console.log(`   - Novos: ${result.stats.newRecords}`);
       console.log(`   - Alterados: ${result.stats.changedRecords}`);
       console.log(`   - Sem mudança: ${result.stats.unchangedRecords}`);
