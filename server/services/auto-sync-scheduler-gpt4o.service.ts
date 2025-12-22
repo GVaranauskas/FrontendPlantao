@@ -263,7 +263,9 @@ export class AutoSyncSchedulerGPT4o {
       if (existing) {
         await storage.updatePatient(existing.id, patient);
       } else {
-        await storage.createPatient(patient);
+        // Create new patient and add to cache to prevent duplicates within same batch
+        const created = await storage.createPatient(patient);
+        allPatients.push(created);
       }
     }
     console.log(`[AutoSync] ✅ ${patients.length} registros salvos`);
