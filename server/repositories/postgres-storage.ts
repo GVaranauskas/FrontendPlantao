@@ -79,12 +79,23 @@ export class PostgresStorage implements IStorage {
   }
 
   async createPatient(patient: InsertPatient): Promise<Patient> {
+    // PRODUÇÃO: VALIDAÇÃO OBRIGATÓRIA - apenas enfermarias 10A* (unidades 22,23)
+    const dsEnfermaria = patient.dsEnfermaria || '';
+    if (!dsEnfermaria.startsWith('10A')) {
+      throw new Error(`[BLOQUEADO] Enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*). Paciente não será salvo.`);
+    }
+    
     const encryptedPatient = this.encryptPatientData(patient);
     const result = await db.insert(patients).values(encryptedPatient).returning();
     return this.decryptPatientData(result[0]);
   }
 
   async updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined> {
+    // PRODUÇÃO: VALIDAÇÃO OBRIGATÓRIA - se dsEnfermaria está sendo atualizada, deve ser 10A*
+    if (patient.dsEnfermaria && !patient.dsEnfermaria.startsWith('10A')) {
+      throw new Error(`[BLOQUEADO] Enfermaria "${patient.dsEnfermaria}" não pertence às unidades 22,23 (10A*). Atualização rejeitada.`);
+    }
+    
     const encryptedPatient = encryptionService.encryptFields(
       patient as Record<string, unknown>, 
       SENSITIVE_PATIENT_FIELDS as unknown as Array<keyof typeof patient>
