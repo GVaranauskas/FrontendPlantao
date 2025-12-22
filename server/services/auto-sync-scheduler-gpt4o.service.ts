@@ -310,6 +310,22 @@ export class AutoSyncSchedulerGPT4o {
     };
   }
 
+  getDetailedStatus() {
+    const lastSync = this.syncHistory.length > 0 ? this.syncHistory[this.syncHistory.length - 1] : null;
+    
+    return {
+      isRunning: this.isRunning,
+      lastRun: this.lastRun || (lastSync ? lastSync.timestamp : null),
+      lastSyncDuration: lastSync ? lastSync.duration : null,
+      lastSyncStats: lastSync ? lastSync.stats : null,
+      totalSyncsCompleted: this.syncHistory.length,
+      config: {
+        cronExpression: this.config.cronExpression,
+        enableAI: this.config.enableAI
+      }
+    };
+  }
+
   async runManualSync(): Promise<SyncResult> {
     console.log('[AutoSync] 🔧 Executando sincronização manual...');
     return await this.runSyncCycle();

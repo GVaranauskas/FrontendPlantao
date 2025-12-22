@@ -29,6 +29,11 @@ router.get('/status', (req, res) => {
   });
 });
 
+// GET /api/sync-gpt4o/detailed-status (for UI indicator)
+router.get('/detailed-status', (req, res) => {
+  res.json(autoSyncSchedulerGPT4o.getDetailedStatus());
+});
+
 // GET /api/sync-gpt4o/history
 router.get('/history', (req, res) => {
   const limit = parseInt(req.query.limit as string) || 10;
