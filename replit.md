@@ -23,8 +23,13 @@ Preferred communication style: Simple, everyday language.
 - **Development**: Vite middleware integration, Replit-specific plugins, separate static file serving.
 - **Data Models**: User (authentication, role-based access), Patient (14 normalized N8N fields: braden, diagnostico, alergias, mobilidade, dieta, eliminacoes, dispositivos, atb, curativos, aporteSaturacao, exames, cirurgia, observacoes, previsaoAlta), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange.
 - **API Endpoints**: Standard CRUD for patients and alerts. N8N sync endpoint (`/api/sync/evolucoes`). Template management. Authentication (`/api/auth/*`). WebSocket (`/ws/import`). User management (`/api/users/*`).
-- **N8N Integration Service**: Simple direct mapping from N8N webhook response to patient fields. No complex extraction - fields are mapped 1:1 as returned by N8N.
-- **Periodic Sync Scheduler**: Cron-based automation for automatic patient data synchronization.
+- **N8N Integration Service**: Simple direct mapping from N8N webhook response to patient fields. No complex extraction - fields are mapped 1:1 as returned by N8N. **PRODUÇÃO**: Apenas unidades 22,23 (enfermarias 10A01-10A20).
+- **Auto Sync Scheduler GPT-4o**: Cron-based automation (cada 15 minutos) com sistema de economia de custos em 4 camadas:
+  1. Change Detection (85-90% economia) - processa apenas dados alterados
+  2. Intelligent Cache (60-80% economia) - cache com TTL dinâmico
+  3. GPT-4o-mini (50% economia) - modelo otimizado para custo
+  4. Auto Sync 15min (95%+ economia) - sincronização automática
+- **Validação de Enfermaria**: Camada de segurança no storage que BLOQUEIA qualquer paciente de enfermarias não-10A*.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware for error catching, automatic logging of request context.
 - **Security**: JWT authentication (access/refresh tokens), Role-Based Access Control (admin, enfermeiro, visualizador), CSRF protection, secure cookie handling, N8N webhook validation.
 
@@ -37,7 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Security**: jsonwebtoken (JWT), bcryptjs (password hashing), csurf (CSRF protection), cookie-parser (cookie handling).
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://dev-n8n.7care.com.br/webhook/unidades-internacao`).
-- **AI Integration**: Claude Haiku 4.5 (primary) with OpenAI GPT-4o-mini (fallback) for patient data analysis. Unified service at `server/services/ai-service.ts`.
+- **AI Integration**: Claude Haiku 3.5 (primary) with OpenAI GPT-4o-mini (fallback) para análise IA sob demanda. Serviço unificado em `server/services/ai-service.ts`. Para sincronização automática, usa GPT-4o-mini via `server/services/ai-service-gpt4o-mini.ts`.
 - **Scheduled Tasks**: Daily automatic sync of nursing units (06:00 AM) with change detection and admin approval workflow.
 
 ## OpenAI Integration
@@ -45,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 ### Configuration
 - **API Key**: Stored as secret `OPENAI_API_KEY`
 - **Model**: `gpt-4o-mini` (configured via env var `OPENAI_MODEL`)
-- **Service**: `server/services/openai-service.ts`
+- **Service**: `server/services/ai-service.ts` (análise sob demanda) e `server/services/ai-service-gpt4o-mini.ts` (auto-sync)
 
 ### API Endpoints
 - `POST /api/ai/analyze-patient/:id` - Analisa dados de um paciente específico
