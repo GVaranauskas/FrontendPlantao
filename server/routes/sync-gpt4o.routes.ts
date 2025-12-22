@@ -7,16 +7,18 @@ import { intelligentCache } from '../services/intelligent-cache.service';
 const router = Router();
 
 // POST /api/sync-gpt4o/manual
-router.post('/manual', async (req, res) => {
-  try {
-    const result = await autoSyncSchedulerGPT4o.runManualSync();
-    res.json({ success: true, result });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Erro'
-    });
-  }
+router.post('/manual', (req, res) => {
+  // Retorna imediatamente sem aguardar a conclusão
+  res.status(202).json({ 
+    success: true, 
+    message: 'Sincronização iniciada em background',
+    statusCheckUrl: '/api/sync-gpt4o/status'
+  });
+  
+  // Executa sincronização em background (sem await)
+  autoSyncSchedulerGPT4o.runManualSync().catch(error => {
+    console.error('[AutoSync] Erro na sincronização manual em background:', error);
+  });
 });
 
 // GET /api/sync-gpt4o/status
