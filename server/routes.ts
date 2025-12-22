@@ -855,62 +855,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Clinical analysis for shift handover - single patient
   app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
+    const { changeDetectionService } = await import("./services/change-detection.service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Paciente não encontrado");
     }
     
-    const analysis = await aiService.performClinicalAnalysis(patient);
-    const insights = aiService.extractClinicalInsights(analysis);
-    
-    // Store insights in patient record
-    await storage.updatePatient(patient.id, {
-      clinicalInsights: insights,
-      clinicalInsightsUpdatedAt: new Date(),
+    // Detect if patient data has changed
+    const changeDetection = changeDetectionService.detectChanges(patient.id, {
+      diagnostico: patient.diagnostico,
+      alergias: patient.alergias,
+      observacoes: patient.observacoes,
+      braden: patient.braden,
+      mobilidade: patient.mobilidade,
+      dispositivos: patient.dispositivos,
+      atb: patient.atb,
+      aporteSaturacao: patient.aporteSaturacao,
+      curativos: patient.curativos,
+      exames: patient.exames,
+      dieta: patient.dieta,
+      eliminacoes: patient.eliminacoes,
+      previsaoAlta: patient.previsaoAlta,
+      cirurgia: patient.cirurgia,
+      dataNascimento: patient.dataNascimento,
+      sexo: patient.sexo,
     });
+
+    let analysis;
+    let insights;
+
+    if (!changeDetection.hasChanged && patient.clinicalInsights) {
+      // Use cached insights if no changes
+      insights = patient.clinicalInsights;
+      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using cache (no changes detected)`);
+    } else {
+      // Call AI for new or changed data
+      analysis = await aiService.performClinicalAnalysis(patient);
+      insights = aiService.extractClinicalInsights(analysis);
+      
+      // Store insights in patient record
+      await storage.updatePatient(patient.id, {
+        clinicalInsights: insights,
+        clinicalInsightsUpdatedAt: new Date(),
+      });
+      
+      logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
+    }
     
-    logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta}`);
-    res.json({ insights, analysis });
+    res.json({ insights, analysis, changeDetection });
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
   app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
+    const { changeDetectionService } = await import("./services/change-detection.service");
     const patients = await storage.getAllPatients();
     
     if (patients.length === 0) {
       throw new AppError(404, "Nenhum paciente encontrado");
     }
 
-    const results: Array<{ id: string; leito: string; nome: string; insights: any; error?: string }> = [];
-    const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, errors: 0 };
+    const results: Array<{ id: string; leito: string; nome: string; insights: any; error?: string; cached?: boolean }> = [];
+    const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, errors: 0, cached: 0 };
     const failedPatients: string[] = [];
     const patientInsightsMap = new Map<string, any>();
 
     // Process patients in sequence to avoid rate limiting
     for (const patient of patients) {
       try {
-        const analysis = await aiService.performClinicalAnalysis(patient);
-        const insights = aiService.extractClinicalInsights(analysis);
+        // Detect if patient data has changed
+        const changeDetection = changeDetectionService.detectChanges(patient.id, {
+          diagnostico: patient.diagnostico,
+          alergias: patient.alergias,
+          observacoes: patient.observacoes,
+          braden: patient.braden,
+          mobilidade: patient.mobilidade,
+          dispositivos: patient.dispositivos,
+          atb: patient.atb,
+          aporteSaturacao: patient.aporteSaturacao,
+          curativos: patient.curativos,
+          exames: patient.exames,
+          dieta: patient.dieta,
+          eliminacoes: patient.eliminacoes,
+          previsaoAlta: patient.previsaoAlta,
+          cirurgia: patient.cirurgia,
+          dataNascimento: patient.dataNascimento,
+          sexo: patient.sexo,
+        });
+
+        let insights: any;
+        let usedCache = false;
+
+        if (!changeDetection.hasChanged && patient.clinicalInsights) {
+          // Use cached insights if no changes
+          insights = patient.clinicalInsights as any;
+          usedCache = true;
+          summaryStats.cached++;
+          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using cached analysis (no changes)`);
+        } else {
+          // Call AI for new or changed data
+          const analysis = await aiService.performClinicalAnalysis(patient);
+          insights = aiService.extractClinicalInsights(analysis);
+          
+          await storage.updatePatient(patient.id, {
+            clinicalInsights: insights,
+            clinicalInsightsUpdatedAt: new Date(),
+          });
+          
+          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} analyzed: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
+        }
         
         // Ensure insights has required fields
         if (!insights || !insights.nivel_alerta) {
           throw new Error("Análise retornou dados incompletos");
         }
         
-        await storage.updatePatient(patient.id, {
-          clinicalInsights: insights,
-          clinicalInsightsUpdatedAt: new Date(),
-        });
-        
-        results.push({ id: patient.id, leito: patient.leito, nome: patient.nome, insights });
+        results.push({ id: patient.id, leito: patient.leito, nome: patient.nome, insights, cached: usedCache });
         patientInsightsMap.set(patient.id, insights);
         
         if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
         else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
         else summaryStats.verde++;
-        
-        logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} analyzed: ${insights.nivel_alerta}`);
         
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
@@ -931,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const analiseGeral = await aiService.generateEnhancedGeneralAnalysis(patients, patientInsightsMap);
     
     const successCount = summaryStats.vermelho + summaryStats.amarelo + summaryStats.verde;
-    logger.info(`[${getTimestamp()}] [AI] Batch clinical analysis completed: ${successCount}/${patients.length} successful (${summaryStats.vermelho} critical, ${summaryStats.amarelo} warning, ${summaryStats.verde} ok), ${summaryStats.errors} errors`);
+    logger.info(`[${getTimestamp()}] [AI] Batch clinical analysis completed: ${successCount}/${patients.length} successful (${summaryStats.vermelho} critical, ${summaryStats.amarelo} warning, ${summaryStats.verde} ok), ${summaryStats.cached} cached, ${summaryStats.errors} errors`);
     
     if (failedPatients.length > 0) {
       logger.warn(`[${getTimestamp()}] [AI] Failed patients: ${failedPatients.join(", ")}`);
