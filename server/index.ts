@@ -3,7 +3,8 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
-import { importScheduler } from "./services/import-scheduler";
+// Legado: ImportScheduler desabilitado - sync via AutoSyncSchedulerGPT4o
+// import { importScheduler } from "./services/import-scheduler";
 import { nursingUnitsScheduler } from "./services/nursing-units-scheduler";
 import { setupHelmet, setupRateLimit } from "./security";
 import { registerErrorHandler, AppError } from "./middleware/error-handler";
