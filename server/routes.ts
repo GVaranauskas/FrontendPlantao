@@ -13,6 +13,7 @@ import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
+import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 
 // Helper to get formatted timestamp
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
@@ -1069,6 +1070,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register authentication routes
   registerAuthRoutes(app);
   registerUserRoutes(app);
+
+  // Register sync-gpt4o routes
+  app.use('/api/sync-gpt4o', syncGPT4oRoutes);
 
   return httpServer;
 }
