@@ -8,6 +8,47 @@ The 11Care Nursing Platform is a healthcare management system for nursing staff 
 
 Preferred communication style: Simple, everyday language.
 
+## Ambientes e Deploy
+
+### Configuração de Ambientes
+O sistema suporta dois ambientes separados:
+
+| Ambiente | Banco de Dados | Variável | Branch |
+|----------|---------------|----------|--------|
+| **Homologação** | `HOMOLOG_DATABASE_URL` | `APP_ENV=homologacao` | `staging` |
+| **Produção** | `DATABASE_URL` | `APP_ENV=producao` | `main` |
+
+### Variáveis de Ambiente
+- **Compartilhadas (shared)**: N8N URLs, modelos de IA, configurações gerais
+- **Development**: `NODE_ENV=development`, `APP_ENV=homologacao` - usa `HOMOLOG_DATABASE_URL`
+- **Production**: `NODE_ENV=production`, `APP_ENV=producao` - usa `DATABASE_URL`
+
+### Fluxo de Deploy (Homologação → Produção)
+1. **Desenvolver em `staging`**: Todas as alterações são feitas neste branch
+2. **Testar em homologação**: O ambiente development usa o banco de homologação
+3. **Aprovar alterações**: Após validação, merge para `main`
+4. **Publicar**: Use o botão "Publish" do Replit para deploy em produção
+
+### Criando o Branch Staging (Manual)
+```bash
+git checkout -b staging
+git push origin staging
+```
+
+### Sincronizando Alterações
+```bash
+# Em staging, após aprovar alterações:
+git checkout main
+git merge staging
+git push origin main
+# Depois, publish no Replit
+```
+
+### Logs de Ambiente
+O sistema loga qual banco está sendo usado:
+- `🧪 [Database] Conectando ao banco de HOMOLOGAÇÃO`
+- `🗄️ [Database] Conectando ao banco de PRODUÇÃO`
+
 ## System Architecture
 
 ### Frontend Architecture
