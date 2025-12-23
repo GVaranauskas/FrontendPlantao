@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Patient, Alert } from "@shared/schema";
@@ -17,7 +17,6 @@ import {
   Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
-import { useAutoSync } from "@/hooks/use-auto-sync";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -258,30 +257,52 @@ export default function ShiftHandoverPage() {
     setPatientDetailsOpen(true);
   };
   
-  // TEMPORARIAMENTE DESATIVADO: Auto-sync a cada 15 minutos
-  // Para reativar, mude enabled para true
-  const { isSyncing: isAutoSyncing, triggerSync } = useAutoSync({
-    enabled: false, // DESATIVADO TEMPORARIAMENTE PARA TESTES
-    syncInterval: 900000, // 15 minutes
-  });
+  // Ref para controlar timer de polling e evitar memory leaks
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup do timer quando componente desmonta
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+      }
+    };
+  }, []);
 
-  // Mutation para sincronização manual
+  // Mutation para sincronização manual COM análise de IA (GPT-4o-mini)
   const manualSyncMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/sync/evolucoes", {
+      // Limpa timer anterior antes de iniciar nova sincronização
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      
+      // Usa o endpoint correto que inclui análise de IA
+      const response = await apiRequest("POST", "/api/sync-gpt4o/manual", {
         unitIds: "22,23",
-        forceUpdate: false,
+        forceUpdate: true, // Força atualização, bypassing cache
       });
       return response.json();
     },
-    onSuccess: (data) => {
-      refetch();
+    onSuccess: () => {
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem('lastSyncTime', now.toISOString());
+      
+      // Atualiza dados imediatamente
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      
+      // A sincronização de IA roda em background - agenda uma atualização adicional
+      // para capturar os insights de IA quando estiverem prontos (~10-15 segundos)
+      pollTimerRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+        pollTimerRef.current = null;
+      }, 15000);
+      
       toast({
-        title: "Sincronização Manual Concluída",
-        description: `Dados do N8N atualizados`,
+        title: "Sincronização Iniciada",
+        description: "Dados sincronizados. Análise de IA em processamento...",
       });
     },
     onError: (error: Error) => {
@@ -354,10 +375,10 @@ export default function ShiftHandoverPage() {
                 <h1 className="text-xl sm:text-[22px] font-bold text-primary leading-tight">
                   Passagem de Plantão (SBAR)
                 </h1>
-                {isAutoSyncing && (
+                {manualSyncMutation.isPending && (
                   <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary mt-1 w-fit">
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    Sincronizando...
+                    Sincronizando com IA...
                   </div>
                 )}
               </div>
@@ -372,7 +393,7 @@ export default function ShiftHandoverPage() {
                   onClick={() => manualSyncMutation.mutate()}
                   disabled={manualSyncMutation.isPending}
                   data-testid="button-manual-n8n-sync"
-                  title="Sincronização Manual N8N"
+                  title="Sincronizar dados do N8N com análise de IA"
                   className="bg-chart-3 hover:bg-chart-3/90 text-white"
                 >
                   {manualSyncMutation.isPending ? (
@@ -383,7 +404,7 @@ export default function ShiftHandoverPage() {
                   ) : (
                     <>
                       <RefreshCcw className="w-4 h-4 mr-2" />
-                      Sync N8N
+                      Sync N8N + IA
                     </>
                   )}
                 </Button>
@@ -400,16 +421,6 @@ export default function ShiftHandoverPage() {
                   </span>
                 )}
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => triggerSync()}
-                disabled={isAutoSyncing}
-                data-testid="button-sync"
-                title="Sincronizar dados do N8N"
-              >
-                <RefreshCcw className={`w-5 h-5 ${isAutoSyncing ? 'animate-spin' : ''}`} />
-              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
