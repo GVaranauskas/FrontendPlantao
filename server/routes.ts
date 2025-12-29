@@ -23,7 +23,7 @@ const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patients", 
     authMiddleware, 
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     asyncHandler(async (req, res, next) => {
       const patients = await storage.getAllPatients();
       const acceptToon = isToonFormat(req.get("accept"));
@@ -38,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/patients/:id", 
     authMiddleware, 
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     asyncHandler(async (req, res, next) => {
       const patient = await storage.getPatient(req.params.id);
       if (!patient) {
@@ -56,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/patients", 
     authMiddleware, 
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     asyncHandler(async (req, res, next) => {
       try {
         const validatedData = insertPatientSchema.parse(req.body);
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/patients/:id", 
     authMiddleware, 
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     async (req, res) => {
       try {
         const validatedData = insertPatientSchema.partial().parse(req.body);
@@ -105,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/patients/:id", 
     authMiddleware, 
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     async (req, res) => {
       try {
         const success = await storage.deletePatient(req.params.id);
@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import status endpoint - test N8N connectivity
   app.get("/api/import/status", 
     authMiddleware,
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     async (req, res) => {
       try {
         const startTime = Date.now();
@@ -516,7 +516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import history endpoint
   app.get("/api/import/history", 
     authMiddleware,
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     async (req, res) => {
       try {
         const history = await storage.getAllImportHistory();
@@ -537,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import stats endpoint - estatísticas consolidadas
   app.get("/api/import/stats", 
     authMiddleware,
-    requireRole('admin', 'enfermeiro'),
+    requireRole('admin', 'enfermagem'),
     async (req, res) => {
       try {
         const stats = await storage.getImportStats();
@@ -927,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -939,7 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patients", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patients = await storage.getAllPatients();
     
@@ -952,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -965,7 +965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - single patient
-  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1037,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
-  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis-batch", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1169,7 +1169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Cache monitoring endpoint (admin only)
-  app.get("/api/admin/cache-stats", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/cache-stats", authMiddleware, requireRole('admin'), asyncHandler(async (req, res) => {
     const { intelligentCache } = await import("./services/intelligent-cache.service");
     const stats = intelligentCache.getStats();
     res.json({
