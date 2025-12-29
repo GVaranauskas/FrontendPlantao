@@ -25,13 +25,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authMiddleware, 
     requireRole('admin', 'enfermagem'),
     asyncHandler(async (req, res, next) => {
-      const patients = await storage.getAllPatients();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const usePagination = req.query.paginate !== 'false';
+
+      if (!usePagination) {
+        const patients = await storage.getAllPatients();
+        const acceptToon = isToonFormat(req.get("accept"));
+        if (acceptToon) {
+          const toonData = stringifyToToon(patients);
+          res.type("application/toon").send(toonData);
+        } else {
+          res.json(patients);
+        }
+        return;
+      }
+
+      const result = await storage.getPatientsPaginated({ page, limit: Math.min(100, limit) });
+      
+      res.setHeader('X-Total-Count', result.total.toString());
+      res.setHeader('X-Total-Pages', result.totalPages.toString());
+      res.setHeader('X-Current-Page', result.page.toString());
+      res.setHeader('X-Per-Page', result.limit.toString());
+
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
-        const toonData = stringifyToToon(patients);
+        const toonData = stringifyToToon({
+          data: result.data,
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+            totalPages: result.totalPages
+          }
+        });
         res.type("application/toon").send(toonData);
       } else {
-        res.json(patients);
+        res.json({
+          data: result.data,
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+            totalPages: result.totalPages,
+            hasNext: result.page < result.totalPages,
+            hasPrev: result.page > 1
+          }
+        });
       }
     })
   );
