@@ -12,6 +12,7 @@ import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
 import { authMiddleware } from "./middleware/auth";
+import { verifyAccessToken } from "./security/jwt";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
@@ -577,9 +578,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup WebSocket for real-time notifications on specific path
   const wss = new WebSocketServer({ noServer: true });
 
+  // Helper function to extract token from WebSocket request
+  function extractTokenFromWsRequest(request: any): string | null {
+    // Try query parameter first (?token=...)
+    const url = new URL(request.url || '', 'http://localhost');
+    const tokenFromQuery = url.searchParams.get('token');
+    if (tokenFromQuery) {
+      return tokenFromQuery;
+    }
+
+    // Try Authorization header
+    const authHeader = request.headers['authorization'];
+    if (authHeader?.startsWith('Bearer ')) {
+      return authHeader.slice(7);
+    }
+
+    // Try cookie
+    const cookies = request.headers['cookie'];
+    if (cookies) {
+      const match = cookies.match(/accessToken=([^;]+)/);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return null;
+  }
+
   httpServer.on("upgrade", (request, socket, head) => {
-    if (request.url === "/ws/import") {
+    if (request.url?.startsWith("/ws/import")) {
+      // Authenticate WebSocket connection
+      const token = extractTokenFromWsRequest(request);
+      
+      if (!token) {
+        logger.warn('[WebSocket] Connection rejected: No token provided');
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      const payload = verifyAccessToken(token);
+      if (!payload) {
+        logger.warn('[WebSocket] Connection rejected: Invalid token');
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      // Token válido - permitir upgrade
+      logger.info(`[WebSocket] Connection authenticated for user: ${payload.username}`);
+      
       wss.handleUpgrade(request, socket, head, (ws) => {
+        // Attach user info to ws connection
+        (ws as any).userId = payload.userId;
+        (ws as any).username = payload.username;
         wss.emit("connection", ws, request);
       });
     } else {
