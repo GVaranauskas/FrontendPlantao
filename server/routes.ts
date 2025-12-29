@@ -11,6 +11,7 @@ import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
+import { authMiddleware } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
@@ -19,83 +20,103 @@ import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", asyncHandler(async (req, res, next) => {
-    const patients = await storage.getAllPatients();
-    const acceptToon = isToonFormat(req.get("accept"));
-    if (acceptToon) {
-      const toonData = stringifyToToon(patients);
-      res.type("application/toon").send(toonData);
-    } else {
-      res.json(patients);
-    }
-  }));
-
-  app.get("/api/patients/:id", asyncHandler(async (req, res, next) => {
-    const patient = await storage.getPatient(req.params.id);
-    if (!patient) {
-      throw new AppError(404, "Patient not found", { patientId: req.params.id });
-    }
-    const acceptToon = isToonFormat(req.get("accept"));
-    if (acceptToon) {
-      const toonData = stringifyToToon(patient);
-      res.type("application/toon").send(toonData);
-    } else {
-      res.json(patient);
-    }
-  }));
-
-  app.post("/api/patients", asyncHandler(async (req, res, next) => {
-    try {
-      const validatedData = insertPatientSchema.parse(req.body);
-      const patient = await storage.createPatient(validatedData);
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
-        const toonData = stringifyToToon(patient);
-        res.status(201).type("application/toon").send(toonData);
+  app.get("/api/patients", 
+    authMiddleware, 
+    requireRole('admin', 'enfermeiro'),
+    asyncHandler(async (req, res, next) => {
+      const patients = await storage.getAllPatients();
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
       } else {
-        res.status(201).json(patient);
+        res.json(patients);
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        throw new AppError(400, "Invalid patient data", { error: error.message });
-      }
-      throw error;
-    }
-  }));
+    })
+  );
 
-  app.patch("/api/patients/:id", async (req, res) => {
-    try {
-      const validatedData = insertPatientSchema.partial().parse(req.body);
-      const patient = await storage.updatePatient(req.params.id, validatedData);
+  app.get("/api/patients/:id", 
+    authMiddleware, 
+    requireRole('admin', 'enfermeiro'),
+    asyncHandler(async (req, res, next) => {
+      const patient = await storage.getPatient(req.params.id);
       if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
+        throw new AppError(404, "Patient not found", { patientId: req.params.id });
       }
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
         const toonData = stringifyToToon(patient);
         res.type("application/toon").send(toonData);
       } else {
         res.json(patient);
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid patient data" });
-      }
-      res.status(500).json({ message: "Failed to update patient" });
-    }
-  });
+    })
+  );
 
-  app.delete("/api/patients/:id", async (req, res) => {
-    try {
-      const success = await storage.deletePatient(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Patient not found" });
+  app.post("/api/patients", 
+    authMiddleware, 
+    requireRole('admin', 'enfermeiro'),
+    asyncHandler(async (req, res, next) => {
+      try {
+        const validatedData = insertPatientSchema.parse(req.body);
+        const patient = await storage.createPatient(validatedData);
+        const contentType = req.get("content-type");
+        if (isToonFormat(contentType)) {
+          const toonData = stringifyToToon(patient);
+          res.status(201).type("application/toon").send(toonData);
+        } else {
+          res.status(201).json(patient);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "ZodError") {
+          throw new AppError(400, "Invalid patient data", { error: error.message });
+        }
+        throw error;
       }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete patient" });
+    })
+  );
+
+  app.patch("/api/patients/:id", 
+    authMiddleware, 
+    requireRole('admin', 'enfermeiro'),
+    async (req, res) => {
+      try {
+        const validatedData = insertPatientSchema.partial().parse(req.body);
+        const patient = await storage.updatePatient(req.params.id, validatedData);
+        if (!patient) {
+          return res.status(404).json({ message: "Patient not found" });
+        }
+        const contentType = req.get("content-type");
+        if (isToonFormat(contentType)) {
+          const toonData = stringifyToToon(patient);
+          res.type("application/toon").send(toonData);
+        } else {
+          res.json(patient);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "ZodError") {
+          return res.status(400).json({ message: "Invalid patient data" });
+        }
+        res.status(500).json({ message: "Failed to update patient" });
+      }
     }
-  });
+  );
+
+  app.delete("/api/patients/:id", 
+    authMiddleware, 
+    requireRole('admin', 'enfermeiro'),
+    async (req, res) => {
+      try {
+        const success = await storage.deletePatient(req.params.id);
+        if (!success) {
+          return res.status(404).json({ message: "Patient not found" });
+        }
+        res.status(204).send();
+      } catch (error) {
+        res.status(500).json({ message: "Failed to delete patient" });
+      }
+    }
+  );
 
   app.get("/api/alerts", async (req, res) => {
     try {
