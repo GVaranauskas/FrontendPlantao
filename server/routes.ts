@@ -21,6 +21,10 @@ import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health Check Routes (public - no auth required)
+  const healthRoutes = (await import('./routes/health.routes')).default;
+  app.use('/health', healthRoutes);
+
   app.get("/api/patients", 
     authMiddleware, 
     requireRole('admin', 'enfermagem'),
