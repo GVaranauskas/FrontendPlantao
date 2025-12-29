@@ -22,6 +22,10 @@ interface AuditLogOptions {
 class AuditService {
   async log(options: AuditLogOptions): Promise<void> {
     try {
+      if (options.user.id === 'anonymous') {
+        return;
+      }
+
       const duration = Date.now() - options.startTime;
 
       const logEntry: InsertAuditLog = {

@@ -23,6 +23,7 @@ const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const AdminMenuPage = lazy(() => import("@/pages/admin-menu"));
 const AdminNursingUnitsPage = lazy(() => import("@/pages/admin-nursing-units"));
 const AdminAICostsPage = lazy(() => import("@/pages/admin-ai-costs"));
+const AdminHealthPage = lazy(() => import("@/pages/admin-health"));
 const ImportLogsPage = lazy(() => import("@/pages/import-logs"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -102,6 +103,9 @@ function Router() {
         </Route>
         <Route path="/admin/ai-costs">
           <ProtectedRoute component={AdminAICostsPage} />
+        </Route>
+        <Route path="/admin/health">
+          <ProtectedRoute component={AdminHealthPage} />
         </Route>
         <Route>
           <LazyRoute component={NotFound} />
