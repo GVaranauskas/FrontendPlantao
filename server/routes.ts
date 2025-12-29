@@ -162,10 +162,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync endpoints for external API integration
-  app.post("/api/sync/patient/:leito", async (req, res) => {
-    try {
-      const leito = req.params.leito;
-      const patient = await syncPatientFromExternalAPI(leito);
+  app.post("/api/sync/patient/:leito", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const leito = req.params.leito;
+        const patient = await syncPatientFromExternalAPI(leito);
       
       if (!patient) {
         return res.status(404).json({ message: "Failed to sync patient data from external API" });
@@ -176,16 +179,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patient);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(patient);
+          res.json(patient);
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Failed to sync patient" });
       }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync patient" });
     }
-  });
+  );
 
-  app.post("/api/sync/patients", async (req, res) => {
-    try {
-      const { leitos } = req.body;
+  app.post("/api/sync/patients", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const { leitos } = req.body;
       
       if (!Array.isArray(leitos) || leitos.length === 0) {
         return res.status(400).json({ message: "leitos array is required" });
@@ -198,20 +205,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(patients);
+          res.json(patients);
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Failed to sync patients" });
       }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync patients" });
     }
-  });
+  );
 
   // PRODUÇÃO: Unidades fixas 22,23
   const PRODUCTION_UNIT_IDS = "22,23";
   
   // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
-  app.post("/api/sync/evolucoes", async (req, res) => {
-    try {
-      logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
+  app.post("/api/sync/evolucoes", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
       
       const { unitIds, forceUpdate } = req.body || {};
       // PRODUÇÃO: Sempre usar 22,23 como padrão, ignorar string vazia
@@ -226,18 +237,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(patients);
+          res.json(patients);
+        }
+      } catch (error) {
+        logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
+        res.status(500).json({ message: "Failed to sync evolucoes" });
       }
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
-      res.status(500).json({ message: "Failed to sync evolucoes" });
     }
-  });
+  );
 
   // N8N Evolucoes sync endpoint - specific unit (legacy)
-  app.post("/api/sync/evolucoes/:enfermaria", async (req, res) => {
-    try {
-      const enfermaria = req.params.enfermaria;
+  app.post("/api/sync/evolucoes/:enfermaria", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const enfermaria = req.params.enfermaria;
       
       if (!enfermaria || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria parameter is required" });
@@ -250,17 +265,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(patients);
+          res.json(patients);
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Failed to sync evolucoes" });
       }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync evolucoes" });
     }
-  });
+  );
 
   // Import endpoints
-  app.post("/api/import/evolucoes", async (req, res) => {
-    try {
-      const { enfermaria, templateId } = req.body;
+  app.post("/api/import/evolucoes", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const { enfermaria, templateId } = req.body;
       
       if (!enfermaria || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria is required" });
@@ -445,9 +464,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import status endpoint - test N8N connectivity
-  app.get("/api/import/status", async (req, res) => {
-    try {
-      const startTime = Date.now();
+  app.get("/api/import/status", 
+    authMiddleware,
+    requireRole('admin', 'enfermeiro'),
+    async (req, res) => {
+      try {
+        const startTime = Date.now();
       
       logger.info(`[${getTimestamp()}] [Status] Testing N8N API connectivity...`);
       
@@ -484,43 +506,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
         api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes",
-        erro: error instanceof Error ? error.message : "Connection timeout"
-      });
+          erro: error instanceof Error ? error.message : "Connection timeout"
+        });
+      }
     }
-  });
+  );
 
   // Import history endpoint
-  app.get("/api/import/history", async (req, res) => {
-    try {
-      const history = await storage.getAllImportHistory();
+  app.get("/api/import/history", 
+    authMiddleware,
+    requireRole('admin', 'enfermeiro'),
+    async (req, res) => {
+      try {
+        const history = await storage.getAllImportHistory();
       
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
         const toonData = stringifyToToon(history);
         res.type("application/toon").send(toonData);
       } else {
-        res.json(history);
+          res.json(history);
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch import history" });
       }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch import history" });
     }
-  });
+  );
 
   // Import stats endpoint - estatísticas consolidadas
-  app.get("/api/import/stats", async (req, res) => {
-    try {
-      const stats = await storage.getImportStats();
-      res.json(stats);
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ message: "Failed to fetch import stats" });
+  app.get("/api/import/stats", 
+    authMiddleware,
+    requireRole('admin', 'enfermeiro'),
+    async (req, res) => {
+      try {
+        const stats = await storage.getImportStats();
+        res.json(stats);
+      } catch (error) {
+        logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
+        res.status(500).json({ message: "Failed to fetch import stats" });
+      }
     }
-  });
+  );
 
   // Cleanup old logs endpoint - retenção de 30 dias por padrão
-  app.delete("/api/import/cleanup", async (req, res) => {
-    try {
-      const rawDays = parseInt(req.query.days as string);
+  app.delete("/api/import/cleanup", 
+    authMiddleware,
+    requireRole('admin'),
+    async (req, res) => {
+      try {
+        const rawDays = parseInt(req.query.days as string);
       const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
       
       const deleted = await storage.deleteOldImportHistory(daysToKeep);
@@ -532,10 +566,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Removed ${deleted} logs older than ${daysToKeep} days`
       });
     } catch (error) {
-      logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ message: "Failed to cleanup old logs" });
+        logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
+        res.status(500).json({ message: "Failed to cleanup old logs" });
+      }
     }
-  });
+  );
 
   const httpServer = createServer(app);
 

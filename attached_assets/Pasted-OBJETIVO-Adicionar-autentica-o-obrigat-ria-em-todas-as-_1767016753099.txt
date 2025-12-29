@@ -1,0 +1,97 @@
+OBJETIVO: Adicionar autenticação obrigatória em todas as rotas de sincronização e importação de dados para evitar acessos não autorizados.
+
+CONTEXTO: As rotas /api/sync/* e /api/import/* permitem sincronizar e importar grandes volumes de dados de pacientes sem autenticação, permitindo que qualquer pessoa dispare importações massivas ou acesse evoluções clínicas.
+
+ARQUIVOS A MODIFICAR:
+1. server/routes.ts
+
+INSTRUÇÕES DETALHADAS:
+
+1. Localize as seguintes rotas no arquivo server/routes.ts:
+   - app.post("/api/sync/patient/:leito", ...)
+   - app.post("/api/sync/patients", ...)
+   - app.post("/api/sync/evolucoes", ...)
+   - app.post("/api/sync/evolucoes/:enfermaria", ...)
+   - app.post("/api/import/evolucoes", ...)
+   - app.get("/api/import/status", ...)
+   - app.get("/api/import/history", ...)
+   - app.get("/api/import/stats", ...)
+   - app.delete("/api/import/cleanup", ...)
+
+2. Para rotas de LEITURA (GET), adicione:
+   - authMiddleware
+   - requireRole('admin', 'enfermagem')
+
+3. Para rotas de ESCRITA (POST, DELETE), adicione:
+   - authMiddleware
+   - requireRole('admin') - apenas administradores
+
+CÓDIGO A APLICAR:
+
+Para rotas de LEITURA (exemplo):
+```typescript
+app.get("/api/import/history", 
+  authMiddleware,
+  requireRole('admin', 'enfermagem'),
+  async (req, res) => {
+    try {
+      const history = await storage.getAllImportHistory();
+      // ... resto do código
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch import history" });
+    }
+  }
+);
+```
+
+Para rotas de ESCRITA/AÇÃO (exemplo):
+```typescript
+app.post("/api/sync/evolucoes", 
+  authMiddleware,
+  requireRole('admin'),
+  async (req, res) => {
+    try {
+      logger.info(`[${getTimestamp()}] [Sync] Request received`);
+      // ... resto do código
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Sync] Failed:`, error);
+      res.status(500).json({ message: "Failed to sync evolucoes" });
+    }
+  }
+);
+```
+
+LISTA COMPLETA DE MODIFICAÇÕES:
+
+APENAS ADMIN (rotas críticas):
+- POST /api/sync/patient/:leito
+- POST /api/sync/patients
+- POST /api/sync/evolucoes
+- POST /api/sync/evolucoes/:enfermaria
+- POST /api/import/evolucoes
+- DELETE /api/import/cleanup
+
+ADMIN + ENFERMAGEM (rotas de leitura):
+- GET /api/import/status
+- GET /api/import/history
+- GET /api/import/stats
+
+VALIDAÇÃO APÓS APLICAR:
+1. Sem autenticação, todas as rotas retornam 401
+2. Usuário 'enfermagem' consegue acessar rotas GET mas não POST/DELETE
+3. Usuário 'admin' consegue acessar todas as rotas
+4. Funcionalidade de sync e import continua funcionando normalmente
+
+IMPORTANTE:
+- NÃO modifique a lógica de processamento
+- NÃO altere parâmetros das requisições
+- NÃO modifique integrações com N8N
+- Apenas adicione os middlewares de autenticação
+
+CHECKLIST DE SEGURANÇA:
+☐ Todas rotas /api/sync/* requerem autenticação
+☐ Todas rotas /api/import/* requerem autenticação
+☐ Rotas POST/DELETE só acessíveis por admin
+☐ Rotas GET acessíveis por admin e enfermagem
+☐ Retornam 401 sem token
+☐ Funcionalidade não foi alterada
