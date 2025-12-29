@@ -1,0 +1,323 @@
+OBJETIVO: Criar índices estratégicos no banco de dados PostgreSQL para acelerar queries comuns, especialmente buscas por leito, enfermaria e status que são usadas frequentemente.
+
+CONTEXTO: Atualmente as tabelas não têm índices além das primary keys, o que torna buscas lentas quando há muitos registros. Com índices adequados, queries podem ser até 100x mais rápidas.
+
+PRÉ-REQUISITOS:
+- Banco de dados PostgreSQL configurado e acessível
+- Acesso ao DATABASE_URL
+
+ARQUIVOS A CRIAR:
+1. db/migrations/001_add_indexes.sql (CRIAR NOVO)
+2. db/run-migration.ts (CRIAR NOVO - script helper)
+
+PASSO 1: CRIAR ARQUIVO DE MIGRATION
+
+Crie o arquivo db/migrations/001_add_indexes.sql:
+```sql
+-- Migration: Adicionar índices para otimização de performance
+-- Data: 2024
+-- Descrição: Índices estratégicos para queries comuns
+
+-- ========================================
+-- TABELA: patients
+-- ========================================
+
+-- Índice para busca por leito (muito usado)
+CREATE INDEX IF NOT EXISTS idx_patients_leito 
+ON patients(leito);
+
+-- Índice para busca por enfermaria (filtro comum)
+CREATE INDEX IF NOT EXISTS idx_patients_enfermaria 
+ON patients(ds_enfermaria);
+
+-- Índice para busca por status (pending/complete)
+CREATE INDEX IF NOT EXISTS idx_patients_status 
+ON patients(status);
+
+-- Índice composto para busca por leito + enfermaria (combo comum)
+CREATE INDEX IF NOT EXISTS idx_patients_leito_enfermaria 
+ON patients(leito, ds_enfermaria);
+
+-- Índice para busca por data de internação (para ordenação)
+CREATE INDEX IF NOT EXISTS idx_patients_data_internacao 
+ON patients(data_internacao);
+
+-- Índice para busca por fonte de dados (N8N_IAMSPE, etc)
+CREATE INDEX IF NOT EXISTS idx_patients_fonte_dados 
+ON patients(fonte_dados);
+
+-- Índice para buscas por data de importação (relatórios)
+CREATE INDEX IF NOT EXISTS idx_patients_imported_at 
+ON patients(imported_at DESC);
+
+-- ========================================
+-- TABELA: import_history
+-- ========================================
+
+-- Índice para busca por enfermaria
+CREATE INDEX IF NOT EXISTS idx_import_history_enfermaria 
+ON import_history(enfermaria);
+
+-- Índice para busca por timestamp (relatórios temporais)
+CREATE INDEX IF NOT EXISTS idx_import_history_timestamp 
+ON import_history(timestamp DESC);
+
+-- Índice composto para relatórios por enfermaria + data
+CREATE INDEX IF NOT EXISTS idx_import_history_enfermaria_timestamp 
+ON import_history(enfermaria, timestamp DESC);
+
+-- ========================================
+-- TABELA: audit_log
+-- ========================================
+
+-- Índice para busca por usuário (auditoria)
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_id 
+ON audit_log(user_id);
+
+-- Índice para busca por timestamp (queries temporais)
+CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp 
+ON audit_log(timestamp DESC);
+
+-- Índice para busca por ação (filtro comum)
+CREATE INDEX IF NOT EXISTS idx_audit_log_action 
+ON audit_log(action);
+
+-- Índice para busca por recurso
+CREATE INDEX IF NOT EXISTS idx_audit_log_resource 
+ON audit_log(resource);
+
+-- Índice para busca por status code (erros)
+CREATE INDEX IF NOT EXISTS idx_audit_log_status_code 
+ON audit_log(status_code);
+
+-- ========================================
+-- TABELA: nursing_units
+-- ========================================
+
+-- Índice para busca por código (muito usado)
+CREATE INDEX IF NOT EXISTS idx_nursing_units_codigo 
+ON nursing_units(codigo);
+
+-- Índice para busca por external_id
+CREATE INDEX IF NOT EXISTS idx_nursing_units_external_id 
+ON nursing_units(external_id);
+
+-- Índice para filtrar apenas ativos
+CREATE INDEX IF NOT EXISTS idx_nursing_units_ativo 
+ON nursing_units(ativo);
+
+-- ========================================
+-- TABELA: nursing_unit_changes
+-- ========================================
+
+-- Índice para busca por status (pending/approved/rejected)
+CREATE INDEX IF NOT EXISTS idx_nursing_unit_changes_status 
+ON nursing_unit_changes(status);
+
+-- Índice para busca por external_id
+CREATE INDEX IF NOT EXISTS idx_nursing_unit_changes_external_id 
+ON nursing_unit_changes(external_id);
+
+-- Índice composto para filtrar pendentes por tipo
+CREATE INDEX IF NOT EXISTS idx_nursing_unit_changes_status_type 
+ON nursing_unit_changes(status, change_type);
+
+-- ========================================
+-- TABELA: users
+-- ========================================
+
+-- Índice para busca por username (login frequente)
+CREATE INDEX IF NOT EXISTS idx_users_username 
+ON users(username);
+
+-- Índice para busca por role (controle de acesso)
+CREATE INDEX IF NOT EXISTS idx_users_role 
+ON users(role);
+
+-- Índice para filtrar apenas ativos
+CREATE INDEX IF NOT EXISTS idx_users_is_active 
+ON users(is_active);
+
+-- ========================================
+-- ANÁLISE DE PERFORMANCE
+-- ========================================
+
+-- Analisar tabelas para atualizar estatísticas do PostgreSQL
+ANALYZE patients;
+ANALYZE import_history;
+ANALYZE audit_log;
+ANALYZE nursing_units;
+ANALYZE nursing_unit_changes;
+ANALYZE users;
+
+-- Mensagem de conclusão
+DO $$ 
+BEGIN 
+  RAISE NOTICE '✅ Índices criados com sucesso!';
+  RAISE NOTICE 'Total de índices adicionados: 27';
+  RAISE NOTICE 'Tabelas analisadas para otimização do query planner';
+END $$;
+```
+
+PASSO 2: CRIAR SCRIPT PARA EXECUTAR MIGRATION
+
+Crie o arquivo db/run-migration.ts:
+```typescript
+import { neon } from '@neondatabase/serverless';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { env } from '../server/config/env';
+
+async function runMigration() {
+  if (!env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL não configurado');
+    process.exit(1);
+  }
+
+  console.log('🔄 Conectando ao banco de dados...');
+  const sql = neon(env.DATABASE_URL);
+
+  try {
+    // Lê arquivo de migration
+    const migrationPath = join(__dirname, 'migrations', '001_add_indexes.sql');
+    const migrationSQL = readFileSync(migrationPath, 'utf-8');
+
+    console.log('📝 Executando migration: 001_add_indexes.sql');
+    console.log('');
+
+    // Executa migration
+    await sql(migrationSQL);
+
+    console.log('');
+    console.log('✅ Migration executada com sucesso!');
+    console.log('');
+    console.log('📊 Verificando índices criados...');
+
+    // Lista índices criados
+    const indexes = await sql`
+      SELECT 
+        schemaname,
+        tablename,
+        indexname
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND indexname LIKE 'idx_%'
+      ORDER BY tablename, indexname;
+    `;
+
+    console.log(`Total de índices: ${indexes.length}`);
+    console.log('');
+
+    // Agrupa por tabela
+    const byTable: Record<string, string[]> = {};
+    for (const idx of indexes) {
+      if (!byTable[idx.tablename]) {
+        byTable[idx.tablename] = [];
+      }
+      byTable[idx.tablename].push(idx.indexname);
+    }
+
+    // Exibe por tabela
+    for (const [table, idxList] of Object.entries(byTable)) {
+      console.log(`📋 ${table}:`);
+      for (const idx of idxList) {
+        console.log(`   - ${idx}`);
+      }
+      console.log('');
+    }
+
+    console.log('✅ Processo concluído!');
+    
+  } catch (error) {
+    console.error('❌ Erro ao executar migration:', error);
+    process.exit(1);
+  }
+
+  process.exit(0);
+}
+
+runMigration();
+```
+
+PASSO 3: ADICIONAR SCRIPT NO PACKAGE.JSON
+
+No arquivo package.json, adicione na seção "scripts":
+```json
+"scripts": {
+  "dev": "NODE_ENV=development tsx server/index.ts",
+  "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+  "start": "NODE_ENV=production node dist/index.js",
+  "check": "tsc",
+  "db:push": "drizzle-kit push",
+  "db:migrate": "tsx db/run-migration.ts"
+}
+```
+
+PASSO 4: EXECUTAR MIGRATION
+
+Execute no terminal do Replit:
+```bash
+npm run db:migrate
+```
+
+VALIDAÇÃO APÓS APLICAR:
+1. Migration executa sem erros
+2. Aparece mensagem "✅ Migration executada com sucesso!"
+3. Lista de índices é exibida
+4. Queries continuam funcionando normalmente
+
+VERIFICAR PERFORMANCE:
+
+Antes dos índices:
+```sql
+EXPLAIN ANALYZE 
+SELECT * FROM patients WHERE leito = '101';
+-- Seq Scan (lento)
+```
+
+Depois dos índices:
+```sql
+EXPLAIN ANALYZE 
+SELECT * FROM patients WHERE leito = '101';
+-- Index Scan using idx_patients_leito (rápido!)
+```
+
+TESTE DE IMPACTO:
+```sql
+-- Verificar tamanho dos índices
+SELECT 
+  tablename,
+  indexname,
+  pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+FROM pg_indexes
+JOIN pg_class ON pg_indexes.indexname = pg_class.relname
+WHERE schemaname = 'public' AND indexname LIKE 'idx_%'
+ORDER BY pg_relation_size(indexrelid) DESC;
+```
+
+IMPORTANTE:
+- Índices são criados com IF NOT EXISTS (seguro executar múltiplas vezes)
+- NÃO modifica dados existentes
+- NÃO altera estrutura de tabelas
+- Apenas adiciona índices para otimização
+- ANALYZE atualiza estatísticas do planner
+- Performance melhora imediatamente
+
+ROLLBACK (se necessário):
+Para remover índices:
+```sql
+DROP INDEX IF EXISTS idx_patients_leito;
+DROP INDEX IF EXISTS idx_patients_enfermaria;
+-- etc...
+```
+
+CHECKLIST DE SUCESSO:
+☐ Pasta db/migrations/ criada
+☐ Arquivo 001_add_indexes.sql criado
+☐ Arquivo db/run-migration.ts criado
+☐ Script db:migrate adicionado no package.json
+☐ Migration executada sem erros
+☐ 27 índices criados
+☐ Lista de índices exibida corretamente
+☐ Queries funcionam normalmente
+☐ Performance melhorou (testar com EXPLAIN ANALYZE)
