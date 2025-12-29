@@ -183,6 +183,7 @@ export default function ShiftHandoverPage() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -272,6 +273,9 @@ export default function ShiftHandoverPage() {
   // Mutation para sincronização manual COM análise de IA (GPT-4o-mini)
   const manualSyncMutation = useMutation({
     mutationFn: async () => {
+      // Marca início da sincronização
+      setIsSyncing(true);
+      
       // Limpa timer anterior antes de iniciar nova sincronização
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
@@ -293,19 +297,29 @@ export default function ShiftHandoverPage() {
       // Atualiza dados imediatamente
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       
-      // A sincronização de IA roda em background - agenda uma atualização adicional
-      // para capturar os insights de IA quando estiverem prontos (~10-15 segundos)
-      pollTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
-        pollTimerRef.current = null;
-      }, 15000);
-      
       toast({
         title: "Sincronização Iniciada",
-        description: "Dados sincronizados. Análise de IA em processamento...",
+        description: "Dados sincronizados. Análise de IA em processamento (aguarde ~30s)...",
       });
+      
+      // A sincronização de IA roda em background - agenda atualizações
+      // para capturar os insights de IA quando estiverem prontos
+      pollTimerRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+        // Segunda atualização após mais tempo para pegar análises demoradas
+        pollTimerRef.current = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+          setIsSyncing(false); // Libera o botão após processamento completo
+          pollTimerRef.current = null;
+          toast({
+            title: "Sincronização Concluída",
+            description: "Dados e análises de IA atualizados com sucesso.",
+          });
+        }, 20000);
+      }, 15000);
     },
     onError: (error: Error) => {
+      setIsSyncing(false); // Libera o botão em caso de erro
       toast({
         title: "Erro na Sincronização",
         description: error.message || "Não foi possível sincronizar com o N8N.",
@@ -375,7 +389,7 @@ export default function ShiftHandoverPage() {
                 <h1 className="text-xl sm:text-[22px] font-bold text-primary leading-tight">
                   Passagem de Plantão (SBAR)
                 </h1>
-                {manualSyncMutation.isPending && (
+                {(manualSyncMutation.isPending || isSyncing) && (
                   <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary mt-1 w-fit">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Sincronizando com IA...
@@ -391,12 +405,12 @@ export default function ShiftHandoverPage() {
                   variant="default"
                   size="sm"
                   onClick={() => manualSyncMutation.mutate()}
-                  disabled={manualSyncMutation.isPending}
+                  disabled={manualSyncMutation.isPending || isSyncing}
                   data-testid="button-manual-n8n-sync"
                   title="Sincronizar dados do N8N com análise de IA"
                   className="bg-chart-3 hover:bg-chart-3/90 text-white"
                 >
-                  {manualSyncMutation.isPending ? (
+                  {(manualSyncMutation.isPending || isSyncing) ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Sincronizando...
