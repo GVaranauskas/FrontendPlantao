@@ -154,6 +154,7 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
   ): Promise<PatientClinicalInsights> {
     const useCache = options?.useCache !== false;
     const forceRefresh = options?.forceRefresh || false;
+    const startTime = Date.now();
 
     this.metrics.totalCalls++;
 
@@ -163,15 +164,33 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
 
     // 2. Tenta buscar do cache
     if (useCache && !forceRefresh) {
-      const cached = intelligentCache.get<PatientClinicalInsights>(
+      const cached = await intelligentCache.get<PatientClinicalInsights>(
         cacheKey,
         contentHash
       );
       
       if (cached) {
         this.metrics.cachedCalls++;
-        this.metrics.tokensSaved += 3500; // Tokens médios economizados
-        this.metrics.estimatedSavings += 0.03; // R$ por análise evitada
+        this.metrics.tokensSaved += 3500;
+        this.metrics.estimatedSavings += 0.03;
+        
+        this.saveMetric({
+          patientId: patient.id || null,
+          leito: patient.leito || null,
+          operation: 'clinical_analysis',
+          model: MODEL,
+          provider: 'openai',
+          tokensUsed: 0,
+          tokensPrompt: 0,
+          tokensCompletion: 0,
+          estimatedCostCents: 0,
+          cacheHit: true,
+          cacheSource: 'intelligent_cache',
+          durationMs: Date.now() - startTime,
+          alertLevel: cached.nivel_alerta,
+          success: true,
+          errorMessage: null
+        });
         
         console.log(`[GPT-4o-mini] ✅ Cache HIT: ${patient.leito}`);
         return cached;
@@ -195,15 +214,81 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
         });
       }
 
-      // 5. Atualiza métricas
+      // 5. Salva métrica de API call
+      const duration = Date.now() - startTime;
+      this.saveMetric({
+        patientId: patient.id || null,
+        leito: patient.leito || null,
+        operation: 'clinical_analysis',
+        model: MODEL,
+        provider: 'openai',
+        tokensUsed: 3500,
+        tokensPrompt: 2500,
+        tokensCompletion: 1000,
+        estimatedCostCents: 3,
+        cacheHit: false,
+        cacheSource: null,
+        durationMs: duration,
+        alertLevel: insights.nivel_alerta,
+        success: true,
+        errorMessage: null
+      });
+
+      // 6. Atualiza métricas em memória
       this.updateMetrics(3500, 0.03);
 
       console.log(`[GPT-4o-mini] ✅ Análise concluída: ${patient.leito} - R$ 0.03`);
       return insights;
 
     } catch (error) {
+      this.saveMetric({
+        patientId: patient.id || null,
+        leito: patient.leito || null,
+        operation: 'clinical_analysis',
+        model: MODEL,
+        provider: 'openai',
+        tokensUsed: 0,
+        tokensPrompt: 0,
+        tokensCompletion: 0,
+        estimatedCostCents: 0,
+        cacheHit: false,
+        cacheSource: null,
+        durationMs: Date.now() - startTime,
+        alertLevel: null,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       console.error('[GPT-4o-mini] Erro na análise:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Salva métrica no banco de dados (não bloqueia em caso de erro)
+   */
+  private async saveMetric(metric: {
+    patientId: string | null;
+    leito: string | null;
+    operation: string;
+    model: string;
+    provider: string;
+    tokensUsed: number;
+    tokensPrompt: number;
+    tokensCompletion: number;
+    estimatedCostCents: number;
+    cacheHit: boolean;
+    cacheSource: string | null;
+    durationMs: number;
+    alertLevel: string | null;
+    success: boolean;
+    errorMessage: string | null;
+  }): Promise<void> {
+    try {
+      const { storage } = await import('../storage');
+      await storage.createAICostMetric(metric);
+    } catch (error) {
+      console.warn('[GPT-4o-mini] Falha ao salvar métrica:', error);
     }
   }
 

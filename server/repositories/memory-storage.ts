@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, AICostMetric, InsertAICostMetric } from "@shared/schema";
 import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
 
 export class MemStorage implements IStorage {
@@ -392,5 +392,90 @@ export class MemStorage implements IStorage {
 
   async getPendingChangesCount(): Promise<number> {
     return Array.from(this.nursingUnitChanges.values()).filter(c => c.status === "pending").length;
+  }
+
+  private aiCostMetrics: Map<string, AICostMetric> = new Map();
+
+  async createAICostMetric(metric: InsertAICostMetric): Promise<AICostMetric> {
+    const id = randomUUID();
+    const newMetric: AICostMetric = {
+      id,
+      timestamp: new Date(),
+      patientId: metric.patientId ?? null,
+      leito: metric.leito ?? null,
+      operation: metric.operation,
+      model: metric.model ?? "gpt-4o-mini",
+      provider: metric.provider ?? "openai",
+      tokensUsed: metric.tokensUsed ?? 0,
+      tokensPrompt: metric.tokensPrompt ?? 0,
+      tokensCompletion: metric.tokensCompletion ?? 0,
+      estimatedCostCents: metric.estimatedCostCents ?? 0,
+      cacheHit: metric.cacheHit ?? false,
+      cacheSource: metric.cacheSource ?? null,
+      durationMs: metric.durationMs ?? 0,
+      alertLevel: metric.alertLevel ?? null,
+      success: metric.success ?? true,
+      errorMessage: metric.errorMessage ?? null,
+    };
+    this.aiCostMetrics.set(id, newMetric);
+    return newMetric;
+  }
+
+  async getAICostMetricsSummary(days: number = 30): Promise<{
+    totalCalls: number;
+    totalCost: number;
+    cacheHitRate: number;
+    avgDuration: number;
+    byModel: Record<string, { calls: number; cost: number }>;
+    byDay: Array<{ date: string; calls: number; cost: number; cacheHits: number }>;
+  }> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const metrics = Array.from(this.aiCostMetrics.values())
+      .filter(m => m.timestamp >= cutoffDate);
+
+    const totalCalls = metrics.length;
+    const totalCost = metrics.reduce((sum, m) => sum + m.estimatedCostCents, 0) / 100;
+    const cacheHits = metrics.filter(m => m.cacheHit).length;
+    const cacheHitRate = totalCalls > 0 ? (cacheHits / totalCalls) * 100 : 0;
+    const avgDuration = totalCalls > 0 
+      ? metrics.reduce((sum, m) => sum + m.durationMs, 0) / totalCalls 
+      : 0;
+
+    const byModel: Record<string, { calls: number; cost: number }> = {};
+    for (const metric of metrics) {
+      if (!byModel[metric.model]) {
+        byModel[metric.model] = { calls: 0, cost: 0 };
+      }
+      byModel[metric.model].calls++;
+      byModel[metric.model].cost += metric.estimatedCostCents / 100;
+    }
+
+    const byDayMap: Record<string, { calls: number; cost: number; cacheHits: number }> = {};
+    for (const metric of metrics) {
+      const date = metric.timestamp.toISOString().split('T')[0];
+      if (!byDayMap[date]) {
+        byDayMap[date] = { calls: 0, cost: 0, cacheHits: 0 };
+      }
+      byDayMap[date].calls++;
+      byDayMap[date].cost += metric.estimatedCostCents / 100;
+      if (metric.cacheHit) {
+        byDayMap[date].cacheHits++;
+      }
+    }
+
+    const byDay = Object.entries(byDayMap)
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalCalls,
+      totalCost,
+      cacheHitRate: Math.round(cacheHitRate * 100) / 100,
+      avgDuration: Math.round(avgDuration),
+      byModel,
+      byDay
+    };
   }
 }

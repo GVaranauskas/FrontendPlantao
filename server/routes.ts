@@ -1218,6 +1218,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
+  // AI Cost Metrics & Reports (admin only)
+  app.get("/api/admin/ai-costs", authMiddleware, requireRole('admin'), asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days as string) || 30;
+    const summary = await storage.getAICostMetricsSummary(days);
+    
+    res.json({
+      period: `${days} dias`,
+      summary,
+      insights: {
+        totalCostFormatted: `R$ ${summary.totalCost.toFixed(2)}`,
+        avgCostPerCall: summary.totalCalls > 0 
+          ? `R$ ${(summary.totalCost / summary.totalCalls).toFixed(4)}`
+          : 'R$ 0.00',
+        savingsFromCache: summary.totalCalls > 0
+          ? `R$ ${((summary.totalCalls * 0.03) - summary.totalCost).toFixed(2)}`
+          : 'R$ 0.00',
+        roi: summary.cacheHitRate > 70 
+          ? 'Excelente economia com cache'
+          : summary.cacheHitRate > 50
+            ? 'Boa economia com cache'
+            : 'Cache precisa otimização'
+      }
+    });
+  }));
+
   // Register authentication routes
   registerAuthRoutes(app);
   registerUserRoutes(app);

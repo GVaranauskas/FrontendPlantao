@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange, type AICostMetric, type InsertAICostMetric } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 import { env } from "./config/env";
@@ -81,6 +81,17 @@ export interface IStorage {
   rejectNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined>;
   deleteNursingUnitChange(id: string): Promise<boolean>;
   getPendingChangesCount(): Promise<number>;
+
+  // AI Cost Metrics
+  createAICostMetric(metric: InsertAICostMetric): Promise<AICostMetric>;
+  getAICostMetricsSummary(days?: number): Promise<{
+    totalCalls: number;
+    totalCost: number;
+    cacheHitRate: number;
+    avgDuration: number;
+    byModel: Record<string, { calls: number; cost: number }>;
+    byDay: Array<{ date: string; calls: number; cost: number; cacheHits: number }>;
+  }>;
 }
 
 // Initialize storage based on environment
