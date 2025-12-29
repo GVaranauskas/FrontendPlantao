@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { env } from "../config/env";
 import { intelligentCache } from "./intelligent-cache.service";
 import { createHash } from 'node:crypto';
+import pRetry, { AbortError } from 'p-retry';
 
 /**
  * AI SERVICE - OTIMIZADO PARA GPT-4o-mini
@@ -173,43 +174,137 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
   }
 
   /**
-   * Chama GPT-4o-mini com prompt ultra-comprimido
+   * Chama GPT-4o-mini com prompt ultra-comprimido e retry automático
    */
   private async callGPT4oMiniOptimized(patient: PatientData): Promise<PatientClinicalInsights> {
-    // Prompt comprimido ao máximo (50% redução vs original)
     const userPrompt = this.buildUltraCompactPrompt(patient);
 
-    try {
-      const response = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-          {
-            role: "system",
-            content: this.COMPACT_SYSTEM_PROMPT
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-        temperature: 0.3, // Baixa = respostas consistentes = melhor cache
-        max_tokens: 1000, // Limitado para economia
-        response_format: { type: "json_object" },
-        stream: false // Streaming desabilitado (mais barato)
-      });
+    const makeAPICall = async () => {
+      try {
+        const response = await openai.chat.completions.create({
+          model: MODEL,
+          messages: [
+            {
+              role: "system",
+              content: this.COMPACT_SYSTEM_PROMPT
+            },
+            {
+              role: "user",
+              content: userPrompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+          response_format: { type: "json_object" },
+          stream: false
+        });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('Resposta vazia do GPT-4o-mini');
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error('Resposta vazia do GPT-4o-mini');
+        }
+
+        let analysis;
+        try {
+          analysis = JSON.parse(content);
+        } catch (parseError) {
+          throw new Error(`Resposta não é JSON válido: ${content.substring(0, 100)}`);
+        }
+
+        if (!analysis.alertas || !Array.isArray(analysis.alertas)) {
+          throw new Error('Resposta da IA não contém campo "alertas" válido');
+        }
+
+        return this.transformToInsights(analysis, patient);
+
+      } catch (error: any) {
+        const shouldRetry = this.shouldRetryError(error);
+        
+        if (shouldRetry) {
+          console.warn(`[GPT-4o-mini] Erro recuperável (${error.status || error.code}): ${error.message}`);
+          throw error;
+        } else {
+          console.error(`[GPT-4o-mini] Erro não recuperável: ${error.message}`);
+          throw new AbortError(error.message);
+        }
       }
+    };
 
-      const analysis = JSON.parse(content);
-      return this.transformToInsights(analysis, patient);
-
-    } catch (error) {
-      console.error('[GPT-4o-mini] Erro na chamada:', error);
-      throw error;
+    try {
+      return await pRetry(makeAPICall, {
+        retries: 3,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        factor: 2,
+        onFailedAttempt: (error) => {
+          const { attemptNumber, retriesLeft } = error;
+          console.warn(
+            `[GPT-4o-mini] Tentativa ${attemptNumber} falhou para ${patient.leito}. ` +
+            `Tentando novamente em alguns segundos... (${retriesLeft} tentativas restantes)`
+          );
+        }
+      });
+    } catch (error: any) {
+      console.error(`[GPT-4o-mini] FALHA FINAL após todas as tentativas: ${error.message}`);
+      return this.getFallbackInsights(patient);
     }
+  }
+
+  /**
+   * Determina se um erro deve ser retentado
+   */
+  private shouldRetryError(error: any): boolean {
+    if (error.status === 429) return true;
+    if (error.status >= 500 && error.status < 600) return true;
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') return true;
+    if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') return true;
+    if (error.status >= 400 && error.status < 500 && error.status !== 429) return false;
+    return false;
+  }
+
+  /**
+   * Retorna insights básicos em caso de falha total da IA
+   */
+  private getFallbackInsights(patient: PatientData): PatientClinicalInsights {
+    console.warn(`[GPT-4o-mini] Usando análise degradada para ${patient.leito}`);
+    
+    const alertas: any[] = [];
+    
+    const braden = parseInt(patient.braden || '999');
+    if (braden <= 14) {
+      alertas.push({
+        tipo: 'RISCO_LESAO',
+        nivel: braden <= 10 ? 'VERMELHO' : 'AMARELO',
+        titulo: 'Risco de lesão por pressão'
+      });
+    }
+    
+    if (patient.dispositivos && patient.dispositivos.toLowerCase().includes('cateter')) {
+      alertas.push({
+        tipo: 'RISCO_INFECCAO',
+        nivel: 'AMARELO',
+        titulo: 'Dispositivos invasivos presentes'
+      });
+    }
+    
+    const nivelAlerta = alertas.some(a => a.nivel === 'VERMELHO') ? 'VERMELHO' :
+                        alertas.length > 0 ? 'AMARELO' : 'VERDE';
+    
+    return {
+      timestamp: new Date().toISOString(),
+      nivel_alerta: nivelAlerta as 'VERMELHO' | 'AMARELO' | 'VERDE',
+      alertas_count: {
+        vermelho: alertas.filter(a => a.nivel === 'VERMELHO').length,
+        amarelo: alertas.filter(a => a.nivel === 'AMARELO').length,
+        verde: 0
+      },
+      principais_alertas: alertas.slice(0, 3),
+      gaps_criticos: ['Análise completa indisponível - usando regras básicas'],
+      score_qualidade: 50,
+      categoria_qualidade: 'REGULAR',
+      prioridade_acao: 'Revisar manualmente - análise automática falhou',
+      recomendacoes_enfermagem: ['Realizar avaliação manual completa do paciente']
+    };
   }
 
   /**
