@@ -214,7 +214,7 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data: ClinicalBatchResult) => {
       setClinicalBatchResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
       toast({
         title: "Análise Clínica Concluída",
         description: `${data.summary.vermelho} críticos, ${data.summary.amarelo} alertas, ${data.summary.verde} ok`,
@@ -236,7 +236,7 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data: { insights: ClinicalInsights; analysis: any }) => {
       setIndividualAnalysis(data.insights);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
       toast({
         title: "Análise Individual Concluída",
         description: `Nível de alerta: ${data.insights.nivel_alerta}`,
@@ -291,12 +291,12 @@ export default function ShiftHandoverPage() {
       localStorage.setItem('lastSyncTime', now.toISOString());
       
       // Atualiza dados imediatamente
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
       
       // A sincronização de IA roda em background - agenda uma atualização adicional
       // para capturar os insights de IA quando estiverem prontos (~10-15 segundos)
       pollTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
         pollTimerRef.current = null;
       }, 15000);
       
@@ -315,7 +315,14 @@ export default function ShiftHandoverPage() {
   });
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
-    queryKey: ["/api/patients"],
+    queryKey: ["/api/patients", { paginate: "false" }],
+    queryFn: async () => {
+      const response = await fetch("/api/patients?paginate=false", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch patients");
+      return response.json();
+    },
   });
 
   const { data: alerts } = useQuery<Alert[]>({
