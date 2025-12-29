@@ -23,7 +23,14 @@ export default function DebugPage() {
   const [selectedEnfermaria, setSelectedEnfermaria] = useState("10A02");
 
   const { data: patients, refetch: refetchPatients } = useQuery<Patient[]>({
-    queryKey: ["/api/patients"],
+    queryKey: ["/api/patients", { paginate: "false" }],
+    queryFn: async () => {
+      const response = await fetch("/api/patients?paginate=false", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch patients");
+      return response.json();
+    },
   });
 
   const { data: alerts, refetch: refetchAlerts } = useQuery<Alert[]>({

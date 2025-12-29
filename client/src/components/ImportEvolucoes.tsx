@@ -87,7 +87,7 @@ export function ImportEvolucoes({ autoSync = false, syncInterval = 300000, templ
     },
     onSuccess: (data) => {
       setResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
     },
   });
 

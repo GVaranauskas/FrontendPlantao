@@ -12,7 +12,7 @@ export function useSyncPatient() {
       return res.json() as Promise<Patient>;
     },
     onSuccess: (patient) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
       toast({
         title: "Sucesso",
         description: `Paciente do leito ${patient.leito} sincronizado da API externa`,
@@ -33,7 +33,7 @@ export function useSyncPatient() {
       return res.json() as Promise<Patient[]>;
     },
     onSuccess: (patients) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
       toast({
         title: "Sucesso",
         description: `${patients.length} paciente(s) sincronizado(s) da API externa`,

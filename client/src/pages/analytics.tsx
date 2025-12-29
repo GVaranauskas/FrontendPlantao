@@ -42,7 +42,14 @@ export default function AnalyticsPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | "complete" | "pending">("all");
 
   const { data: patients = [] } = useQuery<Patient[]>({
-    queryKey: ["/api/patients"],
+    queryKey: ["/api/patients", { paginate: "false" }],
+    queryFn: async () => {
+      const response = await fetch("/api/patients?paginate=false", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch patients");
+      return response.json();
+    },
   });
 
   // Filter and sort data
