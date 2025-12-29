@@ -5,7 +5,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, RequireAuth } from "./lib/auth-context";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 const LoginPage = lazy(() => import("@/pages/login"));
@@ -22,8 +21,6 @@ const AdminTemplatesPage = lazy(() => import("@/pages/admin-templates"));
 const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const AdminMenuPage = lazy(() => import("@/pages/admin-menu"));
 const AdminNursingUnitsPage = lazy(() => import("@/pages/admin-nursing-units"));
-const AdminAICostsPage = lazy(() => import("@/pages/admin-ai-costs"));
-const AdminHealthPage = lazy(() => import("@/pages/admin-health"));
 const ImportLogsPage = lazy(() => import("@/pages/import-logs"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -101,12 +98,6 @@ function Router() {
         <Route path="/admin/nursing-units">
           <ProtectedRoute component={AdminNursingUnitsPage} />
         </Route>
-        <Route path="/admin/ai-costs">
-          <ProtectedRoute component={AdminAICostsPage} />
-        </Route>
-        <Route path="/admin/health">
-          <ProtectedRoute component={AdminHealthPage} />
-        </Route>
         <Route>
           <LazyRoute component={NotFound} />
         </Route>
@@ -119,10 +110,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <ErrorBoundary>
-            <Toaster />
-            <Router />
-          </ErrorBoundary>
+          <Toaster />
+          <Router />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

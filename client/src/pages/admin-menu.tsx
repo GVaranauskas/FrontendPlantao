@@ -17,8 +17,6 @@ import {
   FileJson,
   Building2,
   AlertCircle,
-  Brain,
-  Activity,
 } from "lucide-react";
 
 interface AdminModule {
@@ -56,24 +54,6 @@ const adminModules: AdminModule[] = [
     route: "/admin/nursing-units",
     badge: "Novo",
     badgeVariant: "default",
-  },
-  {
-    id: "ai-costs",
-    title: "Custos de IA",
-    description: "Monitorar custos, economia e métricas de uso da IA GPT-4o-mini. Relatórios de ROI.",
-    icon: Brain,
-    route: "/admin/ai-costs",
-    badge: "Essencial",
-    badgeVariant: "default",
-  },
-  {
-    id: "health",
-    title: "Health Check",
-    description: "Monitoramento de disponibilidade do sistema. Status do banco, cache, APIs e métricas.",
-    icon: Activity,
-    route: "/admin/health",
-    badge: "Monitor",
-    badgeVariant: "secondary",
   },
   {
     id: "import-logs",

@@ -1,81 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import { auditService } from '../services/audit.service';
 
-// Campos sensíveis que NÃO devem aparecer no audit log
-const SENSITIVE_FIELDS = ['password', 'token', 'accessToken', 'refreshToken', 'secret', 'apiKey'];
-
-function sanitizeBody(body: unknown): unknown {
-  if (!body || typeof body !== 'object') return body;
-  
-  const sanitized = { ...body as Record<string, unknown> };
-  for (const field of SENSITIVE_FIELDS) {
-    if (field in sanitized) {
-      sanitized[field] = '[REDACTED]';
-    }
-  }
-  return sanitized;
-}
-
-function isSensitiveOperation(req: Request): boolean {
-  const method = req.method;
-  const path = req.path;
-  
-  // Operações de escrita são sempre sensíveis
-  if (method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE') {
-    return true;
-  }
-  
-  // Rotas específicas sensíveis
-  if (path.includes('/patients') || path.includes('/users') || path.includes('/import') || path.includes('/sync')) {
-    return true;
-  }
-  
-  return false;
-}
-
 export function auditMiddleware(req: Request, res: Response, next: NextFunction) {
   const startTime = Date.now();
   const originalJson = res.json.bind(res);
   
-  // Captura body sanitizado para audit (antes de modificações)
-  const sanitizedBody = req.body ? sanitizeBody(req.body) : null;
-  
   res.json = function(body: unknown) {
     const result = originalJson(body);
     
-    const shouldLog = shouldAudit(req);
-    const isSensitive = isSensitiveOperation(req);
-    const isError = res.statusCode >= 400;
-    
-    // Registra operações sensíveis ou erros (mesmo sem autenticação para rastreamento de tentativas)
-    if (shouldLog && (isSensitive || isError)) {
+    if (req.user && shouldAudit(req)) {
       const action = determineAction(req);
       const resource = extractResource(req);
       const resourceId = extractResourceId(req, body);
       
-      // Extrai mensagem de erro se houver
-      let errorMessage: string | undefined;
-      if (isError && body && typeof body === 'object') {
-        const errorBody = body as Record<string, unknown>;
-        errorMessage = (errorBody.message as string) || 
-                       ((errorBody.error as Record<string, unknown>)?.message as string) || 
-                       undefined;
-      }
-      
       auditService.log({
         user: {
-          id: req.user?.userId || 'anonymous',
-          name: req.user?.username || 'anonymous',
-          role: req.user?.role || 'none',
+          id: req.user.userId,
+          name: req.user.username,
+          role: req.user.role,
         },
         action: action as 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT' | 'IMPORT',
         resource,
         resourceId,
-        changes: isSensitive ? { body: sanitizedBody } : undefined,
-        metadata: { query: req.query, params: req.params, sensitive: isSensitive },
+        metadata: { query: req.query, params: req.params },
         req,
         statusCode: res.statusCode,
-        errorMessage,
         startTime,
       }).catch(error => {
         console.error('[Audit Middleware] Failed:', error);

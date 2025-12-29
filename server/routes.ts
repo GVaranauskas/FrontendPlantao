@@ -11,8 +11,6 @@ import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
-import { authMiddleware } from "./middleware/auth";
-import { verifyAccessToken } from "./security/jwt";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
@@ -21,147 +19,83 @@ import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health Check Routes (public - no auth required)
-  const healthRoutes = (await import('./routes/health.routes')).default;
-  app.use('/health', healthRoutes);
+  app.get("/api/patients", asyncHandler(async (req, res, next) => {
+    const patients = await storage.getAllPatients();
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patients);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patients);
+    }
+  }));
 
-  app.get("/api/patients", 
-    authMiddleware, 
-    requireRole('admin', 'enfermagem'),
-    asyncHandler(async (req, res, next) => {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const usePagination = req.query.paginate !== 'false';
+  app.get("/api/patients/:id", asyncHandler(async (req, res, next) => {
+    const patient = await storage.getPatient(req.params.id);
+    if (!patient) {
+      throw new AppError(404, "Patient not found", { patientId: req.params.id });
+    }
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patient);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patient);
+    }
+  }));
 
-      if (!usePagination) {
-        const patients = await storage.getAllPatients();
-        const acceptToon = isToonFormat(req.get("accept"));
-        if (acceptToon) {
-          const toonData = stringifyToToon(patients);
-          res.type("application/toon").send(toonData);
-        } else {
-          res.json(patients);
-        }
-        return;
-      }
-
-      const result = await storage.getPatientsPaginated({ page, limit: Math.min(100, limit) });
-      
-      res.setHeader('X-Total-Count', result.total.toString());
-      res.setHeader('X-Total-Pages', result.totalPages.toString());
-      res.setHeader('X-Current-Page', result.page.toString());
-      res.setHeader('X-Per-Page', result.limit.toString());
-
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon({
-          data: result.data,
-          pagination: {
-            page: result.page,
-            limit: result.limit,
-            total: result.total,
-            totalPages: result.totalPages
-          }
-        });
-        res.type("application/toon").send(toonData);
+  app.post("/api/patients", asyncHandler(async (req, res, next) => {
+    try {
+      const validatedData = insertPatientSchema.parse(req.body);
+      const patient = await storage.createPatient(validatedData);
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
+        const toonData = stringifyToToon(patient);
+        res.status(201).type("application/toon").send(toonData);
       } else {
-        res.json({
-          data: result.data,
-          pagination: {
-            page: result.page,
-            limit: result.limit,
-            total: result.total,
-            totalPages: result.totalPages,
-            hasNext: result.page < result.totalPages,
-            hasPrev: result.page > 1
-          }
-        });
+        res.status(201).json(patient);
       }
-    })
-  );
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        throw new AppError(400, "Invalid patient data", { error: error.message });
+      }
+      throw error;
+    }
+  }));
 
-  app.get("/api/patients/:id", 
-    authMiddleware, 
-    requireRole('admin', 'enfermagem'),
-    asyncHandler(async (req, res, next) => {
-      const patient = await storage.getPatient(req.params.id);
+  app.patch("/api/patients/:id", async (req, res) => {
+    try {
+      const validatedData = insertPatientSchema.partial().parse(req.body);
+      const patient = await storage.updatePatient(req.params.id, validatedData);
       if (!patient) {
-        throw new AppError(404, "Patient not found", { patientId: req.params.id });
+        return res.status(404).json({ message: "Patient not found" });
       }
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
+      const contentType = req.get("content-type");
+      if (isToonFormat(contentType)) {
         const toonData = stringifyToToon(patient);
         res.type("application/toon").send(toonData);
       } else {
         res.json(patient);
       }
-    })
-  );
-
-  app.post("/api/patients", 
-    authMiddleware, 
-    requireRole('admin', 'enfermagem'),
-    asyncHandler(async (req, res, next) => {
-      try {
-        const validatedData = insertPatientSchema.parse(req.body);
-        const patient = await storage.createPatient(validatedData);
-        const contentType = req.get("content-type");
-        if (isToonFormat(contentType)) {
-          const toonData = stringifyToToon(patient);
-          res.status(201).type("application/toon").send(toonData);
-        } else {
-          res.status(201).json(patient);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === "ZodError") {
-          throw new AppError(400, "Invalid patient data", { error: error.message });
-        }
-        throw error;
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid patient data" });
       }
-    })
-  );
-
-  app.patch("/api/patients/:id", 
-    authMiddleware, 
-    requireRole('admin', 'enfermagem'),
-    async (req, res) => {
-      try {
-        const validatedData = insertPatientSchema.partial().parse(req.body);
-        const patient = await storage.updatePatient(req.params.id, validatedData);
-        if (!patient) {
-          return res.status(404).json({ message: "Patient not found" });
-        }
-        const contentType = req.get("content-type");
-        if (isToonFormat(contentType)) {
-          const toonData = stringifyToToon(patient);
-          res.type("application/toon").send(toonData);
-        } else {
-          res.json(patient);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === "ZodError") {
-          return res.status(400).json({ message: "Invalid patient data" });
-        }
-        res.status(500).json({ message: "Failed to update patient" });
-      }
+      res.status(500).json({ message: "Failed to update patient" });
     }
-  );
+  });
 
-  app.delete("/api/patients/:id", 
-    authMiddleware, 
-    requireRole('admin', 'enfermagem'),
-    async (req, res) => {
-      try {
-        const success = await storage.deletePatient(req.params.id);
-        if (!success) {
-          return res.status(404).json({ message: "Patient not found" });
-        }
-        res.status(204).send();
-      } catch (error) {
-        res.status(500).json({ message: "Failed to delete patient" });
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      const success = await storage.deletePatient(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Patient not found" });
       }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete patient" });
     }
-  );
+  });
 
   app.get("/api/alerts", async (req, res) => {
     try {
@@ -207,13 +141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync endpoints for external API integration
-  app.post("/api/sync/patient/:leito", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        const leito = req.params.leito;
-        const patient = await syncPatientFromExternalAPI(leito);
+  app.post("/api/sync/patient/:leito", async (req, res) => {
+    try {
+      const leito = req.params.leito;
+      const patient = await syncPatientFromExternalAPI(leito);
       
       if (!patient) {
         return res.status(404).json({ message: "Failed to sync patient data from external API" });
@@ -224,20 +155,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patient);
         res.type("application/toon").send(toonData);
       } else {
-          res.json(patient);
-        }
-      } catch (error) {
-        res.status(500).json({ message: "Failed to sync patient" });
+        res.json(patient);
       }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync patient" });
     }
-  );
+  });
 
-  app.post("/api/sync/patients", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        const { leitos } = req.body;
+  app.post("/api/sync/patients", async (req, res) => {
+    try {
+      const { leitos } = req.body;
       
       if (!Array.isArray(leitos) || leitos.length === 0) {
         return res.status(400).json({ message: "leitos array is required" });
@@ -250,24 +177,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-          res.json(patients);
-        }
-      } catch (error) {
-        res.status(500).json({ message: "Failed to sync patients" });
+        res.json(patients);
       }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync patients" });
     }
-  );
+  });
 
   // PRODUÇÃO: Unidades fixas 22,23
   const PRODUCTION_UNIT_IDS = "22,23";
   
   // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
-  app.post("/api/sync/evolucoes", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
+  app.post("/api/sync/evolucoes", async (req, res) => {
+    try {
+      logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
       
       const { unitIds, forceUpdate } = req.body || {};
       // PRODUÇÃO: Sempre usar 22,23 como padrão, ignorar string vazia
@@ -282,22 +205,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-          res.json(patients);
-        }
-      } catch (error) {
-        logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
-        res.status(500).json({ message: "Failed to sync evolucoes" });
+        res.json(patients);
       }
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
+      res.status(500).json({ message: "Failed to sync evolucoes" });
     }
-  );
+  });
 
   // N8N Evolucoes sync endpoint - specific unit (legacy)
-  app.post("/api/sync/evolucoes/:enfermaria", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        const enfermaria = req.params.enfermaria;
+  app.post("/api/sync/evolucoes/:enfermaria", async (req, res) => {
+    try {
+      const enfermaria = req.params.enfermaria;
       
       if (!enfermaria || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria parameter is required" });
@@ -310,21 +229,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const toonData = stringifyToToon(patients);
         res.type("application/toon").send(toonData);
       } else {
-          res.json(patients);
-        }
-      } catch (error) {
-        res.status(500).json({ message: "Failed to sync evolucoes" });
+        res.json(patients);
       }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync evolucoes" });
     }
-  );
+  });
 
   // Import endpoints
-  app.post("/api/import/evolucoes", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        const { enfermaria, templateId } = req.body;
+  app.post("/api/import/evolucoes", async (req, res) => {
+    try {
+      const { enfermaria, templateId } = req.body;
       
       if (!enfermaria || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria is required" });
@@ -509,12 +424,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import status endpoint - test N8N connectivity
-  app.get("/api/import/status", 
-    authMiddleware,
-    requireRole('admin', 'enfermagem'),
-    async (req, res) => {
-      try {
-        const startTime = Date.now();
+  app.get("/api/import/status", async (req, res) => {
+    try {
+      const startTime = Date.now();
       
       logger.info(`[${getTimestamp()}] [Status] Testing N8N API connectivity...`);
       
@@ -551,55 +463,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
         api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes",
-          erro: error instanceof Error ? error.message : "Connection timeout"
-        });
-      }
+        erro: error instanceof Error ? error.message : "Connection timeout"
+      });
     }
-  );
+  });
 
   // Import history endpoint
-  app.get("/api/import/history", 
-    authMiddleware,
-    requireRole('admin', 'enfermagem'),
-    async (req, res) => {
-      try {
-        const history = await storage.getAllImportHistory();
+  app.get("/api/import/history", async (req, res) => {
+    try {
+      const history = await storage.getAllImportHistory();
       
       const acceptToon = isToonFormat(req.get("accept"));
       if (acceptToon) {
         const toonData = stringifyToToon(history);
         res.type("application/toon").send(toonData);
       } else {
-          res.json(history);
-        }
-      } catch (error) {
-        res.status(500).json({ message: "Failed to fetch import history" });
+        res.json(history);
       }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch import history" });
     }
-  );
+  });
 
   // Import stats endpoint - estatísticas consolidadas
-  app.get("/api/import/stats", 
-    authMiddleware,
-    requireRole('admin', 'enfermagem'),
-    async (req, res) => {
-      try {
-        const stats = await storage.getImportStats();
-        res.json(stats);
-      } catch (error) {
-        logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
-        res.status(500).json({ message: "Failed to fetch import stats" });
-      }
+  app.get("/api/import/stats", async (req, res) => {
+    try {
+      const stats = await storage.getImportStats();
+      res.json(stats);
+    } catch (error) {
+      logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ message: "Failed to fetch import stats" });
     }
-  );
+  });
 
   // Cleanup old logs endpoint - retenção de 30 dias por padrão
-  app.delete("/api/import/cleanup", 
-    authMiddleware,
-    requireRole('admin'),
-    async (req, res) => {
-      try {
-        const rawDays = parseInt(req.query.days as string);
+  app.delete("/api/import/cleanup", async (req, res) => {
+    try {
+      const rawDays = parseInt(req.query.days as string);
       const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
       
       const deleted = await storage.deleteOldImportHistory(daysToKeep);
@@ -611,71 +511,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Removed ${deleted} logs older than ${daysToKeep} days`
       });
     } catch (error) {
-        logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
-        res.status(500).json({ message: "Failed to cleanup old logs" });
-      }
+      logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ message: "Failed to cleanup old logs" });
     }
-  );
+  });
 
   const httpServer = createServer(app);
 
   // Setup WebSocket for real-time notifications on specific path
   const wss = new WebSocketServer({ noServer: true });
 
-  // Helper function to extract token from WebSocket request
-  function extractTokenFromWsRequest(request: any): string | null {
-    // Try query parameter first (?token=...)
-    const url = new URL(request.url || '', 'http://localhost');
-    const tokenFromQuery = url.searchParams.get('token');
-    if (tokenFromQuery) {
-      return tokenFromQuery;
-    }
-
-    // Try Authorization header
-    const authHeader = request.headers['authorization'];
-    if (authHeader?.startsWith('Bearer ')) {
-      return authHeader.slice(7);
-    }
-
-    // Try cookie
-    const cookies = request.headers['cookie'];
-    if (cookies) {
-      const match = cookies.match(/accessToken=([^;]+)/);
-      if (match) {
-        return match[1];
-      }
-    }
-
-    return null;
-  }
-
   httpServer.on("upgrade", (request, socket, head) => {
-    if (request.url?.startsWith("/ws/import")) {
-      // Authenticate WebSocket connection
-      const token = extractTokenFromWsRequest(request);
-      
-      if (!token) {
-        logger.warn('[WebSocket] Connection rejected: No token provided');
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-
-      const payload = verifyAccessToken(token);
-      if (!payload) {
-        logger.warn('[WebSocket] Connection rejected: Invalid token');
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-
-      // Token válido - permitir upgrade
-      logger.info(`[WebSocket] Connection authenticated for user: ${payload.username}`);
-      
+    if (request.url === "/ws/import") {
       wss.handleUpgrade(request, socket, head, (ws) => {
-        // Attach user info to ws connection
-        (ws as any).userId = payload.userId;
-        (ws as any).username = payload.username;
         wss.emit("connection", ws, request);
       });
     } else {
@@ -971,7 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  app.post("/api/ai/analyze-patient/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -983,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/analyze-patients", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patients = await storage.getAllPatients();
     
@@ -996,7 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -1009,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - single patient
-  app.post("/api/ai/clinical-analysis/:id", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1081,7 +929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
-  app.post("/api/ai/clinical-analysis-batch", authMiddleware, requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1213,37 +1061,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Cache monitoring endpoint (admin only)
-  app.get("/api/admin/cache-stats", authMiddleware, requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/cache-stats", requireRole('admin'), asyncHandler(async (req, res) => {
     const { intelligentCache } = await import("./services/intelligent-cache.service");
     const stats = intelligentCache.getStats();
     res.json({
       cacheStats: stats,
       recommendation: stats.hitRate > 70 ? "Cache working efficiently" : "Cache needs optimization"
-    });
-  }));
-
-  // AI Cost Metrics & Reports (admin only)
-  app.get("/api/admin/ai-costs", authMiddleware, requireRole('admin'), asyncHandler(async (req, res) => {
-    const days = parseInt(req.query.days as string) || 30;
-    const summary = await storage.getAICostMetricsSummary(days);
-    
-    res.json({
-      period: `${days} dias`,
-      summary,
-      insights: {
-        totalCostFormatted: `R$ ${summary.totalCost.toFixed(2)}`,
-        avgCostPerCall: summary.totalCalls > 0 
-          ? `R$ ${(summary.totalCost / summary.totalCalls).toFixed(4)}`
-          : 'R$ 0.00',
-        savingsFromCache: summary.totalCalls > 0
-          ? `R$ ${((summary.totalCalls * 0.03) - summary.totalCost).toFixed(2)}`
-          : 'R$ 0.00',
-        roi: summary.cacheHitRate > 70 
-          ? 'Excelente economia com cache'
-          : summary.cacheHitRate > 50
-            ? 'Boa economia com cache'
-            : 'Cache precisa otimização'
-      }
     });
   }));
 

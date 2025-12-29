@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +42,7 @@ export default function AnalyticsPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | "complete" | "pending">("all");
 
   const { data: patients = [] } = useQuery<Patient[]>({
-    queryKey: ["/api/patients", { paginate: "false" }],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/patients?paginate=false");
-      return response.json();
-    },
+    queryKey: ["/api/patients"],
   });
 
   // Filter and sort data

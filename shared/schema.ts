@@ -152,33 +152,6 @@ export const auditLog = pgTable("audit_log", {
   duration: integer("duration"),
 });
 
-export const aiCostMetrics = pgTable("ai_cost_metrics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  
-  patientId: varchar("patient_id"),
-  leito: text("leito"),
-  operation: text("operation").notNull(),
-  
-  model: text("model").notNull().default("gpt-4o-mini"),
-  provider: text("provider").notNull().default("openai"),
-  
-  tokensUsed: integer("tokens_used").notNull().default(0),
-  tokensPrompt: integer("tokens_prompt").notNull().default(0),
-  tokensCompletion: integer("tokens_completion").notNull().default(0),
-  
-  estimatedCostCents: integer("estimated_cost_cents").notNull().default(0),
-  
-  cacheHit: boolean("cache_hit").notNull().default(false),
-  cacheSource: text("cache_source"),
-  
-  durationMs: integer("duration_ms").notNull().default(0),
-  
-  alertLevel: text("alert_level"),
-  success: boolean("success").notNull().default(true),
-  errorMessage: text("error_message"),
-});
-
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -264,11 +237,3 @@ export type UpdateNursingUnit = z.infer<typeof updateNursingUnitSchema>;
 export type NursingUnit = typeof nursingUnits.$inferSelect;
 export type InsertNursingUnitChange = z.infer<typeof insertNursingUnitChangeSchema>;
 export type NursingUnitChange = typeof nursingUnitChanges.$inferSelect;
-
-export const insertAICostMetricSchema = createInsertSchema(aiCostMetrics).omit({
-  id: true,
-  timestamp: true,
-});
-
-export type InsertAICostMetric = z.infer<typeof insertAICostMetricSchema>;
-export type AICostMetric = typeof aiCostMetrics.$inferSelect;

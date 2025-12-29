@@ -214,7 +214,7 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data: ClinicalBatchResult) => {
       setClinicalBatchResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Análise Clínica Concluída",
         description: `${data.summary.vermelho} críticos, ${data.summary.amarelo} alertas, ${data.summary.verde} ok`,
@@ -236,7 +236,7 @@ export default function ShiftHandoverPage() {
     },
     onSuccess: (data: { insights: ClinicalInsights; analysis: any }) => {
       setIndividualAnalysis(data.insights);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Análise Individual Concluída",
         description: `Nível de alerta: ${data.insights.nivel_alerta}`,
@@ -291,12 +291,12 @@ export default function ShiftHandoverPage() {
       localStorage.setItem('lastSyncTime', now.toISOString());
       
       // Atualiza dados imediatamente
-      queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       
       // A sincronização de IA roda em background - agenda uma atualização adicional
       // para capturar os insights de IA quando estiverem prontos (~10-15 segundos)
       pollTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
+        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
         pollTimerRef.current = null;
       }, 15000);
       
@@ -315,11 +315,7 @@ export default function ShiftHandoverPage() {
   });
 
   const { data: patients, isLoading, refetch } = useQuery<Patient[]>({
-    queryKey: ["/api/patients", { paginate: "false" }],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/patients?paginate=false");
-      return response.json();
-    },
+    queryKey: ["/api/patients"],
   });
 
   const { data: alerts } = useQuery<Alert[]>({

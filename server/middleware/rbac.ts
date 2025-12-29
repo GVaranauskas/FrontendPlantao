@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from './error-handler';
 import type { JWTPayload } from '../security/jwt';
 
-export type UserRole = 'admin' | 'enfermagem' | 'visualizador';
+export type UserRole = 'admin' | 'enfermeiro' | 'visualizador';
 
 /**
  * RBAC Middleware - checks if user has required role
@@ -29,7 +29,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
  */
 export const roleHierarchy: Record<UserRole, number> = {
   admin: 3,
-  enfermagem: 2,
+  enfermeiro: 2,
   visualizador: 1,
 };
 
@@ -56,7 +56,7 @@ export const rolePermissions: Record<UserRole, string[]> = {
     'users:manage',
     'alerts:manage',
   ],
-  enfermagem: [
+  enfermeiro: [
     'patients:read',
     'patients:write',
     'templates:read',

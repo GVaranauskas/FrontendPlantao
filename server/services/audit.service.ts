@@ -11,7 +11,7 @@ interface AuditLogOptions {
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT' | 'IMPORT';
   resource: string;
   resourceId?: string;
-  changes?: { before?: unknown; after?: unknown; body?: unknown };
+  changes?: { before?: unknown; after?: unknown };
   metadata?: Record<string, unknown>;
   req: Request;
   statusCode: number;
@@ -22,10 +22,6 @@ interface AuditLogOptions {
 class AuditService {
   async log(options: AuditLogOptions): Promise<void> {
     try {
-      if (options.user.id === 'anonymous') {
-        return;
-      }
-
       const duration = Date.now() - options.startTime;
 
       const logEntry: InsertAuditLog = {

@@ -59,7 +59,7 @@ export function useAutoSync(props?: UseAutoSyncProps) {
       };
 
       // Invalidate patient cache to refresh UI
-      await queryClient.invalidateQueries({ queryKey: ["/api/patients", { paginate: "false" }] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
 
       const imported = data.stats?.imported || 0;
       const updated = data.stats?.updated || 0;

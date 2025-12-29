@@ -1,7 +1,7 @@
 import { eq, desc, lt, gte, sql, and, count } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, aiCostMetrics } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, AICostMetric, InsertAICostMetric } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
 import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
@@ -366,71 +366,6 @@ export class PostgresStorage implements IStorage {
       .from(nursingUnitChanges)
       .where(eq(nursingUnitChanges.status, "pending"));
     return Number(result[0]?.count || 0);
-  }
-
-  async createAICostMetric(metric: InsertAICostMetric): Promise<AICostMetric> {
-    const [created] = await db.insert(aiCostMetrics).values(metric).returning();
-    return created;
-  }
-
-  async getAICostMetricsSummary(days: number = 30): Promise<{
-    totalCalls: number;
-    totalCost: number;
-    cacheHitRate: number;
-    avgDuration: number;
-    byModel: Record<string, { calls: number; cost: number }>;
-    byDay: Array<{ date: string; calls: number; cost: number; cacheHits: number }>;
-  }> {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-
-    const metrics = await db
-      .select()
-      .from(aiCostMetrics)
-      .where(gte(aiCostMetrics.timestamp, cutoffDate));
-
-    const totalCalls = metrics.length;
-    const totalCost = metrics.reduce((sum, m) => sum + m.estimatedCostCents, 0) / 100;
-    const cacheHits = metrics.filter(m => m.cacheHit).length;
-    const cacheHitRate = totalCalls > 0 ? (cacheHits / totalCalls) * 100 : 0;
-    const avgDuration = totalCalls > 0 
-      ? metrics.reduce((sum, m) => sum + m.durationMs, 0) / totalCalls 
-      : 0;
-
-    const byModel: Record<string, { calls: number; cost: number }> = {};
-    for (const metric of metrics) {
-      if (!byModel[metric.model]) {
-        byModel[metric.model] = { calls: 0, cost: 0 };
-      }
-      byModel[metric.model].calls++;
-      byModel[metric.model].cost += metric.estimatedCostCents / 100;
-    }
-
-    const byDayMap: Record<string, { calls: number; cost: number; cacheHits: number }> = {};
-    for (const metric of metrics) {
-      const date = metric.timestamp.toISOString().split('T')[0];
-      if (!byDayMap[date]) {
-        byDayMap[date] = { calls: 0, cost: 0, cacheHits: 0 };
-      }
-      byDayMap[date].calls++;
-      byDayMap[date].cost += metric.estimatedCostCents / 100;
-      if (metric.cacheHit) {
-        byDayMap[date].cacheHits++;
-      }
-    }
-
-    const byDay = Object.entries(byDayMap)
-      .map(([date, data]) => ({ date, ...data }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    return {
-      totalCalls,
-      totalCost,
-      cacheHitRate: Math.round(cacheHitRate * 100) / 100,
-      avgDuration: Math.round(avgDuration),
-      byModel,
-      byDay
-    };
   }
 }
 

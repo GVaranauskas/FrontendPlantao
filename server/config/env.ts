@@ -8,8 +8,6 @@ const envSchema = z.object({
   
   DATABASE_URL: z.string().optional(),
   
-  REDIS_URL: z.string().optional(),
-  
   SESSION_SECRET: isProduction 
     ? z.string().min(32, 'SESSION_SECRET must be at least 32 characters in production')
     : z.string().default('dev-secret-change-in-production'),
