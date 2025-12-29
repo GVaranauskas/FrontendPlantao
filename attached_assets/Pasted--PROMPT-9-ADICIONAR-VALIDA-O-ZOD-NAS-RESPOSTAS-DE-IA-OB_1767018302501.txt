@@ -1,0 +1,237 @@
+📝 PROMPT 9: ADICIONAR VALIDAÇÃO ZOD NAS RESPOSTAS DE IA
+OBJETIVO: Adicionar validação rigorosa com Zod nas respostas da API de IA para garantir que sempre retornem dados estruturados válidos, evitando crashes por dados malformados.
+
+CONTEXTO: Atualmente, o sistema assume que a IA sempre retorna JSON válido e bem estruturado. Se a IA retornar dados incompletos ou malformados, pode causar erros em cascata. Vamos adicionar validação robusta.
+
+ARQUIVOS A MODIFICAR:
+1. server/services/ai-service-gpt4o-mini.ts
+
+PASSO 1: CRIAR SCHEMAS DE VALIDAÇÃO
+
+No arquivo server/services/ai-service-gpt4o-mini.ts, adicione os schemas Zod logo após os imports:
+```typescript
+import OpenAI from "openai";
+import { env } from "../config/env";
+import { intelligentCache } from "./intelligent-cache.service";
+import { createHash } from 'node:crypto';
+import pRetry from 'p-retry';
+import { z } from 'zod';  // ← Já existe, apenas confirmar
+
+// ===== ADICIONAR ESTES SCHEMAS LOGO APÓS OS IMPORTS =====
+
+const AlertaSchema = z.object({
+  tipo: z.enum([
+    'RISCO_QUEDA',
+    'RISCO_LESAO',
+    'RISCO_ASPIRACAO',
+    'RISCO_INFECCAO',
+    'RISCO_RESPIRATORIO',
+    'RISCO_NUTRICIONAL'
+  ]),
+  nivel: z.enum(['VERMELHO', 'AMARELO', 'VERDE']),
+  titulo: z.string().min(1, 'Título não pode ser vazio'),
+  descricao: z.string().min(1, 'Descrição não pode ser vazia'),
+  recomendacao: z.string().min(1, 'Recomendação não pode ser vazia')
+});
+
+const PrioridadeSchema = z.object({
+  ordem: z.number().int().min(1).max(10),
+  acao: z.string().min(1, 'Ação não pode ser vazia'),
+  prazo: z.enum(['IMEDIATO', '2H', '6H', '24H'])
+});
+
+const AIResponseSchema = z.object({
+  alertas: z.array(AlertaSchema).min(0).max(20),
+  score: z.number().int().min(0).max(100),
+  categoria: z.enum(['EXCELENTE', 'BOM', 'REGULAR', 'PRECISA_MELHORAR']),
+  gaps: z.array(z.string()).min(0).max(50),
+  prioridades: z.array(PrioridadeSchema).min(0).max(10)
+});
+
+type AIResponse = z.infer<typeof AIResponseSchema>;
+```
+
+PASSO 2: MODIFICAR callGPT4oMiniOptimized
+
+Localize o trecho onde faz JSON.parse e substitua por validação com Zod:
+
+ANTES:
+```typescript
+// Valida se é JSON válido
+let analysis;
+try {
+  analysis = JSON.parse(content);
+} catch (parseError) {
+  throw new Error(`Resposta não é JSON válido: ${content.substring(0, 100)}`);
+}
+
+// Valida se tem campos mínimos necessários
+if (!analysis.alertas || !Array.isArray(analysis.alertas)) {
+  throw new Error('Resposta da IA não contém campo "alertas" válido');
+}
+
+return this.transformToInsights(analysis, patient);
+```
+
+DEPOIS:
+```typescript
+// Parse JSON
+let rawAnalysis;
+try {
+  rawAnalysis = JSON.parse(content);
+} catch (parseError) {
+  console.error('[GPT-4o-mini] Resposta não é JSON válido:', content.substring(0, 200));
+  throw new Error('IA retornou resposta inválida (não é JSON)');
+}
+
+// Valida estrutura com Zod
+let analysis: AIResponse;
+try {
+  analysis = AIResponseSchema.parse(rawAnalysis);
+  console.log(`[GPT-4o-mini] ✅ Resposta validada: ${analysis.alertas.length} alertas, score ${analysis.score}`);
+} catch (zodError: any) {
+  console.error('[GPT-4o-mini] Erro de validação Zod:', zodError.errors);
+  console.error('[GPT-4o-mini] Dados recebidos:', JSON.stringify(rawAnalysis, null, 2));
+  
+  // Tenta sanitizar os dados
+  const sanitized = this.sanitizeAIResponse(rawAnalysis);
+  
+  try {
+    analysis = AIResponseSchema.parse(sanitized);
+    console.warn('[GPT-4o-mini] ⚠️ Resposta sanitizada e validada com sucesso');
+  } catch (secondError) {
+    console.error('[GPT-4o-mini] Sanitização falhou, usando fallback');
+    throw new Error('IA retornou dados malformados que não puderam ser corrigidos');
+  }
+}
+
+return this.transformToInsights(analysis, patient);
+```
+
+PASSO 3: ADICIONAR MÉTODO DE SANITIZAÇÃO
+
+Adicione este novo método na classe AIServiceGPT4oMini (pode ser antes de transformToInsights):
+```typescript
+/**
+ * Tenta sanitizar resposta malformada da IA
+ */
+private sanitizeAIResponse(raw: any): any {
+  const sanitized: any = {
+    alertas: [],
+    score: 50,
+    categoria: 'REGULAR',
+    gaps: [],
+    prioridades: []
+  };
+
+  // Sanitiza alertas
+  if (Array.isArray(raw.alertas)) {
+    sanitized.alertas = raw.alertas
+      .filter((a: any) => a && typeof a === 'object')
+      .map((a: any) => ({
+        tipo: this.sanitizeEnum(a.tipo, [
+          'RISCO_QUEDA', 'RISCO_LESAO', 'RISCO_ASPIRACAO',
+          'RISCO_INFECCAO', 'RISCO_RESPIRATORIO', 'RISCO_NUTRICIONAL'
+        ], 'RISCO_LESAO'),
+        nivel: this.sanitizeEnum(a.nivel, ['VERMELHO', 'AMARELO', 'VERDE'], 'AMARELO'),
+        titulo: String(a.titulo || 'Alerta sem título'),
+        descricao: String(a.descricao || 'Sem descrição'),
+        recomendacao: String(a.recomendacao || 'Avaliar manualmente')
+      }))
+      .slice(0, 20); // Máximo 20 alertas
+  }
+
+  // Sanitiza score
+  if (typeof raw.score === 'number') {
+    sanitized.score = Math.max(0, Math.min(100, Math.round(raw.score)));
+  } else if (typeof raw.score === 'string') {
+    const parsed = parseInt(raw.score);
+    sanitized.score = isNaN(parsed) ? 50 : Math.max(0, Math.min(100, parsed));
+  }
+
+  // Sanitiza categoria
+  sanitized.categoria = this.sanitizeEnum(
+    raw.categoria,
+    ['EXCELENTE', 'BOM', 'REGULAR', 'PRECISA_MELHORAR'],
+    'REGULAR'
+  );
+
+  // Sanitiza gaps
+  if (Array.isArray(raw.gaps)) {
+    sanitized.gaps = raw.gaps
+      .filter((g: any) => typeof g === 'string' && g.trim().length > 0)
+      .map((g: any) => String(g).trim())
+      .slice(0, 50);
+  }
+
+  // Sanitiza prioridades
+  if (Array.isArray(raw.prioridades)) {
+    sanitized.prioridades = raw.prioridades
+      .filter((p: any) => p && typeof p === 'object')
+      .map((p: any, index: number) => ({
+        ordem: typeof p.ordem === 'number' ? p.ordem : index + 1,
+        acao: String(p.acao || 'Ação não especificada'),
+        prazo: this.sanitizeEnum(p.prazo, ['IMEDIATO', '2H', '6H', '24H'], '24H')
+      }))
+      .slice(0, 10);
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitiza valor para enum válido
+ */
+private sanitizeEnum<T extends string>(
+  value: any,
+  validValues: T[],
+  defaultValue: T
+): T {
+  if (typeof value === 'string') {
+    const upper = value.toUpperCase();
+    if (validValues.includes(upper as T)) {
+      return upper as T;
+    }
+  }
+  return defaultValue;
+}
+```
+
+VALIDAÇÃO APÓS APLICAR:
+1. Servidor compila sem erros
+2. Análise de paciente funciona normalmente
+3. Para testar validação: temporariamente modifique COMPACT_SYSTEM_PROMPT para retornar JSON inválido
+4. Deve aparecer logs de sanitização
+5. Sistema não deve crashar
+
+TESTES ESPERADOS:
+
+Caso 1 - Resposta válida:
+[GPT-4o-mini] ✅ Resposta validada: 3 alertas, score 75
+
+Caso 2 - Resposta com problemas sanitizáveis:
+[GPT-4o-mini] Erro de validação Zod: [...]
+[GPT-4o-mini] ⚠️ Resposta sanitizada e validada com sucesso
+
+Caso 3 - Resposta completamente inválida:
+[GPT-4o-mini] Sanitização falhou, usando fallback
+[GPT-4o-mini] Usando análise degradada para Leito 101
+
+IMPORTANTE:
+- Sistema sempre retorna algo (nunca null/undefined)
+- Validação rigorosa com Zod
+- Sanitização automática de dados malformados
+- Fallback inteligente em último caso
+- Logs detalhados para debug
+- NÃO modifica lógica de negócio
+
+CHECKLIST DE SUCESSO:
+☐ Schemas Zod adicionados
+☐ callGPT4oMiniOptimized atualizado com validação
+☐ sanitizeAIResponse implementado
+☐ sanitizeEnum implementado
+☐ Servidor compila sem erros
+☐ Análise funciona normalmente
+☐ Logs de validação aparecem
+☐ Sistema não quebra com dados inválidos
+☐ Sempre retorna insights (nunca null)

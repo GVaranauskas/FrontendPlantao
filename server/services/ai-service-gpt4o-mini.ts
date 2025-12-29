@@ -3,6 +3,40 @@ import { env } from "../config/env";
 import { intelligentCache } from "./intelligent-cache.service";
 import { createHash } from 'node:crypto';
 import pRetry, { AbortError } from 'p-retry';
+import { z } from 'zod';
+
+// ===== SCHEMAS DE VALIDAÇÃO ZOD =====
+
+const AlertaSchema = z.object({
+  tipo: z.enum([
+    'RISCO_QUEDA',
+    'RISCO_LESAO',
+    'RISCO_ASPIRACAO',
+    'RISCO_INFECCAO',
+    'RISCO_RESPIRATORIO',
+    'RISCO_NUTRICIONAL'
+  ]),
+  nivel: z.enum(['VERMELHO', 'AMARELO', 'VERDE']),
+  titulo: z.string().min(1, 'Título não pode ser vazio'),
+  descricao: z.string().min(1, 'Descrição não pode ser vazia'),
+  recomendacao: z.string().min(1, 'Recomendação não pode ser vazia')
+});
+
+const PrioridadeSchema = z.object({
+  ordem: z.number().int().min(1).max(10),
+  acao: z.string().min(1, 'Ação não pode ser vazia'),
+  prazo: z.enum(['IMEDIATO', '2H', '6H', '24H'])
+});
+
+const AIResponseSchema = z.object({
+  alertas: z.array(AlertaSchema).min(0).max(20),
+  score: z.number().int().min(0).max(100),
+  categoria: z.enum(['EXCELENTE', 'BOM', 'REGULAR', 'PRECISA_MELHORAR']),
+  gaps: z.array(z.string()).min(0).max(50),
+  prioridades: z.array(PrioridadeSchema).min(0).max(10)
+});
+
+type AIResponse = z.infer<typeof AIResponseSchema>;
 
 /**
  * AI SERVICE - OTIMIZADO PARA GPT-4o-mini
@@ -204,15 +238,34 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
           throw new Error('Resposta vazia do GPT-4o-mini');
         }
 
-        let analysis;
+        // Parse JSON
+        let rawAnalysis;
         try {
-          analysis = JSON.parse(content);
+          rawAnalysis = JSON.parse(content);
         } catch (parseError) {
-          throw new Error(`Resposta não é JSON válido: ${content.substring(0, 100)}`);
+          console.error('[GPT-4o-mini] Resposta não é JSON válido:', content.substring(0, 200));
+          throw new Error('IA retornou resposta inválida (não é JSON)');
         }
 
-        if (!analysis.alertas || !Array.isArray(analysis.alertas)) {
-          throw new Error('Resposta da IA não contém campo "alertas" válido');
+        // Valida estrutura com Zod
+        let analysis: AIResponse;
+        try {
+          analysis = AIResponseSchema.parse(rawAnalysis);
+          console.log(`[GPT-4o-mini] ✅ Resposta validada: ${analysis.alertas.length} alertas, score ${analysis.score}`);
+        } catch (zodError: any) {
+          console.error('[GPT-4o-mini] Erro de validação Zod:', zodError.errors);
+          console.error('[GPT-4o-mini] Dados recebidos:', JSON.stringify(rawAnalysis, null, 2).substring(0, 500));
+          
+          // Tenta sanitizar os dados
+          const sanitized = this.sanitizeAIResponse(rawAnalysis);
+          
+          try {
+            analysis = AIResponseSchema.parse(sanitized);
+            console.warn('[GPT-4o-mini] ⚠️ Resposta sanitizada e validada com sucesso');
+          } catch (secondError) {
+            console.error('[GPT-4o-mini] Sanitização falhou, usando fallback');
+            throw new Error('IA retornou dados malformados que não puderam ser corrigidos');
+          }
         }
 
         return this.transformToInsights(analysis, patient);
@@ -260,6 +313,90 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
     if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') return true;
     if (error.status >= 400 && error.status < 500 && error.status !== 429) return false;
     return false;
+  }
+
+  /**
+   * Tenta sanitizar resposta malformada da IA
+   */
+  private sanitizeAIResponse(raw: any): any {
+    const sanitized: any = {
+      alertas: [],
+      score: 50,
+      categoria: 'REGULAR',
+      gaps: [],
+      prioridades: []
+    };
+
+    // Sanitiza alertas
+    if (Array.isArray(raw.alertas)) {
+      sanitized.alertas = raw.alertas
+        .filter((a: any) => a && typeof a === 'object')
+        .map((a: any) => ({
+          tipo: this.sanitizeEnum(a.tipo, [
+            'RISCO_QUEDA', 'RISCO_LESAO', 'RISCO_ASPIRACAO',
+            'RISCO_INFECCAO', 'RISCO_RESPIRATORIO', 'RISCO_NUTRICIONAL'
+          ], 'RISCO_LESAO'),
+          nivel: this.sanitizeEnum(a.nivel, ['VERMELHO', 'AMARELO', 'VERDE'], 'AMARELO'),
+          titulo: String(a.titulo || 'Alerta sem título'),
+          descricao: String(a.descricao || 'Sem descrição'),
+          recomendacao: String(a.recomendacao || 'Avaliar manualmente')
+        }))
+        .slice(0, 20);
+    }
+
+    // Sanitiza score
+    if (typeof raw.score === 'number') {
+      sanitized.score = Math.max(0, Math.min(100, Math.round(raw.score)));
+    } else if (typeof raw.score === 'string') {
+      const parsed = parseInt(raw.score);
+      sanitized.score = isNaN(parsed) ? 50 : Math.max(0, Math.min(100, parsed));
+    }
+
+    // Sanitiza categoria
+    sanitized.categoria = this.sanitizeEnum(
+      raw.categoria,
+      ['EXCELENTE', 'BOM', 'REGULAR', 'PRECISA_MELHORAR'],
+      'REGULAR'
+    );
+
+    // Sanitiza gaps
+    if (Array.isArray(raw.gaps)) {
+      sanitized.gaps = raw.gaps
+        .filter((g: any) => typeof g === 'string' && g.trim().length > 0)
+        .map((g: any) => String(g).trim())
+        .slice(0, 50);
+    }
+
+    // Sanitiza prioridades
+    if (Array.isArray(raw.prioridades)) {
+      sanitized.prioridades = raw.prioridades
+        .filter((p: any) => p && typeof p === 'object')
+        .map((p: any, index: number) => ({
+          ordem: typeof p.ordem === 'number' ? Math.min(10, Math.max(1, p.ordem)) : index + 1,
+          acao: String(p.acao || 'Ação não especificada'),
+          prazo: this.sanitizeEnum(p.prazo, ['IMEDIATO', '2H', '6H', '24H'], '24H')
+        }))
+        .slice(0, 10);
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Sanitiza valor para enum válido
+   */
+  private sanitizeEnum<T extends string>(
+    value: any,
+    validValues: T[],
+    defaultValue: T
+  ): T {
+    if (typeof value === 'string') {
+      const upper = value.toUpperCase();
+      if (validValues.includes(upper as T)) {
+        return upper as T;
+      }
+    }
+    return defaultValue;
   }
 
   /**
