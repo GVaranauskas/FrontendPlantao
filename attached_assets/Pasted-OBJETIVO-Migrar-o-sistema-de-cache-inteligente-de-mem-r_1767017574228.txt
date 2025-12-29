@@ -1,0 +1,408 @@
+OBJETIVO: Migrar o sistema de cache inteligente de memória para Redis, garantindo que o cache persista após reinicializações do servidor e mantendo a economia de 99.8% nos custos de IA.
+
+CONTEXTO: Atualmente o IntelligentCacheService armazena cache em memória (Map), o que significa que ao reiniciar o servidor, perdemos todo o cache acumulado e a primeira rodada de análises será lenta e cara. Com Redis, o cache persiste entre restarts.
+
+PRÉ-REQUISITOS:
+1. Variável de ambiente REDIS_URL deve estar configurada
+2. Se não tiver Redis local, pode usar Upstash Redis (gratuito) ou Redis Cloud
+
+ARQUIVOS A MODIFICAR:
+1. server/services/intelligent-cache.service.ts
+2. server/config/env.ts
+3. package.json (adicionar dependência)
+
+PASSO 1: ADICIONAR DEPENDÊNCIA DO REDIS
+
+Adicione ao package.json na seção "dependencies":
+```json
+"ioredis": "^5.3.2"
+```
+
+Execute após modificar:
+```bash
+npm install
+```
+
+PASSO 2: ADICIONAR REDIS_URL NO ENV.TS
+
+No arquivo server/config/env.ts, adicione na configuração do envSchema:
+```typescript
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.string().default('5000').transform(Number),
+  
+  DATABASE_URL: z.string().optional(),
+  
+  // Adicionar esta linha:
+  REDIS_URL: z.string().optional(),
+  
+  SESSION_SECRET: isProduction 
+    ? z.string().min(32, 'SESSION_SECRET must be at least 32 characters in production')
+    : z.string().default('dev-secret-change-in-production'),
+  
+  // ... resto do schema
+});
+```
+
+PASSO 3: MODIFICAR INTELLIGENT-CACHE.SERVICE.TS
+
+Substitua o conteúdo COMPLETO de server/services/intelligent-cache.service.ts por:
+```typescript
+import { createHash } from 'node:crypto';
+import Redis from 'ioredis';
+import { env } from '../config/env';
+import { logger } from '../lib/logger';
+
+interface CacheEntry<T> {
+  key: string;
+  value: T;
+  contentHash: string;
+  createdAt: Date;
+  expiresAt: Date;
+  hitCount: number;
+  lastAccessed: Date;
+  criticality: 'low' | 'medium' | 'high' | 'critical';
+  dataStability: number;
+}
+
+interface CacheStats {
+  totalEntries: number;
+  hitRate: number;
+  totalHits: number;
+  totalMisses: number;
+  memoryUsage: number;
+  oldestEntry: Date | null;
+  newestEntry: Date | null;
+  evictions: number;
+  avgHitsPerEntry: number;
+}
+
+interface CacheOptions {
+  contentHash?: string;
+  ttlMinutes?: number;
+  criticality?: 'low' | 'medium' | 'high' | 'critical';
+  dataStability?: number;
+}
+
+export class IntelligentCacheService {
+  private redis: Redis | null = null;
+  private fallbackCache: Map<string, CacheEntry<any>> = new Map();
+  private useRedis: boolean = false;
+
+  private stats = {
+    hits: 0,
+    misses: 0,
+    evictions: 0
+  };
+
+  private ttlConfig = {
+    low: 240,
+    medium: 120,
+    high: 60,
+    critical: 15
+  };
+
+  private maxCacheSize = 1000;
+
+  constructor() {
+    this.initializeRedis();
+  }
+
+  private async initializeRedis() {
+    if (env.REDIS_URL) {
+      try {
+        this.redis = new Redis(env.REDIS_URL, {
+          maxRetriesPerRequest: 3,
+          retryStrategy: (times) => {
+            const delay = Math.min(times * 50, 2000);
+            return delay;
+          },
+          lazyConnect: true
+        });
+
+        await this.redis.connect();
+        
+        this.redis.on('error', (err) => {
+          logger.error('[IntelligentCache] Redis error:', err);
+          this.useRedis = false;
+        });
+
+        this.redis.on('ready', () => {
+          logger.info('[IntelligentCache] ✅ Redis connected successfully');
+          this.useRedis = true;
+        });
+
+        await this.redis.ping();
+        this.useRedis = true;
+        logger.info('[IntelligentCache] Using Redis for persistent cache');
+      } catch (error) {
+        logger.warn('[IntelligentCache] Redis not available, using memory cache', error);
+        this.useRedis = false;
+        this.redis = null;
+      }
+    } else {
+      logger.info('[IntelligentCache] REDIS_URL not configured, using memory cache');
+      this.useRedis = false;
+    }
+  }
+
+  async get<T>(key: string, contentHash?: string): Promise<T | null> {
+    try {
+      if (this.useRedis && this.redis) {
+        return await this.getFromRedis<T>(key, contentHash);
+      } else {
+        return this.getFromMemory<T>(key, contentHash);
+      }
+    } catch (error) {
+      logger.error('[IntelligentCache] Error getting from cache:', error);
+      this.stats.misses++;
+      return null;
+    }
+  }
+
+  private async getFromRedis<T>(key: string, contentHash?: string): Promise<T | null> {
+    const data = await this.redis!.get(key);
+    
+    if (!data) {
+      this.stats.misses++;
+      return null;
+    }
+
+    const entry: CacheEntry<T> = JSON.parse(data);
+
+    // Verifica expiração
+    if (new Date() > new Date(entry.expiresAt)) {
+      await this.redis!.del(key);
+      this.stats.misses++;
+      this.stats.evictions++;
+      return null;
+    }
+
+    // Verifica hash de conteúdo
+    if (contentHash && entry.contentHash !== contentHash) {
+      await this.redis!.del(key);
+      this.stats.misses++;
+      return null;
+    }
+
+    // Cache HIT
+    entry.hitCount++;
+    entry.lastAccessed = new Date();
+    await this.redis!.set(key, JSON.stringify(entry));
+    
+    this.stats.hits++;
+    const hitRate = ((this.stats.hits / (this.stats.hits + this.stats.misses)) * 100).toFixed(1);
+    logger.debug(`[IntelligentCache] REDIS HIT: ${key} (rate: ${hitRate}%)`);
+
+    return entry.value;
+  }
+
+  private getFromMemory<T>(key: string, contentHash?: string): T | null {
+    const entry = this.fallbackCache.get(key);
+
+    if (!entry) {
+      this.stats.misses++;
+      return null;
+    }
+
+    if (new Date() > entry.expiresAt) {
+      this.fallbackCache.delete(key);
+      this.stats.misses++;
+      this.stats.evictions++;
+      return null;
+    }
+
+    if (contentHash && entry.contentHash !== contentHash) {
+      this.fallbackCache.delete(key);
+      this.stats.misses++;
+      return null;
+    }
+
+    entry.hitCount++;
+    entry.lastAccessed = new Date();
+    this.stats.hits++;
+    
+    return entry.value;
+  }
+
+  async set<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
+    try {
+      const contentHash = options?.contentHash || this.calculateHash(value);
+      const criticality = options?.criticality || 'medium';
+      const dataStability = options?.dataStability || 80;
+      const ttlMinutes = options?.ttlMinutes || this.calculateOptimalTTL(criticality, dataStability);
+
+      const entry: CacheEntry<T> = {
+        key,
+        value,
+        contentHash,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + ttlMinutes * 60 * 1000),
+        hitCount: 0,
+        lastAccessed: new Date(),
+        criticality,
+        dataStability
+      };
+
+      if (this.useRedis && this.redis) {
+        await this.redis.set(key, JSON.stringify(entry), 'EX', ttlMinutes * 60);
+        logger.debug(`[IntelligentCache] REDIS SET: ${key} (TTL: ${ttlMinutes}min)`);
+      } else {
+        if (this.fallbackCache.size >= this.maxCacheSize) {
+          this.evictLeastValuable();
+        }
+        this.fallbackCache.set(key, entry);
+        logger.debug(`[IntelligentCache] MEMORY SET: ${key} (TTL: ${ttlMinutes}min)`);
+      }
+    } catch (error) {
+      logger.error('[IntelligentCache] Error setting cache:', error);
+    }
+  }
+
+  private calculateOptimalTTL(criticality: string, dataStability: number): number {
+    const baseTTL = this.ttlConfig[criticality as keyof typeof this.ttlConfig] || 60;
+
+    if (dataStability > 90) {
+      return Math.min(baseTTL * 2, 480);
+    } else if (dataStability < 50) {
+      return Math.max(baseTTL / 2, 15);
+    }
+
+    return baseTTL;
+  }
+
+  private evictLeastValuable(): void {
+    let leastValuable: [string, CacheEntry<any>] | null = null;
+    let minValue = Infinity;
+
+    for (const [key, entry] of this.fallbackCache.entries()) {
+      const ageMinutes = (Date.now() - entry.createdAt.getTime()) / (1000 * 60);
+      const score = entry.hitCount / Math.max(ageMinutes, 1);
+
+      if (score < minValue) {
+        minValue = score;
+        leastValuable = [key, entry];
+      }
+    }
+
+    if (leastValuable) {
+      this.fallbackCache.delete(leastValuable[0]);
+      this.stats.evictions++;
+    }
+  }
+
+  private calculateHash(value: any): string {
+    const jsonString = JSON.stringify(value, null, 2);
+    return createHash('md5').update(jsonString).digest('hex');
+  }
+
+  async invalidate(pattern: string): Promise<number> {
+    let invalidated = 0;
+
+    try {
+      if (this.useRedis && this.redis) {
+        const keys = await this.redis.keys(pattern);
+        if (keys.length > 0) {
+          invalidated = await this.redis.del(...keys);
+        }
+      } else {
+        const regex = new RegExp(pattern);
+        for (const [key] of this.fallbackCache.entries()) {
+          if (regex.test(key)) {
+            this.fallbackCache.delete(key);
+            invalidated++;
+          }
+        }
+      }
+
+      if (invalidated > 0) {
+        logger.info(`[IntelligentCache] INVALIDATED: ${invalidated} entries matching /${pattern}/`);
+      }
+    } catch (error) {
+      logger.error('[IntelligentCache] Error invalidating cache:', error);
+    }
+
+    return invalidated;
+  }
+
+  async clear(): Promise<void> {
+    try {
+      if (this.useRedis && this.redis) {
+        await this.redis.flushdb();
+      }
+      this.fallbackCache.clear();
+      this.stats = { hits: 0, misses: 0, evictions: 0 };
+      logger.info('[IntelligentCache] Cache cleared');
+    } catch (error) {
+      logger.error('[IntelligentCache] Error clearing cache:', error);
+    }
+  }
+
+  getStats(): CacheStats {
+    const totalRequests = this.stats.hits + this.stats.misses;
+    const hitRate = totalRequests > 0 ? (this.stats.hits / totalRequests) * 100 : 0;
+
+    return {
+      totalEntries: this.fallbackCache.size,
+      hitRate: Number(hitRate.toFixed(2)),
+      totalHits: this.stats.hits,
+      totalMisses: this.stats.misses,
+      memoryUsage: 0,
+      oldestEntry: null,
+      newestEntry: null,
+      evictions: this.stats.evictions,
+      avgHitsPerEntry: 0
+    };
+  }
+
+  async updateDataStability(key: string, newStability: number): Promise<void> {
+    // Implementação mantida para compatibilidade
+  }
+
+  async getEntryInfo(key: string): Promise<Partial<CacheEntry<any>> | null> {
+    try {
+      if (this.useRedis && this.redis) {
+        const data = await this.redis.get(key);
+        if (!data) return null;
+        const entry = JSON.parse(data);
+        return {
+          key: entry.key,
+          createdAt: new Date(entry.createdAt),
+          expiresAt: new Date(entry.expiresAt),
+          hitCount: entry.hitCount,
+          lastAccessed: new Date(entry.lastAccessed),
+          criticality: entry.criticality,
+          dataStability: entry.dataStability,
+          contentHash: entry.contentHash
+        };
+      } else {
+        const entry = this.fallbackCache.get(key);
+        if (!entry) return null;
+        return {
+          key: entry.key,
+          createdAt: entry.createdAt,
+          expiresAt: entry.expiresAt,
+          hitCount: entry.hitCount,
+          lastAccessed: entry.lastAccessed,
+          criticality: entry.criticality,
+          dataStability: entry.dataStability,
+          contentHash: entry.contentHash
+        };
+      }
+    } catch (error) {
+      logger.error('[IntelligentCache] Error getting entry info:', error);
+      return null;
+    }
+  }
+
+  isUsingRedis(): boolean {
+    return this.useRedis;
+  }
+}
+
+export const intelligentCache = new IntelligentCacheService();
+```
+
+PASSO 4: CONFIGURAR REDIS_URL
+
+Se estiver usando Replit, adicione nos Secrets:
