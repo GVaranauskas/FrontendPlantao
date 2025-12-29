@@ -1,0 +1,197 @@
+OBJETIVO: Garantir que TODAS as operações críticas (criar, editar, deletar pacientes) sejam registradas no audit log para conformidade com LGPD Art. 37 (registro de operações).
+
+CONTEXTO: O sistema já tem audit middleware e tabela de audit_log, mas precisamos garantir que operações sensíveis estão sendo registradas corretamente com informações completas.
+
+ARQUIVOS A MODIFICAR:
+1. server/middleware/audit.ts
+2. server/routes.ts (verificar se audit middleware está ativo)
+
+INSTRUÇÕES DETALHADAS:
+
+1. Verifique se o arquivo server/middleware/audit.ts existe e está importado em server/index.ts.
+
+2. Confirme que a linha app.use(auditMiddleware) está presente em server/index.ts ANTES das rotas.
+
+3. Verifique se o auditMiddleware captura corretamente:
+   - Usuário autenticado (req.user)
+   - Ação realizada (método + path)
+   - Dados modificados (req.body para POST/PATCH)
+   - IP do cliente
+   - User agent
+   - Timestamp
+
+CÓDIGO A VERIFICAR:
+
+Em server/index.ts, confirme que existe:
+```typescript
+// Optional authentication middleware (doesn't fail if token missing)
+app.use(optionalAuthMiddleware);
+
+// Audit middleware (logs all API requests for LGPD Art. 37 compliance)
+app.use(auditMiddleware);
+```
+
+ORDEM CORRETA DOS MIDDLEWARES:
+1. Security (helmet, rate limit)
+2. Body parsers (json, urlencoded)
+3. optionalAuthMiddleware
+4. auditMiddleware  ← CONFIRMAR QUE ESTÁ AQUI
+5. Routes
+
+Se o auditMiddleware NÃO existir ou estiver mal implementado, crie assim:
+
+Crie arquivo server/middleware/audit.ts:
+```typescript
+import { Request, Response, NextFunction } from 'express';
+import { storage } from '../storage';
+import { logger } from '../lib/logger';
+
+export async function auditMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Captura tempo de início
+  const startTime = Date.now();
+  
+  // Captura body original (para audit)
+  const originalBody = req.body ? JSON.stringify(req.body) : null;
+  
+  // Captura send original
+  const originalSend = res.send;
+  let responseBody: any;
+  
+  // Override send para capturar resposta
+  res.send = function(data: any) {
+    responseBody = data;
+    return originalSend.call(this, data);
+  };
+  
+  // Quando resposta terminar, registrar no audit log
+  res.on('finish', async () => {
+    // Só audita rotas /api/* (ignora static files)
+    if (!req.path.startsWith('/api')) {
+      return;
+    }
+    
+    const duration = Date.now() - startTime;
+    const userId = req.user?.userId || null;
+    const userName = req.user?.username || 'anonymous';
+    const userRole = req.user?.role || 'none';
+    
+    // Determina ação e recurso
+    const action = `${req.method} ${req.path}`;
+    const resource = extractResource(req.path);
+    const resourceId = extractResourceId(req.path);
+    
+    // Determina se é operação sensível
+    const isSensitiveOperation = 
+      (req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') &&
+      (resource === 'patients' || resource === 'users' || resource === 'import');
+    
+    try {
+      // Registra apenas operações sensíveis ou com erro
+      if (isSensitiveOperation || res.statusCode >= 400) {
+        await storage.createAuditLog({
+          userId,
+          userName,
+          userRole,
+          action,
+          resource,
+          resourceId,
+          changes: isSensitiveOperation ? parseBodyChanges(originalBody) : null,
+          metadata: {
+            method: req.method,
+            path: req.path,
+            query: req.query,
+            sensitive: isSensitiveOperation
+          },
+          ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+          userAgent: req.get('user-agent') || 'unknown',
+          endpoint: `${req.method} ${req.path}`,
+          statusCode: res.statusCode,
+          errorMessage: res.statusCode >= 400 ? extractErrorMessage(responseBody) : null,
+          duration
+        });
+        
+        logger.info(`[Audit] ${action} by ${userName} (${res.statusCode}) - ${duration}ms`);
+      }
+    } catch (error) {
+      logger.error('[Audit] Failed to create audit log:', error);
+      // Não bloqueia request se audit falhar
+    }
+  });
+  
+  next();
+}
+
+function extractResource(path: string): string {
+  const match = path.match(/^\/api\/([^\/]+)/);
+  return match ? match[1] : 'unknown';
+}
+
+function extractResourceId(path: string): string | null {
+  const match = path.match(/^\/api\/[^\/]+\/([^\/\?]+)/);
+  return match ? match[1] : null;
+}
+
+function parseBodyChanges(bodyJson: string | null): any {
+  if (!bodyJson) return null;
+  try {
+    const body = JSON.parse(bodyJson);
+    // Remove campos sensíveis do log (senhas, tokens)
+    const { password, token, accessToken, ...safe } = body;
+    return safe;
+  } catch {
+    return null;
+  }
+}
+
+function extractErrorMessage(responseBody: any): string | null {
+  if (!responseBody) return null;
+  try {
+    const parsed = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+    return parsed.message || parsed.error?.message || null;
+  } catch {
+    return null;
+  }
+}
+```
+
+Adicione método no storage (se não existir):
+```typescript
+// Em server/storage.ts, adicione interface:
+createAuditLog(log: Omit<InsertAuditLog, 'id' | 'timestamp'>): Promise<AuditLog>;
+```
+
+VALIDAÇÃO APÓS APLICAR:
+1. Crie um paciente → Verifique registro no audit_log
+2. Edite um paciente → Verifique registro no audit_log
+3. Delete um paciente → Verifique registro no audit_log
+4. Faça login → Verifique registro no audit_log
+5. Verifique que senhas NÃO aparecem no log
+
+CONSULTA SQL PARA TESTAR:
+```sql
+SELECT 
+  timestamp,
+  user_name,
+  action,
+  resource,
+  status_code,
+  duration
+FROM audit_log
+ORDER BY timestamp DESC
+LIMIT 20;
+```
+
+IMPORTANTE:
+- NÃO registre senhas ou tokens no audit log
+- NÃO bloqueie requests se audit falhar
+- NÃO modifique comportamento das rotas
+- Apenas certifique-se que operações são registradas
+
+CHECKLIST LGPD:
+☐ Todas criações de pacientes são auditadas
+☐ Todas edições de pacientes são auditadas
+☐ Todas exclusões de pacientes são auditadas
+☐ Audit log contém: quem, quando, o quê, de onde
+☐ Senhas e tokens NÃO aparecem no log
+☐ Erros (4xx, 5xx) são registrados
+☐ Performance não foi impactada

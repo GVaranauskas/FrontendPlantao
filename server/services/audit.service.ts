@@ -11,7 +11,7 @@ interface AuditLogOptions {
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT' | 'IMPORT';
   resource: string;
   resourceId?: string;
-  changes?: { before?: unknown; after?: unknown };
+  changes?: { before?: unknown; after?: unknown; body?: unknown };
   metadata?: Record<string, unknown>;
   req: Request;
   statusCode: number;
