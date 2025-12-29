@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, RequireAuth } from "./lib/auth-context";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 const LoginPage = lazy(() => import("@/pages/login"));
@@ -110,8 +111,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Router />
+          <ErrorBoundary>
+            <Toaster />
+            <Router />
+          </ErrorBoundary>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

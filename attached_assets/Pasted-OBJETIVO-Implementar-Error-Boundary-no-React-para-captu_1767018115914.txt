@@ -1,0 +1,254 @@
+OBJETIVO: Implementar Error Boundary no React para capturar erros de renderização e exibir mensagem amigável ao usuário em vez de tela branca, melhorando a experiência e facilitando debug.
+
+CONTEXTO: Atualmente, se um componente React quebrar, o usuário vê uma tela branca. Com Error Boundary, mostramos uma mensagem amigável e registramos o erro para análise.
+
+ARQUIVOS A CRIAR/MODIFICAR:
+1. client/src/components/ErrorBoundary.tsx (CRIAR NOVO)
+2. client/src/App.tsx (MODIFICAR)
+
+PASSO 1: CRIAR ERROR BOUNDARY COMPONENT
+
+Crie o arquivo client/src/components/ErrorBoundary.tsx com o seguinte conteúdo:
+```typescript
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Log erro para console (em produção, enviar para serviço de monitoramento)
+    console.error('ErrorBoundary capturou erro:', error, errorInfo);
+    
+    // Armazena detalhes do erro no state
+    this.setState({
+      error,
+      errorInfo
+    });
+
+    // Em produção, você enviaria isso para um serviço como Sentry
+    // Exemplo: Sentry.captureException(error, { extra: errorInfo });
+  }
+
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  handleGoHome = () => {
+    window.location.href = '/modules';
+  };
+
+  render() {
+    if (this.state.hasError) {
+      // Se foi fornecido um fallback customizado, use ele
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      // Fallback padrão
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-red-100 rounded-full">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Ops! Algo deu errado</CardTitle>
+                  <CardDescription>
+                    Encontramos um erro inesperado. Nossa equipe foi notificada.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div className="bg-gray-100 p-4 rounded-md">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Detalhes técnicos:
+                </p>
+                <pre className="text-xs text-gray-600 overflow-x-auto">
+                  {this.state.error?.toString()}
+                </pre>
+              </div>
+
+              {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+                <details className="bg-gray-50 p-4 rounded-md">
+                  <summary className="text-sm font-medium text-gray-700 cursor-pointer mb-2">
+                    Stack Trace (apenas em desenvolvimento)
+                  </summary>
+                  <pre className="text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
+                </details>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Dica:</strong> Tente recarregar a página ou voltar para a página inicial.
+                  Se o problema persistir, entre em contato com o suporte.
+                </p>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={this.handleGoHome}
+                className="gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Ir para Início
+              </Button>
+              <Button
+                onClick={this.handleReload}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Recarregar Página
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Hook para componentes filhos resetarem o error boundary
+export const useErrorHandler = () => {
+  const [, setError] = React.useState();
+  
+  return React.useCallback((error: Error) => {
+    setError(() => {
+      throw error;
+    });
+  }, []);
+};
+```
+
+PASSO 2: MODIFICAR APP.TSX
+
+No arquivo client/src/App.tsx, faça as seguintes modificações:
+
+1. Adicione o import do ErrorBoundary no topo:
+```typescript
+import { ErrorBoundary } from "./components/ErrorBoundary";
+```
+
+2. Envolva o Router com ErrorBoundary. Substitua a função App() por:
+```typescript
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <ErrorBoundary>
+            <Toaster />
+            <Router />
+          </ErrorBoundary>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+```
+
+PASSO 3: ADICIONAR ERROR BOUNDARY EM ROTAS LAZY (OPCIONAL MAS RECOMENDADO)
+
+Para capturar erros de carregamento de rotas lazy, modifique a função LazyRoute:
+```typescript
+function LazyRoute({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Erro ao carregar página</CardTitle>
+              <CardDescription>
+                Não foi possível carregar esta página. Tente novamente.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button onClick={() => window.location.reload()}>
+                Recarregar
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      }
+    >
+      <Suspense fallback={<LoadingSpinner />}>
+        <Component />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+```
+
+VALIDAÇÃO APÓS APLICAR:
+1. Aplicação compila sem erros
+2. Navegação normal funciona
+3. Para testar: adicione `throw new Error('Teste')` em qualquer componente
+4. Deve aparecer a tela de erro amigável (não tela branca)
+5. Botão "Recarregar" deve funcionar
+6. Botão "Ir para Início" deve funcionar
+
+TESTE SIMULADO DE ERRO:
+No arquivo client/src/pages/modules.tsx, adicione temporariamente:
+```typescript
+export default function ModulesPage() {
+  // Descomentar linha abaixo para testar error boundary
+  // throw new Error('Teste de Error Boundary');
+  
+  return (
+    // ... código existente
+  );
+}
+```
+
+IMPORTANTE:
+- NÃO modifica funcionalidade de nenhuma página
+- NÃO altera comportamento normal da aplicação
+- Apenas adiciona tratamento de erros
+- Em desenvolvimento, mostra stack trace completo
+- Em produção, esconde detalhes técnicos sensíveis
+
+CHECKLIST DE SUCESSO:
+☐ ErrorBoundary.tsx criado em client/src/components/
+☐ Import adicionado em App.tsx
+☐ ErrorBoundary envolve <Router />
+☐ Aplicação compila sem erros
+☐ Navegação normal funciona
+☐ Teste de erro mostra tela amigável
+☐ Botões de ação funcionam
+☐ Stack trace aparece em desenvolvimento
+☐ Nenhuma funcionalidade quebrou
