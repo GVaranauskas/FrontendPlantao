@@ -62,16 +62,32 @@ export function setupRateLimit(app: Express): void {
   // Apply to all API routes
   app.use("/api/", limiter);
   
-  // More restrictive limit for auth endpoints (if implemented)
+  // More restrictive limit for auth endpoints to prevent brute force attacks
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // limit each IP to 5 requests per windowMs
     message: "Too many login attempts, please try again later.",
     skipSuccessfulRequests: true, // Don't count successful requests
   });
+  app.use("/api/auth/login", authLimiter);
+  app.use("/api/auth/register", authLimiter);
   
-  // Apply stricter limits to auth endpoints to prevent brute force attacks
-  app.use("/api/auth/", authLimiter);
+  // Stricter limit for sync/import endpoints (expensive operations)
+  const syncLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // limit each IP to 10 sync requests per minute
+    message: "Too many sync requests, please wait before syncing again.",
+  });
+  app.use("/api/sync/", syncLimiter);
+  app.use("/api/import/evolucoes", syncLimiter);
+  
+  // Stricter limit for AI endpoints (expensive operations)
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 5, // limit each IP to 5 AI requests per minute
+    message: "Too many AI analysis requests, please wait before trying again.",
+  });
+  app.use("/api/ai/", aiLimiter);
 }
 
 /**

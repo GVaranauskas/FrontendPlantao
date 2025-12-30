@@ -31,7 +31,20 @@ Preferred communication style: Simple, everyday language.
   4. Auto Sync 15min (95%+ economia) - sincronização automática
 - **Validação de Enfermaria**: Camada de segurança no storage que BLOQUEIA qualquer paciente de enfermarias não-10A*.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware for error catching, automatic logging of request context.
-- **Security**: JWT authentication (access/refresh tokens), Role-Based Access Control (admin, enfermeiro, visualizador), CSRF protection, secure cookie handling, N8N webhook validation.
+- **Security**: 
+  - **Authentication**: JWT authentication (access/refresh tokens) applied to ALL API endpoints
+  - **Authorization**: Role-Based Access Control (admin, enfermeiro, visualizador) with `requireRole()` middleware
+  - **Input Validation**: Detection-only middleware (`server/middleware/input-validation.ts`) with:
+    - SQL injection detection (55+ patterns) - blocks requests but preserves data types for Zod validation
+    - UUID parameter validation for all `:id` routes
+    - Format validation for leito, enfermaria, unitIds parameters
+    - Query parameter validation (numeric ranges)
+    - WebSocket JWT authentication for /ws/import endpoint
+  - **Route Protection Status**: 100% of data-modifying routes protected
+    - All GET endpoints require `authMiddleware`
+    - All DELETE endpoints require `requireRole('admin')`
+    - All POST/PATCH endpoints require `authMiddleware` or `requireRole()`
+  - **Additional**: CSRF protection, secure cookie handling, N8N webhook validation, AES-256-GCM data encryption
 
 ## External Dependencies
 

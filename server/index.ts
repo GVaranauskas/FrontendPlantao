@@ -11,6 +11,7 @@ import { registerErrorHandler, AppError } from "./middleware/error-handler";
 import { setupCSRF, csrfErrorHandler } from "./middleware/csrf";
 import { optionalAuthMiddleware } from "./middleware/auth";
 import { auditMiddleware } from "./middleware/audit";
+import { validateInputMiddleware } from "./middleware/input-validation";
 import { logger } from "./lib/logger";
 import { env } from "./config/env";
 import { autoSyncSchedulerGPT4o } from "./services/auto-sync-scheduler-gpt4o.service";
@@ -68,6 +69,9 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Global input validation middleware - blocks SQL injection and XSS attacks
+app.use(validateInputMiddleware);
 
 // Optional authentication middleware (doesn't fail if token missing)
 app.use(optionalAuthMiddleware);

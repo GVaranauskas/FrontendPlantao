@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
+import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitManualSchema, updateNursingUnitSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
@@ -11,6 +12,8 @@ import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
+import { authMiddleware } from "./middleware/auth";
+import { validateLeitoParam, validateEnfermariaParam, validateUnitIdsBody, validateUUIDParam, validateQueryNumber } from "./middleware/input-validation";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
@@ -19,7 +22,7 @@ import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", asyncHandler(async (req, res, next) => {
+  app.get("/api/patients", authMiddleware, asyncHandler(async (req, res, next) => {
     const patients = await storage.getAllPatients();
     const acceptToon = isToonFormat(req.get("accept"));
     if (acceptToon) {
@@ -30,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.get("/api/patients/:id", asyncHandler(async (req, res, next) => {
+  app.get("/api/patients/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res, next) => {
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Patient not found", { patientId: req.params.id });
@@ -44,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.post("/api/patients", asyncHandler(async (req, res, next) => {
+  app.post("/api/patients", authMiddleware, asyncHandler(async (req, res, next) => {
     try {
       const validatedData = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validatedData);
@@ -63,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.patch("/api/patients/:id", async (req, res) => {
+  app.patch("/api/patients/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
     try {
       const validatedData = insertPatientSchema.partial().parse(req.body);
       const patient = await storage.updatePatient(req.params.id, validatedData);
@@ -85,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/patients/:id", async (req, res) => {
+  app.delete("/api/patients/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const success = await storage.deletePatient(req.params.id);
       if (!success) {
@@ -97,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/alerts", async (req, res) => {
+  app.get("/api/alerts", authMiddleware, async (req, res) => {
     try {
       const alerts = await storage.getAllAlerts();
       const acceptToon = isToonFormat(req.get("accept"));
@@ -112,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/alerts", async (req, res) => {
+  app.post("/api/alerts", authMiddleware, async (req, res) => {
     try {
       const validatedData = insertAlertSchema.parse(req.body);
       const alert = await storage.createAlert(validatedData);
@@ -128,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/alerts/:id", async (req, res) => {
+  app.delete("/api/alerts/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const success = await storage.deleteAlert(req.params.id);
       if (!success) {
@@ -140,8 +143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sync endpoints for external API integration
-  app.post("/api/sync/patient/:leito", async (req, res) => {
+  // Sync endpoints for external API integration - PROTECTED with validation
+  app.post("/api/sync/patient/:leito", authMiddleware, validateLeitoParam, async (req, res) => {
     try {
       const leito = req.params.leito;
       const patient = await syncPatientFromExternalAPI(leito);
@@ -162,12 +165,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sync/patients", async (req, res) => {
+  app.post("/api/sync/patients", authMiddleware, async (req, res) => {
     try {
       const { leitos } = req.body;
       
       if (!Array.isArray(leitos) || leitos.length === 0) {
         return res.status(400).json({ message: "leitos array is required" });
+      }
+      
+      // Validate each leito format
+      for (const leito of leitos) {
+        if (typeof leito !== 'string' || !/^[0-9]{1,3}$/.test(leito)) {
+          return res.status(400).json({ message: "Invalid leito format in array" });
+        }
       }
 
       const patients = await syncMultiplePatientsFromExternalAPI(leitos);
@@ -188,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const PRODUCTION_UNIT_IDS = "22,23";
   
   // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
-  app.post("/api/sync/evolucoes", async (req, res) => {
+  app.post("/api/sync/evolucoes", authMiddleware, validateUnitIdsBody, async (req, res) => {
     try {
       logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
       
@@ -214,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // N8N Evolucoes sync endpoint - specific unit (legacy)
-  app.post("/api/sync/evolucoes/:enfermaria", async (req, res) => {
+  app.post("/api/sync/evolucoes/:enfermaria", authMiddleware, validateEnfermariaParam, async (req, res) => {
     try {
       const enfermaria = req.params.enfermaria;
       
@@ -236,13 +246,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Import endpoints
-  app.post("/api/import/evolucoes", async (req, res) => {
+  // Import endpoints - PROTECTED with authentication
+  app.post("/api/import/evolucoes", authMiddleware, async (req, res) => {
     try {
       const { enfermaria, templateId } = req.body;
       
-      if (!enfermaria || enfermaria.trim() === "") {
+      // Validate enfermaria format to prevent injection
+      if (!enfermaria || typeof enfermaria !== 'string' || enfermaria.trim() === "") {
         return res.status(400).json({ message: "enfermaria is required" });
+      }
+      
+      // Validate enfermaria format (should be alphanumeric with optional A/B suffix)
+      if (!/^[0-9]{1,3}[A-Za-z]?$/.test(enfermaria.trim())) {
+        return res.status(400).json({ message: "Invalid enfermaria format" });
       }
 
       // Load template if provided
@@ -404,8 +420,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // List enfermarias endpoint
-  app.get("/api/enfermarias", async (req, res) => {
+  // List enfermarias endpoint - PROTECTED
+  app.get("/api/enfermarias", authMiddleware, async (req, res) => {
     try {
       // Fetch enfermarias from external API
       const enfermarias = await unidadesInternacaoService.fetchUnidades();
@@ -423,8 +439,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Import status endpoint - test N8N connectivity
-  app.get("/api/import/status", async (req, res) => {
+  // Import status endpoint - test N8N connectivity - PROTECTED
+  app.get("/api/import/status", authMiddleware, async (req, res) => {
     try {
       const startTime = Date.now();
       
@@ -468,8 +484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Import history endpoint
-  app.get("/api/import/history", async (req, res) => {
+  // Import history endpoint - PROTECTED
+  app.get("/api/import/history", authMiddleware, async (req, res) => {
     try {
       const history = await storage.getAllImportHistory();
       
@@ -485,8 +501,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Import stats endpoint - estatísticas consolidadas
-  app.get("/api/import/stats", async (req, res) => {
+  // Import stats endpoint - estatísticas consolidadas - PROTECTED
+  app.get("/api/import/stats", authMiddleware, async (req, res) => {
     try {
       const stats = await storage.getImportStats();
       res.json(stats);
@@ -496,8 +512,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cleanup old logs endpoint - retenção de 30 dias por padrão
-  app.delete("/api/import/cleanup", async (req, res) => {
+  // Cleanup old logs endpoint - retenção de 30 dias por padrão - ADMIN ONLY
+  app.delete("/api/import/cleanup", requireRole('admin'), validateQueryNumber('days', 7, 365), async (req, res) => {
     try {
       const rawDays = parseInt(req.query.days as string);
       const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
@@ -516,33 +532,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // Security Audit Endpoints - ADMIN ONLY
+  // ==========================================
+  
+  // Get security audit logs (blocked attacks, SQL injection attempts, etc.)
+  app.get("/api/security/audit", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { getSecurityLogs } = await import("./middleware/input-validation");
+    const logs = getSecurityLogs();
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+    
+    res.json({
+      total: logs.length,
+      logs: logs.slice(-limit).reverse(), // Most recent first
+      timestamp: new Date().toISOString()
+    });
+  }));
+  
+  // Clear security audit logs - ADMIN ONLY
+  app.delete("/api/security/audit", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { clearSecurityLogs, getSecurityLogs } = await import("./middleware/input-validation");
+    const count = getSecurityLogs().length;
+    clearSecurityLogs();
+    logger.info(`[${getTimestamp()}] [Security] Cleared ${count} audit logs`);
+    res.json({ success: true, cleared: count });
+  }));
+
   const httpServer = createServer(app);
 
   // Setup WebSocket for real-time notifications on specific path
   const wss = new WebSocketServer({ noServer: true });
 
   httpServer.on("upgrade", (request, socket, head) => {
-    if (request.url === "/ws/import") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-      });
+    // Extract token from query string for WebSocket authentication
+    const url = new URL(request.url || "", `http://${request.headers.host}`);
+    
+    if (url.pathname === "/ws/import") {
+      const token = url.searchParams.get("token");
+      
+      // Validate token
+      if (!token) {
+        logger.warn(`[WebSocket] Connection rejected: No token provided`);
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      
+      // Verify JWT token (jwt.verify is synchronous)
+      try {
+        const secret = process.env.JWT_SECRET || "11care-secret-key-change-in-production";
+        jwt.verify(token, secret);
+        
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, request);
+        });
+      } catch (error) {
+        logger.warn(`[WebSocket] Connection rejected: Invalid token`);
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+      }
     } else {
       socket.destroy();
     }
   });
 
   wss.on("connection", (ws) => {
-    console.log("[WebSocket] Client connected to /ws/import");
+    logger.info(`[WebSocket] Authenticated client connected to /ws/import`);
     
     // Send welcome message
     ws.send(JSON.stringify({ type: "connected", message: "Connected to import notifications" }));
 
     ws.on("close", () => {
-      console.log("[WebSocket] Client disconnected");
+      logger.info(`[WebSocket] Client disconnected`);
     });
 
     ws.on("error", (error) => {
-      console.error("[WebSocket] Error:", error);
+      logger.error(`[WebSocket] Error:`, error);
     });
   });
 
@@ -597,13 +662,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
-  // Template Management Routes
-  app.get("/api/templates", asyncHandler(async (req, res) => {
+  // Template Management Routes - PROTECTED
+  app.get("/api/templates", authMiddleware, asyncHandler(async (req, res) => {
     const templates = await storage.getAllTemplates();
     res.json(templates);
   }));
 
-  app.get("/api/templates/:id", asyncHandler(async (req, res) => {
+  app.get("/api/templates/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const template = await storage.getTemplate(req.params.id);
     if (!template) {
       throw new AppError(404, "Template not found", { templateId: req.params.id });
@@ -611,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(template);
   }));
 
-  app.post("/api/templates", asyncHandler(async (req, res) => {
+  app.post("/api/templates", requireRole('admin'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitTemplateSchema.parse(req.body);
       const template = await storage.createTemplate(validatedData);
@@ -624,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.patch("/api/templates/:id", asyncHandler(async (req, res) => {
+  app.patch("/api/templates/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitTemplateSchema.partial().parse(req.body);
       const template = await storage.updateTemplate(req.params.id, validatedData);
@@ -640,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.delete("/api/templates/:id", asyncHandler(async (req, res) => {
+  app.delete("/api/templates/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const success = await storage.deleteTemplate(req.params.id);
     if (!success) {
       throw new AppError(404, "Template not found", { templateId: req.params.id });
@@ -652,20 +717,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Nursing Units Management Routes (Enfermarias Locais)
   // =====================================================
 
-  // List all nursing units (admin)
-  app.get("/api/nursing-units", asyncHandler(async (req, res) => {
+  // List all nursing units (admin) - PROTECTED
+  app.get("/api/nursing-units", authMiddleware, asyncHandler(async (req, res) => {
     const units = await storage.getAllNursingUnits();
     res.json(units);
   }));
 
-  // List only active nursing units (for dropdowns)
-  app.get("/api/nursing-units/active", asyncHandler(async (req, res) => {
+  // List only active nursing units (for dropdowns) - PROTECTED
+  app.get("/api/nursing-units/active", authMiddleware, asyncHandler(async (req, res) => {
     const units = await storage.getActiveNursingUnits();
     res.json(units);
   }));
 
-  // Get single nursing unit by ID
-  app.get("/api/nursing-units/:id", asyncHandler(async (req, res) => {
+  // Get single nursing unit by ID - PROTECTED
+  app.get("/api/nursing-units/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const unit = await storage.getNursingUnit(req.params.id);
     if (!unit) {
       throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
@@ -711,8 +776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  // Update nursing unit (admin)
-  app.patch("/api/nursing-units/:id", requireRole('admin'), asyncHandler(async (req, res) => {
+  // Update nursing unit (admin) - ID validated
+  app.patch("/api/nursing-units/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     try {
       const validatedData = updateNursingUnitSchema.parse(req.body);
       const unit = await storage.updateNursingUnit(req.params.id, validatedData);
@@ -730,8 +795,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  // Delete nursing unit (admin)
-  app.delete("/api/nursing-units/:id", requireRole('admin'), asyncHandler(async (req, res) => {
+  // Delete nursing unit (admin) - ID validated
+  app.delete("/api/nursing-units/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const success = await storage.deleteNursingUnit(req.params.id);
     if (!success) {
       throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
@@ -753,26 +818,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
-  // Get pending changes count (for badge)
-  app.get("/api/nursing-unit-changes/count", asyncHandler(async (req, res) => {
+  // Get pending changes count (for badge) - PROTECTED
+  app.get("/api/nursing-unit-changes/count", authMiddleware, asyncHandler(async (req, res) => {
     const count = await storage.getPendingChangesCount();
     res.json({ count });
   }));
 
-  // List all pending changes
-  app.get("/api/nursing-unit-changes/pending", asyncHandler(async (req, res) => {
+  // List all pending changes - PROTECTED
+  app.get("/api/nursing-unit-changes/pending", authMiddleware, asyncHandler(async (req, res) => {
     const changes = await storage.getPendingNursingUnitChanges();
     res.json(changes);
   }));
 
-  // List all changes (history)
-  app.get("/api/nursing-unit-changes", asyncHandler(async (req, res) => {
+  // List all changes (history) - PROTECTED
+  app.get("/api/nursing-unit-changes", authMiddleware, asyncHandler(async (req, res) => {
     const changes = await storage.getAllNursingUnitChanges();
     res.json(changes);
   }));
 
-  // Approve a change (admin only)
-  app.post("/api/nursing-unit-changes/:id/approve", requireRole('admin'), asyncHandler(async (req, res) => {
+  // Approve a change (admin only) - ID validated
+  app.post("/api/nursing-unit-changes/:id/approve", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -787,8 +852,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
-  // Reject a change (admin only)
-  app.post("/api/nursing-unit-changes/:id/reject", requireRole('admin'), asyncHandler(async (req, res) => {
+  // Reject a change (admin only) - ID validated
+  app.post("/api/nursing-unit-changes/:id/reject", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -819,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -844,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -857,7 +922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - single patient
-  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");

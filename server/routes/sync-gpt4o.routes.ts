@@ -3,11 +3,14 @@ import { autoSyncSchedulerGPT4o } from '../services/auto-sync-scheduler-gpt4o.se
 import { aiServiceGPT4oMini } from '../services/ai-service-gpt4o-mini';
 import { costMonitorService } from '../services/cost-monitor.service';
 import { intelligentCache } from '../services/intelligent-cache.service';
+import { validateUnitIdsBody } from '../middleware/input-validation';
+import { requireRole } from '../middleware/rbac';
+import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// POST /api/sync-gpt4o/manual
-router.post('/manual', (req, res) => {
+// POST /api/sync-gpt4o/manual - requires admin or enfermeiro role
+router.post('/manual', requireRole('admin', 'enfermeiro'), validateUnitIdsBody, (req, res) => {
   // Support specific unit IDs via request body
   const { unitIds } = req.body || {};
   
@@ -25,44 +28,44 @@ router.post('/manual', (req, res) => {
   });
 });
 
-// GET /api/sync-gpt4o/status
-router.get('/status', (req, res) => {
+// GET /api/sync-gpt4o/status - PROTECTED
+router.get('/status', authMiddleware, (req, res) => {
   res.json({
     scheduler: autoSyncSchedulerGPT4o.getStatus(),
     stats: autoSyncSchedulerGPT4o.getAggregatedStats()
   });
 });
 
-// GET /api/sync-gpt4o/detailed-status (for UI indicator)
-router.get('/detailed-status', (req, res) => {
+// GET /api/sync-gpt4o/detailed-status (for UI indicator) - PROTECTED
+router.get('/detailed-status', authMiddleware, (req, res) => {
   res.json(autoSyncSchedulerGPT4o.getDetailedStatus());
 });
 
-// GET /api/sync-gpt4o/history
-router.get('/history', (req, res) => {
+// GET /api/sync-gpt4o/history - PROTECTED
+router.get('/history', authMiddleware, (req, res) => {
   const limit = parseInt(req.query.limit as string) || 10;
   res.json({ history: autoSyncSchedulerGPT4o.getHistory(limit) });
 });
 
-// GET /api/sync-gpt4o/costs
-router.get('/costs', (req, res) => {
+// GET /api/sync-gpt4o/costs - ADMIN ONLY (sensitive cost data)
+router.get('/costs', requireRole('admin'), (req, res) => {
   res.json(costMonitorService.exportData());
 });
 
-// GET /api/sync-gpt4o/ai-metrics
-router.get('/ai-metrics', (req, res) => {
+// GET /api/sync-gpt4o/ai-metrics - PROTECTED
+router.get('/ai-metrics', authMiddleware, (req, res) => {
   res.json(aiServiceGPT4oMini.getMetrics());
 });
 
-// GET /api/sync-gpt4o/cache-stats
-router.get('/cache-stats', (req, res) => {
+// GET /api/sync-gpt4o/cache-stats - PROTECTED
+router.get('/cache-stats', authMiddleware, (req, res) => {
   res.json({
     cache: intelligentCache.getStats()
   });
 });
 
-// POST /api/sync-gpt4o/cache/clear
-router.post('/cache/clear', (req, res) => {
+// POST /api/sync-gpt4o/cache/clear - ADMIN ONLY
+router.post('/cache/clear', requireRole('admin'), (req, res) => {
   intelligentCache.clear();
   aiServiceGPT4oMini.clearCache();
   res.json({ success: true });
