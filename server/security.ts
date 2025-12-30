@@ -102,14 +102,25 @@ export const securityHeaders = {
 
 /**
  * Validation and sanitization helpers
+ * Uses a more robust approach to prevent common XSS vectors
  */
 export function sanitizeInput(input: unknown): string {
   if (typeof input !== "string") return "";
-  
+
   return input
     .trim()
-    .replace(/[<>]/g, "") // Remove dangerous characters
-    .substring(0, 1000); // Limit length
+    .replace(/[&<>"'/]|\((?:alert|confirm|prompt|eval)\)/gi, (match) => {
+      const map: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;'
+      };
+      return map[match.toLowerCase()] || "";
+    })
+    .substring(0, 5000); // Increased limit as clinical observations can be long
 }
 
 /**
