@@ -142,19 +142,23 @@ export function printShiftHandover(patients: Patient[]) {
           width: 100%;
           border-collapse: collapse;
           table-layout: fixed;
+          page-break-inside: auto;
         }
         
         thead {
-          display: table-header-group;
+          display: table-header-group !important;
+          background: #0056b3 !important;
         }
         
         thead tr {
-          background: #0056b3;
+          background: #0056b3 !important;
+          page-break-inside: avoid;
+          break-inside: avoid;
         }
         
         th {
-          background: #0056b3;
-          color: white;
+          background: #0056b3 !important;
+          color: white !important;
           font-size: 5.5pt;
           font-weight: bold;
           padding: 3px 2px;
@@ -164,9 +168,15 @@ export function printShiftHandover(patients: Patient[]) {
           word-wrap: break-word;
         }
         
+        tbody {
+          display: table-row-group;
+        }
+        
         tbody tr {
-          page-break-inside: avoid;
-          break-inside: avoid;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          page-break-after: auto;
+          break-after: auto;
         }
         
         tbody tr:nth-child(even) {
@@ -180,6 +190,8 @@ export function printShiftHandover(patients: Patient[]) {
           vertical-align: top;
           word-wrap: break-word;
           overflow-wrap: break-word;
+          page-break-inside: avoid;
+          break-inside: avoid;
         }
         
         td.leito {
@@ -216,13 +228,36 @@ export function printShiftHandover(patients: Patient[]) {
         th:nth-child(21), td:nth-child(21) { width: 4%; }   /* PREVISÃO ALTA */
         
         @media print {
-          body {
+          * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
           
           .no-print {
             display: none !important;
+          }
+          
+          table {
+            page-break-inside: auto !important;
+          }
+          
+          thead {
+            display: table-header-group !important;
+          }
+          
+          tbody {
+            display: table-row-group !important;
+          }
+          
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          td, th {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
         
