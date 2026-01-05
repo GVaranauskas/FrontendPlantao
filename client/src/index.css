@@ -474,9 +474,13 @@
     background: #fff3e0 !important;
   }
 
-  /* Ensure text is black for all */
-  td, th, tr, thead, tbody {
+  /* Ensure text is black for all body cells, but white for header */
+  td, tr, tbody {
     color: black !important;
+  }
+
+  thead, thead th {
+    color: white !important;
   }
 
   /* Remove display:flex and other display properties that break tables */
