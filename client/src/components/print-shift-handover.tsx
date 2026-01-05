@@ -288,11 +288,14 @@ export function printShiftHandover(patients: Patient[]) {
       </table>
       
       <script>
-        // Auto-print after a short delay to ensure rendering is complete
-        setTimeout(function() {
-          // Optional: uncomment to auto-print
-          // window.print();
-        }, 500);
+        document.addEventListener('DOMContentLoaded', function() {
+          var printBtn = document.querySelector('.print-button');
+          if (printBtn) {
+            printBtn.addEventListener('click', function() {
+              window.print();
+            });
+          }
+        });
       </script>
     </body>
     </html>
@@ -300,4 +303,13 @@ export function printShiftHandover(patients: Patient[]) {
 
   printWindow.document.write(htmlContent);
   printWindow.document.close();
+  
+  // Focus the new window and trigger print after content is loaded
+  printWindow.focus();
+  printWindow.onload = function() {
+    // Delay to ensure styles are applied
+    setTimeout(function() {
+      printWindow.print();
+    }, 300);
+  };
 }
