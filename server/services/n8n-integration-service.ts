@@ -149,7 +149,7 @@ export class N8NIntegrationService {
         cirurgia: dadosBrutos.cirurgia || "",
         observacoes: dadosBrutos.observacoes || "",
         previsaoAlta: dadosBrutos.previsaoAlta || "",
-
+        idade: this.calculateAge(dadosBrutos.dataNascimento),
         alerta: null,
         status: "pending",
 
@@ -276,6 +276,23 @@ export class N8NIntegrationService {
 
   private isValidDateFormat(dateString: string): boolean {
     return /^\d{2}\/\d{2}\/\d{4}$/.test(dateString);
+  }
+
+  private calculateAge(dataNascimento: string | null): number | null {
+    if (!dataNascimento || !this.isValidDateFormat(dataNascimento)) return null;
+    try {
+      const [day, month, year] = dataNascimento.split("/").map(Number);
+      const birthDate = new Date(year, month - 1, day);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age >= 0 ? age : null;
+    } catch {
+      return null;
+    }
   }
 
   private parseTimestamp(timestamp: any): Date | undefined {

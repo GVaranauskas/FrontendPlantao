@@ -42,6 +42,7 @@ export const patients = pgTable("patients", {
   observacoes: text("observacoes"),
   previsaoAlta: text("previsao_alta"),
   alerta: text("alerta"),
+  idade: integer("idade"),
   status: text("status").notNull().default("pending"),
   
   // Campos da API N8N de Evolução

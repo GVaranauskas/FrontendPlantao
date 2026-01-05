@@ -1342,7 +1342,8 @@ export default function ShiftHandoverPage() {
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[60px]">ALERTA<br/>IA</th>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[80px]">ENFERMARIA</th>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">ESPECIALIDADE/<br/>RAMAL</th>
-                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>DATA DE NASCIMENTO</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>IDADE</th>
+                    <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>NASCIMENTO</th>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>INTERNAÇÃO</th>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[70px]">RQ BRADEN<br/>SCP</th>
                     <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[140px]">DIAGNÓSTICO/<br/>COMORBIDADES</th>
@@ -1423,9 +1424,16 @@ export default function ShiftHandoverPage() {
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.especialidadeRamal || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">
                         <div className="font-semibold">{patient.nome}</div>
-                        <div className="text-muted-foreground">{patient.registro || "-"}</div>
-                        <div className="text-muted-foreground">{patient.dataNascimento || "-"}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-muted-foreground">REG: {patient.registro || "-"}</span>
+                          {patient.idade !== null && patient.idade !== undefined && (
+                            <span className="text-primary font-bold border-l pl-1.5">
+                              {patient.idade} anos
+                            </span>
+                          )}
+                        </div>
                       </td>
+                      <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataNascimento || "-"}</td>
                       <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataInternacao || "-"}</td>
                       <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.braden || "-"}</td>
                       <td className="px-2 py-2 text-[10px] border border-border">{patient.diagnostico || "-"}</td>
@@ -1477,7 +1485,12 @@ export default function ShiftHandoverPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Data Nascimento:</span>{" "}
-                      <span className="font-medium">{selectedPatient.dataNascimento || "-"}</span>
+                      <span className="font-medium">
+                        {selectedPatient.dataNascimento || "-"}
+                        {selectedPatient.idade !== null && selectedPatient.idade !== undefined && (
+                          <span className="ml-1 text-primary font-bold">({selectedPatient.idade} anos)</span>
+                        )}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Data Internação:</span>{" "}

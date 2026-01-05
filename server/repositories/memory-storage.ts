@@ -99,7 +99,11 @@ export class MemStorage implements IStorage {
 
   async createPatient(insertPatient: InsertPatient): Promise<Patient> {
     const id = randomUUID();
-    const patient = { ...insertPatient, id } as Patient;
+    const patient = { 
+      ...insertPatient, 
+      id,
+      idade: insertPatient.idade ?? null 
+    } as Patient;
     this.patients.set(id, patient);
     return patient;
   }
@@ -108,7 +112,11 @@ export class MemStorage implements IStorage {
     const patient = this.patients.get(id);
     if (!patient) return undefined;
     
-    const updated = { ...patient, ...updates };
+    const updated = { 
+      ...patient, 
+      ...updates,
+      idade: updates.idade !== undefined ? updates.idade : patient.idade
+    };
     this.patients.set(id, updated);
     return updated;
   }

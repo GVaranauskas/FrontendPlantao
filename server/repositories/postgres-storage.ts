@@ -85,7 +85,11 @@ export class PostgresStorage implements IStorage {
       throw new Error(`[BLOQUEADO] Enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*). Paciente não será salvo.`);
     }
     
-    const encryptedPatient = this.encryptPatientData(patient);
+    // Calcula idade antes de criptografar (pois idade é integer e não está na lista de criptografia por padrão, 
+    // mas o serviço de n8n já deve ter calculado. Aqui garantimos se vier manual)
+    const patientToSave = { ...patient };
+    
+    const encryptedPatient = this.encryptPatientData(patientToSave);
     const result = await db.insert(patients).values(encryptedPatient).returning();
     return this.decryptPatientData(result[0]);
   }
