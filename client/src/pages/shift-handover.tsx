@@ -1514,51 +1514,6 @@ export default function ShiftHandoverPage() {
                   </div>
                 </Card>
 
-                {/* Informações Clínicas */}
-                <Card className="p-4">
-                  <h3 className="font-semibold text-sm mb-3">Dados Clínicos</h3>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Braden:</span>{" "}
-                      <span className={`font-medium ${parseInt(selectedPatient.braden || "0") < 12 ? "text-red-600" : parseInt(selectedPatient.braden || "0") < 15 ? "text-yellow-600" : ""}`}>
-                        {selectedPatient.braden || "-"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Mobilidade:</span>{" "}
-                      <span className="font-medium">{selectedPatient.mobilidade || "-"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Dieta:</span>{" "}
-                      <span className="font-medium">{selectedPatient.dieta || "-"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Eliminações:</span>{" "}
-                      <span className="font-medium">{selectedPatient.eliminacoes || "-"}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Dispositivos:</span>{" "}
-                      <span className="font-medium">{selectedPatient.dispositivos || "-"}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">ATB:</span>{" "}
-                      <span className="font-medium">{selectedPatient.atb || "-"}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Aporte/Saturação:</span>{" "}
-                      <span className="font-medium">{selectedPatient.aporteSaturacao || "-"}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Curativos:</span>{" "}
-                      <span className="font-medium">{selectedPatient.curativos || "-"}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Observações:</span>{" "}
-                      <span className="font-medium">{selectedPatient.observacoes || "-"}</span>
-                    </div>
-                  </div>
-                </Card>
-
                 {/* Análise Clínica IA */}
                 <Card className="p-4 border-primary/30">
                   <div className="flex items-center justify-between mb-3">
@@ -1674,6 +1629,51 @@ export default function ShiftHandoverPage() {
                       </p>
                     </div>
                   )}
+                </Card>
+
+                {/* Informações Clínicas */}
+                <Card className="p-4">
+                  <h3 className="font-semibold text-sm mb-3">Dados Clínicos</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Braden:</span>{" "}
+                      <span className={`font-medium ${parseInt(selectedPatient.braden || "0") < 12 ? "text-red-600" : parseInt(selectedPatient.braden || "0") < 15 ? "text-yellow-600" : ""}`}>
+                        {selectedPatient.braden || "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Mobilidade:</span>{" "}
+                      <span className="font-medium">{selectedPatient.mobilidade || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Dieta:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dieta || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Eliminações:</span>{" "}
+                      <span className="font-medium">{selectedPatient.eliminacoes || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Dispositivos:</span>{" "}
+                      <span className="font-medium">{selectedPatient.dispositivos || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">ATB:</span>{" "}
+                      <span className="font-medium">{selectedPatient.atb || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Aporte/Saturação:</span>{" "}
+                      <span className="font-medium">{selectedPatient.aporteSaturacao || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Curativos:</span>{" "}
+                      <span className="font-medium">{selectedPatient.curativos || "-"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Observações:</span>{" "}
+                      <span className="font-medium">{selectedPatient.observacoes || "-"}</span>
+                    </div>
+                  </div>
                 </Card>
               </div>
             </ScrollArea>
