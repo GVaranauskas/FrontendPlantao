@@ -89,11 +89,11 @@ export class AutoSyncSchedulerGPT4o {
     console.log('[AutoSync] Scheduler parado');
   }
 
-  async runSyncCycle(overrideUnitIds?: string): Promise<SyncResult> {
+  async runSyncCycle(overrideUnitIds?: string, forceUpdate: boolean = false): Promise<SyncResult> {
     const startTime = Date.now();
     console.log('');
     console.log('='.repeat(80));
-    console.log('[AutoSync] 🔄 INICIANDO CICLO DE SINCRONIZAÇÃO (GPT-4o-mini)');
+    console.log(`[AutoSync] 🔄 INICIANDO CICLO DE SINCRONIZAÇÃO (GPT-4o-mini)${forceUpdate ? ' [FORCE UPDATE]' : ''}`);
     console.log('='.repeat(80));
 
     // Collect all codigoAtendimento from N8N response for cleanup later
@@ -129,8 +129,8 @@ export class AutoSyncSchedulerGPT4o {
       const unitIds = overrideUnitIds || AutoSyncSchedulerGPT4o.DEFAULT_UNITS;
       console.log(`[AutoSync] 📋 Usando unidades fixas de produção: ${unitIds}`);
       
-      console.log(`[AutoSync] 🔗 Request unitIds: ${unitIds}`);
-      const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, false);
+      console.log(`[AutoSync] 🔗 Request unitIds: ${unitIds}, forceUpdate: ${forceUpdate}`);
+      const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, forceUpdate);
 
       if (!rawData || rawData.length === 0) {
         console.log('[AutoSync] ⚠️  Nenhum dado retornado do N8N');
@@ -175,23 +175,30 @@ export class AutoSyncSchedulerGPT4o {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
           
-          // CHANGE DETECTION
+          // CHANGE DETECTION (bypassed when forceUpdate is true)
           const patientId = processed.registro || leito;
-          const changeResult = changeDetectionService.detectChanges(
-            patientId,
-            processed.dadosProcessados
-          );
+          
+          if (!forceUpdate) {
+            const changeResult = changeDetectionService.detectChanges(
+              patientId,
+              processed.dadosProcessados
+            );
 
-          if (!changeResult.hasChanged) {
-            result.stats.unchangedRecords++;
-            result.stats.aiCallsAvoided++;
-            continue;
-          }
-
-          if (changeResult.changedFields.includes('NOVO_PACIENTE')) {
-            result.stats.newRecords++;
+            if (!changeResult.hasChanged) {
+              result.stats.unchangedRecords++;
+              result.stats.aiCallsAvoided++;
+              continue;
+            }
+            
+            if (changeResult.changedFields.includes('NOVO_PACIENTE')) {
+              result.stats.newRecords++;
+            } else {
+              result.stats.changedRecords++;
+            }
           } else {
+            // forceUpdate: trata todos como alterados para reprocessar
             result.stats.changedRecords++;
+            console.log(`[AutoSync] ⚡ forceUpdate: ${leito} será reprocessado`);
           }
 
           patientsToProcess.push(processed.dadosProcessados);
@@ -426,12 +433,19 @@ export class AutoSyncSchedulerGPT4o {
     };
   }
 
-  async runManualSync(specificUnitIds?: string): Promise<SyncResult> {
+  async runManualSync(specificUnitIds?: string, forceUpdate: boolean = false): Promise<SyncResult> {
     console.log('[AutoSync] 🔧 Executando sincronização manual...');
     if (specificUnitIds) {
       console.log(`[AutoSync] 📋 Usando unidades específicas: ${specificUnitIds}`);
     }
-    return await this.runSyncCycle(specificUnitIds);
+    if (forceUpdate) {
+      console.log('[AutoSync] ⚡ FORCE UPDATE ATIVO - Ignorando cache e change detection!');
+      // Limpar caches para garantir dados frescos
+      intelligentCache.clear();
+      changeDetectionService.reset();
+      console.log('[AutoSync] 🗑️ Cache inteligente e snapshots limpos');
+    }
+    return await this.runSyncCycle(specificUnitIds, forceUpdate);
   }
 }
 

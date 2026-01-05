@@ -11,19 +11,23 @@ const router = Router();
 
 // POST /api/sync-gpt4o/manual - requires admin or enfermeiro role
 router.post('/manual', requireRole('admin', 'enfermeiro'), validateUnitIdsBody, (req, res) => {
-  // Support specific unit IDs via request body
-  const { unitIds } = req.body || {};
+  // Support specific unit IDs and forceUpdate via request body
+  const { unitIds, forceUpdate } = req.body || {};
+  const shouldForceUpdate = forceUpdate === true;
+  
+  console.log(`[API] /sync-gpt4o/manual - unitIds: ${unitIds || 'default'}, forceUpdate: ${shouldForceUpdate}`);
   
   // Retorna imediatamente sem aguardar a conclusão
   res.status(202).json({ 
     success: true, 
     message: 'Sincronização iniciada em background',
     statusCheckUrl: '/api/sync-gpt4o/status',
-    unitIds: unitIds || 'all'
+    unitIds: unitIds || 'all',
+    forceUpdate: shouldForceUpdate
   });
   
-  // Executa sincronização em background (sem await)
-  autoSyncSchedulerGPT4o.runManualSync(unitIds).catch(error => {
+  // Executa sincronização em background (sem await) - AGORA PASSA forceUpdate!
+  autoSyncSchedulerGPT4o.runManualSync(unitIds, shouldForceUpdate).catch(error => {
     console.error('[AutoSync] Erro na sincronização manual em background:', error);
   });
 });
