@@ -289,13 +289,13 @@
 
 /* Print Styles - Passagem de Plantão */
 @media print {
-  /* Print-friendly page size - MUST be first */
+  /* Force landscape orientation */
   @page {
-    size: A4 landscape;
-    margin: 0.3cm;
+    size: landscape;
+    margin: 5mm;
   }
 
-  /* Hide non-essential elements but keep print-header visible */
+  /* Hide non-essential elements */
   .container > div:nth-child(2),
   button,
   input[type="search"],
@@ -319,6 +319,7 @@
   /* Show print header */
   .print-header {
     display: block !important;
+    break-inside: avoid !important;
     page-break-inside: avoid !important;
     margin-bottom: 0.2rem !important;
   }
@@ -326,28 +327,26 @@
   /* Page setup */
   * {
     box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   html, body {
-    width: 100%;
-    height: 100%;
+    width: 100% !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
     color: black !important;
+    overflow: visible !important;
   }
 
   /* Main container */
   .min-h-screen {
     min-height: auto !important;
+    height: auto !important;
     padding: 0.3rem !important;
     margin: 0 !important;
-  }
-
-  /* Body height management for multi-page printing */
-  html, body {
-    height: auto !important;
-    min-height: 100% !important;
     overflow: visible !important;
   }
 
@@ -355,41 +354,59 @@
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    page-break-inside: avoid;
   }
 
-  /* Card container */
-  .overflow-hidden {
-    page-break-inside: avoid;
+  /* Card container - allow page breaks */
+  .overflow-hidden,
+  [class*="overflow-hidden"] {
+    overflow: visible !important;
     border: 1px solid #333;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Remove scroll wrapper */
-  .overflow-x-auto {
+  /* Remove all scroll wrappers */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  [class*="overflow-x-auto"],
+  [class*="overflow-y-auto"],
+  [class*="max-h-"] {
     overflow: visible !important;
+    max-height: none !important;
   }
 
-  /* Table styling - Critical for landscape fit */
+  /* Table styling */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 7px !important;
-    line-height: 1 !important;
-    page-break-inside: auto;
+    font-size: 6.5px !important;
+    line-height: 1.1 !important;
+    table-layout: fixed !important;
   }
 
-  /* Table head */
+  /* Table head - repeat on each page */
   thead {
-    background: #0056b3 !important;
-    color: white !important;
     display: table-header-group !important;
+    background: #0056b3 !important;
   }
 
   thead tr {
+    break-inside: avoid !important;
     page-break-inside: avoid !important;
-    page-break-after: avoid !important;
+  }
+
+  thead th {
+    color: white !important;
+    background-color: #0056b3 !important;
+    padding: 3px 2px !important;
+    border: 0.5px solid #333 !important;
+    text-align: center !important;
+    font-weight: bold !important;
+    font-size: 6px !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
   }
 
   /* Table body */
@@ -397,52 +414,56 @@
     display: table-row-group !important;
   }
 
+  /* CRITICAL: Prevent row breaks across pages */
   tbody tr {
-    page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
 
-  /* Table cells - ultra compact */
+  /* Table cells */
   td {
-    padding: 0.1rem !important;
+    padding: 2px !important;
     border: 0.5px solid #999 !important;
-    font-size: 7px !important;
+    font-size: 6.5px !important;
     overflow-wrap: break-word !important;
     word-wrap: break-word !important;
     word-break: break-word !important;
     height: auto !important;
     vertical-align: top !important;
-    line-height: 0.95 !important;
+    line-height: 1.1 !important;
+    color: black !important;
   }
 
-  /* Remove all inline min-width styles */
+  /* Remove inline widths */
   th, td {
     min-width: auto !important;
-    width: auto !important;
     max-width: none !important;
   }
 
-  /* Sticky LEITO column - remove sticky for printing */
+  /* Remove sticky positioning */
   td.sticky,
-  th.sticky {
+  th.sticky,
+  [class*="sticky"] {
     position: static !important;
     left: auto !important;
     z-index: auto !important;
-    background: inherit !important;
   }
 
-  /* LEITO column - make it stand out */
-  td:first-child,
-  th:first-child {
+  /* LEITO column styling */
+  td:first-child {
     font-weight: bold !important;
     background: #e8f0ff !important;
-    min-width: 35px !important;
-    width: auto !important;
+  }
+
+  th:first-child {
+    background: #0056b3 !important;
   }
 
   /* Alternating row colors */
   tbody tr:nth-child(even) {
-    background: #f9f9f9 !important;
+    background: #f5f5f5 !important;
   }
 
   tbody tr:nth-child(odd) {
@@ -454,31 +475,9 @@
     background: #ffebee !important;
   }
 
-  tbody tr[class*="chart-3"] {
+  tbody tr[class*="chart-3"],
+  tbody tr[class*="orange"] {
     background: #fff3e0 !important;
-  }
-
-  /* Ensure text is black for all body cells, but white for header */
-  td, tr, tbody {
-    color: black !important;
-  }
-
-  thead th {
-    color: white !important;
-    background-color: #0056b3 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* Remove display:flex and other display properties that break tables */
-  div {
-    page-break-inside: auto;
-  }
-
-  /* Optimize for landscape fit */
-  body {
-    width: 279mm;
-    height: 215mm;
   }
 
   /* Print header styling */
@@ -510,19 +509,5 @@
     font-size: 9px !important;
     margin-top: 0.1rem !important;
     opacity: 0.9 !important;
-  }
-
-  /* Ensure page breaks work correctly */
-  tr {
-    page-break-inside: avoid !important;
-  }
-
-  /* Allow more rows per page */
-  table {
-    page-break-inside: auto;
-  }
-
-  tbody tr {
-    page-break-inside: avoid !important;
   }
 }
