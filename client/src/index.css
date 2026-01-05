@@ -344,6 +344,13 @@
     margin: 0 !important;
   }
 
+  /* Body height management for multi-page printing */
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
+
   .container {
     max-width: 100% !important;
     margin: 0 !important;

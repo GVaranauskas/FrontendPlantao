@@ -1333,8 +1333,8 @@ export default function ShiftHandoverPage() {
               })}</div>
             </div>
 
-            <Card className="overflow-hidden">
-            <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
+            <Card className="overflow-hidden print:overflow-visible">
+            <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto print:max-h-none print:overflow-visible">
               <table className="w-full text-[11px] border-collapse">
                 <thead className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground sticky top-0 z-20">
                   <tr>
