@@ -21,6 +21,7 @@ import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { printShiftHandover } from "@/components/print-shift-handover";
 
 interface AIAnalysisResult {
   resumoGeral: string;
@@ -1213,7 +1214,7 @@ export default function ShiftHandoverPage() {
               <Button 
                 className="hidden sm:flex" 
                 data-testid="button-print"
-                onClick={() => window.print()}
+                onClick={() => printShiftHandover(filteredPatients)}
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir
