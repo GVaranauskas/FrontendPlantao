@@ -289,55 +289,70 @@
 
 /* Print Styles - Passagem de Plantão */
 @media print {
-  /* Force landscape orientation */
+  /* Force landscape orientation - A4 */
   @page {
-    size: landscape;
-    margin: 5mm;
+    size: A4 landscape;
+    margin: 8mm;
   }
 
-  /* Hide non-essential elements */
-  .container > div:nth-child(2),
+  /* Color preservation */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide non-essential elements - be specific, don't hide table containers */
+  header:not(.print-header),
   button,
-  input[type="search"],
+  input,
   .breadcrumb,
-  [data-testid="button-print"],
-  [data-testid="button-export-excel"],
-  [data-testid="button-sync"],
-  [data-testid="button-sync-external"],
-  [data-testid="button-filter"],
-  [data-testid="button-alerts"],
-  .mb-4,
-  .grid {
-    display: none !important;
-  }
-
-  /* Hide regular header */
-  header {
+  [data-testid*="button-print"],
+  [data-testid*="button-export"],
+  [data-testid*="button-sync"],
+  [data-testid*="button-filter"],
+  [data-testid*="button-alerts"],
+  [data-testid="input-search"] {
     display: none !important;
   }
 
   /* Show print header */
   .print-header {
     display: block !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    margin-bottom: 0.2rem !important;
+    background: #0056b3 !important;
+    color: white !important;
+    padding: 4mm !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    margin-bottom: 3mm !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-header .logo {
+    display: block !important;
+    font-size: 16px !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .print-header .title {
+    display: block !important;
+    font-size: 12px !important;
+  }
+
+  .print-header .timestamp {
+    display: block !important;
+    font-size: 10px !important;
+    margin-top: 1mm !important;
   }
 
   /* Page setup */
-  * {
-    box-sizing: border-box;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
   html, body {
     width: 100% !important;
     height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
-    color: black !important;
     overflow: visible !important;
   }
 
@@ -345,179 +360,158 @@
   .min-h-screen {
     min-height: auto !important;
     height: auto !important;
-    padding: 0.3rem !important;
+    padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
   }
 
   .container {
     max-width: 100% !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Card container - allow page breaks */
+  /* Remove all overflow constraints */
   .overflow-hidden,
-  [class*="overflow-hidden"] {
-    overflow: visible !important;
-    border: 1px solid #333;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Remove all scroll wrappers */
   .overflow-x-auto,
   .overflow-y-auto,
+  [class*="overflow-hidden"],
   [class*="overflow-x-auto"],
   [class*="overflow-y-auto"],
   [class*="max-h-"] {
     overflow: visible !important;
     max-height: none !important;
+    height: auto !important;
   }
 
-  /* Table styling */
+  /* Card container */
+  .rounded-lg,
+  [class*="rounded"] {
+    border-radius: 0 !important;
+  }
+
+  /* TABLE STRUCTURE - Critical for proper printing */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 6.5px !important;
-    line-height: 1.1 !important;
-    table-layout: fixed !important;
+    font-size: 7px !important;
+    line-height: 1.2 !important;
+    page-break-inside: auto !important;
   }
 
-  /* Table head - repeat on each page */
+  /* THEAD - Repeat on every page */
   thead {
     display: table-header-group !important;
-    background: #0056b3 !important;
+    background-color: #0056b3 !important;
+  }
+
+  /* Prevent break after header */
+  thead {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   thead tr {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
+    background-color: #0056b3 !important;
   }
 
   thead th {
-    color: white !important;
     background-color: #0056b3 !important;
-    padding: 3px 2px !important;
-    border: 0.5px solid #333 !important;
+    color: white !important;
+    padding: 2mm 1mm !important;
+    border: 0.5px solid #003366 !important;
     text-align: center !important;
     font-weight: bold !important;
     font-size: 6px !important;
-    white-space: normal !important;
-    word-wrap: break-word !important;
     vertical-align: middle !important;
-    line-height: 1 !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
   }
 
-  /* Table body */
+  /* TBODY */
   tbody {
     display: table-row-group !important;
   }
 
-  /* CRITICAL: Prevent row breaks across pages */
+  /* CRITICAL: Prevent rows from breaking across pages */
   tbody tr {
-    break-inside: avoid !important;
     page-break-inside: avoid !important;
-    break-after: auto !important;
+    break-inside: avoid !important;
     page-break-after: auto !important;
-    display: table-row !important;
-    position: relative !important;
+    break-after: auto !important;
   }
 
-  /* Table cells - limit height to prevent tall rows that break */
+  /* Table cells - NO height limits, show all content */
   td {
-    padding: 1px 2px !important;
-    border: 0.5px solid #999 !important;
-    font-size: 6px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-height: 45px !important;
-    height: auto !important;
+    padding: 1.5mm 1mm !important;
+    border: 0.5px solid #ccc !important;
+    font-size: 6.5px !important;
     vertical-align: top !important;
-    line-height: 1.05 !important;
+    line-height: 1.15 !important;
     color: black !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  /* Limit text in cells to prevent overflow */
-  td > div,
-  td > span {
-    max-height: 40px !important;
-    overflow: hidden !important;
+  /* Convert flex containers inside cells to block for proper page breaks */
+  td div,
+  td span,
+  td .flex,
+  td [class*="flex"],
+  td [class*="stack"] {
     display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  /* Remove inline widths */
-  th, td {
-    min-width: auto !important;
-    max-width: none !important;
-  }
-
-  /* Remove sticky positioning */
-  td.sticky,
-  th.sticky,
+  /* Remove sticky positioning for print */
+  .sticky,
   [class*="sticky"] {
     position: static !important;
     left: auto !important;
     z-index: auto !important;
   }
 
-  /* LEITO column styling */
+  /* LEITO column */
   td:first-child {
     font-weight: bold !important;
-    background: #e8f0ff !important;
+    background-color: #e8f4ff !important;
+    text-align: center !important;
   }
 
   th:first-child {
-    background: #0056b3 !important;
+    background-color: #0056b3 !important;
   }
 
   /* Alternating row colors */
   tbody tr:nth-child(even) {
-    background: #f5f5f5 !important;
+    background-color: #f8f9fa !important;
   }
 
   tbody tr:nth-child(odd) {
-    background: white !important;
+    background-color: white !important;
   }
 
-  /* Alert rows */
-  tbody tr[class*="destructive"] {
-    background: #ffebee !important;
+  /* Alert row colors */
+  tbody tr[class*="destructive"],
+  tbody tr[class*="bg-destructive"] {
+    background-color: #ffebee !important;
   }
 
-  tbody tr[class*="chart-3"],
-  tbody tr[class*="orange"] {
-    background: #fff3e0 !important;
+  tbody tr[class*="orange"],
+  tbody tr[class*="chart-3"] {
+    background-color: #fff3e0 !important;
   }
 
-  /* Print header styling */
-  .print-header {
-    background: #0056b3 !important;
-    color: white !important;
-    padding: 0.3rem 0.5rem !important;
-    font-size: 12px !important;
-    font-weight: bold !important;
-    text-align: center !important;
-    border-bottom: 2px solid #333 !important;
-    margin-bottom: 0.3rem !important;
+  tbody tr[class*="emerald"],
+  tbody tr[class*="green"] {
+    background-color: #e8f5e9 !important;
   }
 
-  .print-header .logo {
-    display: block !important;
-    font-size: 14px !important;
-    margin-bottom: 0.15rem !important;
-  }
-
-  .print-header .title {
-    display: block !important;
-    font-size: 11px !important;
-    margin-bottom: 0.1rem !important;
-  }
-
-  .print-header .timestamp {
-    display: block !important;
-    font-size: 9px !important;
-    margin-top: 0.1rem !important;
-    opacity: 0.9 !important;
+  tbody tr[class*="yellow"] {
+    background-color: #fffde7 !important;
   }
 }
