@@ -420,20 +420,30 @@
     page-break-inside: avoid !important;
     break-after: auto !important;
     page-break-after: auto !important;
+    display: table-row !important;
+    position: relative !important;
   }
 
-  /* Table cells */
+  /* Table cells - limit height to prevent tall rows that break */
   td {
-    padding: 2px !important;
+    padding: 1px 2px !important;
     border: 0.5px solid #999 !important;
-    font-size: 6.5px !important;
-    overflow-wrap: break-word !important;
-    word-wrap: break-word !important;
-    word-break: break-word !important;
+    font-size: 6px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-height: 45px !important;
     height: auto !important;
     vertical-align: top !important;
-    line-height: 1.1 !important;
+    line-height: 1.05 !important;
     color: black !important;
+  }
+
+  /* Limit text in cells to prevent overflow */
+  td > div,
+  td > span {
+    max-height: 40px !important;
+    overflow: hidden !important;
+    display: block !important;
   }
 
   /* Remove inline widths */
