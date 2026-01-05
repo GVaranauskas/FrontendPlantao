@@ -1485,11 +1485,14 @@ export default function ShiftHandoverPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Data Nascimento:</span>{" "}
-                      <span className="font-medium">
-                        {selectedPatient.dataNascimento || "-"}
-                        {selectedPatient.idade !== null && selectedPatient.idade !== undefined && (
-                          <span className="ml-1 text-primary font-bold">({selectedPatient.idade} anos)</span>
-                        )}
+                      <span className="font-medium">{selectedPatient.dataNascimento || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Idade:</span>{" "}
+                      <span className="font-bold text-primary">
+                        {selectedPatient.idade !== null && selectedPatient.idade !== undefined 
+                          ? `${selectedPatient.idade} anos` 
+                          : "-"}
                       </span>
                     </div>
                     <div>
