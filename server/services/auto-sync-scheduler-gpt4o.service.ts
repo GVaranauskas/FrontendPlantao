@@ -175,49 +175,10 @@ export class AutoSyncSchedulerGPT4o {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
           
-          // EXTRAÇÃO DE CAMPOS ESTRUTURADOS DO TEXTO dsEvolucao (ANTES do change detection!)
-          let fieldsWereExtracted = false;
-          const dsEvolucaoText = processed.dadosProcessados.dsEvolucaoCompleta || '';
-          if (dsEvolucaoText && dsEvolucaoText.trim() !== '') {
-            // Guarda estado ANTES da extração para comparar (TODOS os campos clínicos)
-            const clinicalFields = ['braden', 'diagnostico', 'dispositivos', 'dieta', 'mobilidade', 
-                                    'atb', 'alergias', 'curativos', 'aporteSaturacao', 'exames', 
-                                    'cirurgia', 'observacoes', 'previsaoAlta', 'eliminacoes'];
-            
-            const beforeExtraction: Record<string, any> = {};
-            for (const field of clinicalFields) {
-              beforeExtraction[field] = (processed.dadosProcessados as any)[field];
-            }
-            
-            console.log(`[AutoSync] 📄 Extraindo campos do texto para ${leito}...`);
-            const extractedData = await aiServiceGPT4oMini.extractStructuredFieldsFromEvolucao(
-              dsEvolucaoText,
-              processed.dadosProcessados
-            );
-            // Merge extracted fields back into processed data
-            Object.assign(processed.dadosProcessados, extractedData);
-            
-            // Verifica se extração alterou QUALQUER campo clínico
-            const afterExtraction: Record<string, any> = {};
-            for (const field of clinicalFields) {
-              afterExtraction[field] = (processed.dadosProcessados as any)[field];
-            }
-            
-            fieldsWereExtracted = JSON.stringify(beforeExtraction) !== JSON.stringify(afterExtraction);
-            if (fieldsWereExtracted) {
-              // Identifica quais campos foram enriquecidos
-              const enrichedFields = clinicalFields.filter(f => 
-                beforeExtraction[f] !== afterExtraction[f] && afterExtraction[f]
-              );
-              console.log(`[AutoSync] ✅ Extração enriqueceu ${leito}: ${enrichedFields.join(', ')}`);
-            }
-          }
-          
-          // CHANGE DETECTION (roda DEPOIS da extração para detectar campos enriquecidos)
-          // Bypassed when forceUpdate is true OU quando extração enriqueceu campos
+          // CHANGE DETECTION (bypassed when forceUpdate is true)
           const patientId = processed.registro || leito;
           
-          if (!forceUpdate && !fieldsWereExtracted) {
+          if (!forceUpdate) {
             const changeResult = changeDetectionService.detectChanges(
               patientId,
               processed.dadosProcessados
@@ -233,14 +194,7 @@ export class AutoSyncSchedulerGPT4o {
               result.stats.newRecords++;
             } else {
               result.stats.changedRecords++;
-              console.log(`[AutoSync] 🔄 ${leito} alterado: ${changeResult.changedFields.join(', ')}`);
             }
-          } else if (fieldsWereExtracted) {
-            // Extração preencheu campos - SEMPRE salvar
-            result.stats.changedRecords++;
-            console.log(`[AutoSync] 📝 ${leito} enriquecido via extração - forçando persistência`);
-            // Atualiza snapshot para evitar reprocessamento nas próximas execuções
-            changeDetectionService.detectChanges(patientId, processed.dadosProcessados);
           } else {
             // forceUpdate: trata todos como alterados para reprocessar
             result.stats.changedRecords++;
