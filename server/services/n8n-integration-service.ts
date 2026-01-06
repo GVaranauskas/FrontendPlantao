@@ -76,6 +76,7 @@ export class N8NIntegrationService {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "credencial-webhook-prod-evolucoes": process.env.N8N_WEBHOOK_SECRET || "",
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
