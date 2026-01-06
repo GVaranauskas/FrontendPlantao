@@ -175,6 +175,18 @@ export class AutoSyncSchedulerGPT4o {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
           
+          // EXTRAÇÃO DE CAMPOS ESTRUTURADOS DO TEXTO dsEvolucao (se campos vazios)
+          const dsEvolucaoText = processed.dadosProcessados.dsEvolucaoCompleta || '';
+          if (dsEvolucaoText && dsEvolucaoText.trim() !== '') {
+            console.log(`[AutoSync] 📄 Extraindo campos do texto para ${leito}...`);
+            const extractedData = await aiServiceGPT4oMini.extractStructuredFieldsFromEvolucao(
+              dsEvolucaoText,
+              processed.dadosProcessados
+            );
+            // Merge extracted fields back into processed data
+            Object.assign(processed.dadosProcessados, extractedData);
+          }
+          
           // CHANGE DETECTION (bypassed when forceUpdate is true)
           const patientId = processed.registro || leito;
           

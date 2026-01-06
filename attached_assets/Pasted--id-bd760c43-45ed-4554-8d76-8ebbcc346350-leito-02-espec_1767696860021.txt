@@ -1,0 +1,131 @@
+{
+  "id": "bd760c43-45ed-4554-8d76-8ebbcc346350",
+  "leito": "02",
+  "especialidadeRamal": "CIRURGIA GERAL HSPE",
+  "nome": "ESCOLASTICA GEREMIAS PEREIRA",
+  "registro": "2735198",
+  "dataNascimento": "24/12/1946",
+  "sexo": "F",
+  "dataInternacao": "15/12/2025",
+  "braden": "",
+  "diagnostico": null,
+  "alergias": null,
+  "mobilidade": "",
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "exames": "",
+  "cirurgia": "",
+  "observacoes": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "idade": 79,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A01",
+  "dsLeitoCompleto": "10A0102",
+  "dsEspecialidade": "CIRURGIA GERAL HSPE",
+  "codigoAtendimento": "10114707",
+  "dsEvolucaoCompleta": null,
+  "dhCriacaoEvolucao": "2025-12-29T08:19:00.000Z",
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "sexo": "F",
+    "leito": "02",
+    "dsLeito": "10A0102",
+    "dhCriacao": "29/12/2025 08:19",
+    "dsEvolucao": "07 RECEBO PLANTÃO COM PACIENTE  ACOMODADO EM LEITO COM GRADES E DECUBITO ELEVADOS. CONSCIENTE, ORIENTADO, MANTENDO   PICC EM MSE INSTALADO EM 27/12, COM CURATIVO OCLUSIVO COM GAZE + PELÍCULA TRANSPARENTE, SEM SUJIDADE APARENTE DATADO DE 27/12. PROGRAMO TROCA HOJE. RECEBENDO PELO DISPOSITIVO NPT N4 Á 40ML/H INSTALADA EM 29/12 ÁS 06H. EM CATETER DE O2 A 3L/MIN SAT 95%- \nPERMANECE COM DITEA HIDRICA, DIURESE PRESENTE EM FRALDA, EVACUAÇÃO  PRESENTE EM PERÍODO.\nPERMANECE ACOMPANHADA PELO FAMILIAR.\n\n\n#  EXAME FISICO:\nGERAL:REG, ANICETRICA, AFEBRIL, ACIANÓTICA, HIPOCORDA +/4+\nNEURO: CALMO, CONSCIENTE, G15, PUPILAS ISOFOTORREAGENTES,\nAC: BRNF 2TS/SOPRO, PULSO CHEIO DE RITMICOS E PALPAVEIS \nAP: EUPNEICO , MANTENDO CATETER DE O2/2LMIN.SATURANDO 94%\nABDOME PLANO, FLACIDO INDOLOR A PALPAÇÃO.\nEXT :PERIFERIAS AQUECIDAS.\nMMII SEM SINAIS DE EMPASTAMENTO.\n\n\n# ESCALAS: \n- BRADEN: 16\n- MADDOX: O\nGLASGOW:15\nJH 18",
+    "cdPrestador": 133724,
+    "dsEpecialid": "CIRURGIA GERAL HSPE",
+    "dsEnfermaria": "10A01",
+    "nomePaciente": "ESCOLASTICA GEREMIAS PEREIRA   PT: 2735198 AT: 10114707",
+    "dhAtualizacao": "2025-12-29T13:36:48.440-05:00",
+    "risco_clinico": {
+      "risco_de_queda": {
+        "alerta": false,
+        "justificativa": "Braden 16 (risco baixo) e paciente consciente e orientado."
+      },
+      "risco_infeccioso": {
+        "alerta": false,
+        "justificativa": "PICC com curativo datado e limpo. Troca programada."
+      },
+      "risco_nutricional": {
+        "alerta": false,
+        "justificativa": "Recebendo NPT adequadamente e sem dieta zero."
+      },
+      "risco_respiratorio": {
+        "alerta": true,
+        "justificativa": "SatO2 em 94% e com cateter de O2 a 2L/min."
+      },
+      "risco_de_broncoaspiracao": {
+        "alerta": false,
+        "justificativa": "Paciente consciente e orientado, não com dieta VO."
+      },
+      "risco_de_lesao_por_pressao": {
+        "alerta": false,
+        "justificativa": "Braden 16 (risco baixo)."
+      }
+    },
+    "dataInternacao": "15/12/2025",
+    "dataNascimento": "24/12/1946",
+    "alertas_seguranca": {
+      "equipamentos": {
+        "PICC": "Instalado e com curativo adequado.",
+        "cateter_O2": "Saturação em 94%."
+      }
+    },
+    "cdEspecialidadePrestador": null,
+    "necessidades_nutricionais": {
+      "avaliacao_nutricional": "NPT em uso."
+    },
+    "lacunas_documentacao_clinica": [
+      "Protocolo de troca de curativo no PICC não mencionou a data específica após a instalação."
+    ],
+    "oportunidades_educacao_continuada": [
+      "Educação para a família sobre a importância da monitoração de sinais vitais e oxigenoterapia."
+    ]
+  },
+  "importedAt": "2025-12-22T19:57:59.306Z",
+  "clinicalInsights": {
+    "timestamp": "2026-01-05T19:31:10.327Z",
+    "nivel_alerta": "VERMELHO",
+    "alertas_count": {
+      "verde": 0,
+      "amarelo": 1,
+      "vermelho": 2
+    },
+    "gaps_criticos": [
+      "Avaliação da necessidade de reavaliação da anticoagulação.",
+      "Registro de dieta hídrica e adequação nutricional."
+    ],
+    "prioridade_acao": "Implementar medidas de prevenção de quedas.",
+    "score_qualidade": 50,
+    "principais_alertas": [
+      {
+        "tipo": "RISCO_QUEDA",
+        "nivel": "VERMELHO",
+        "titulo": "Risco de Queda"
+      },
+      {
+        "tipo": "RISCO_LESAO_PRESSAO",
+        "nivel": "VERMELHO",
+        "titulo": "Risco de Lesão por Pressão"
+      },
+      {
+        "tipo": "RISCO_RESPIRATORIO",
+        "nivel": "AMARELO",
+        "titulo": "Risco Respiratório"
+      }
+    ],
+    "categoria_qualidade": "REGULAR",
+    "recomendacoes_enfermagem": [
+      "Implementar medidas de prevenção de quedas.",
+      "Reavaliar a posição do paciente a cada 2 horas.",
+      "Monitorar sinais de dispneia e ajustar oxigenoterapia."
+    ]
+  },
+  "clinicalInsightsUpdatedAt": "2026-01-05T19:31:18.427Z"
+}

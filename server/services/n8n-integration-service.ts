@@ -157,7 +157,7 @@ export class N8NIntegrationService {
         dsEnfermaria: dadosBrutos.dsEnfermaria || "",
         dsLeitoCompleto: dadosBrutos.dsLeito || "",
         dsEspecialidade: dadosBrutos.dsEpecialid || "",
-        dsEvolucaoCompleta: "",
+        dsEvolucaoCompleta: dadosBrutos.dsEvolucao || "",
         dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dhCriacao),
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,

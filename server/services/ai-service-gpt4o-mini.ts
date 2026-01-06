@@ -461,6 +461,137 @@ JSON:
       estimatedSavings: 0
     };
   }
+
+  /**
+   * Extrai campos estruturados do texto livre dsEvolucao
+   * Esta função preenche campos vazios (braden, diagnostico, etc.) a partir do texto da evolução
+   */
+  async extractStructuredFieldsFromEvolucao(
+    dsEvolucao: string,
+    existingData: Partial<PatientData>
+  ): Promise<Partial<PatientData>> {
+    if (!dsEvolucao || dsEvolucao.trim() === '') {
+      console.log('[GPT-4o-mini] ⚠️ dsEvolucao vazio - não há dados para extrair');
+      return existingData;
+    }
+
+    this.metrics.totalCalls++;
+
+    // Gera chave de cache baseada no texto
+    const textHash = createHash('md5').update(dsEvolucao).digest('hex').substring(0, 12);
+    const cacheKey = `gpt4o-mini:extraction:${textHash}`;
+
+    // Tenta buscar do cache
+    const cached = intelligentCache.get<Partial<PatientData>>(cacheKey, textHash);
+    if (cached) {
+      this.metrics.cachedCalls++;
+      this.metrics.tokensSaved += 2000;
+      this.metrics.estimatedSavings += 0.02;
+      console.log(`[GPT-4o-mini] ✅ Extração cache HIT`);
+      return this.mergeExtractedFields(existingData, cached);
+    }
+
+    this.metrics.actualAPICalls++;
+
+    try {
+      const extractionPrompt = `Extraia informações clínicas do texto de evolução de enfermagem.
+
+TEXTO DA EVOLUÇÃO:
+${dsEvolucao}
+
+Extraia APENAS o que estiver EXPLÍCITO no texto. Use "" para campos não mencionados.
+
+Responda em JSON:
+{
+  "braden": "número da escala Braden se mencionado, ex: 14",
+  "diagnostico": "diagnóstico principal se mencionado",
+  "alergias": "alergias se mencionadas",
+  "mobilidade": "nível de mobilidade, ex: ACAMADO, DEAMBULA, CADEIRA DE RODAS",
+  "dieta": "tipo de dieta, ex: ZERO, LIQUIDA, PASTOSA, BRANDA, LIVRE, NPT, ENTERAL",
+  "eliminacoes": "informações sobre diurese e evacuação",
+  "dispositivos": "dispositivos em uso, ex: PICC, SVD, CVD, SNE, SNG, traqueostomia",
+  "atb": "antibióticos em uso",
+  "curativos": "informações sobre curativos",
+  "aporteSaturacao": "oxigênio e saturação, ex: cateter O2 3L 95%",
+  "exames": "exames realizados ou pendentes",
+  "cirurgia": "cirurgias programadas",
+  "observacoes": "outras observações relevantes",
+  "previsaoAlta": "previsão de alta se mencionada"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "Você é um assistente especializado em extrair dados estruturados de evoluções de enfermagem hospitalar brasileira. Seja preciso e objetivo. Extraia apenas dados explícitos no texto."
+          },
+          {
+            role: "user",
+            content: extractionPrompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 800,
+        response_format: { type: "json_object" }
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Resposta vazia do GPT-4o-mini');
+      }
+
+      const extracted = JSON.parse(content);
+      
+      // Armazena no cache
+      intelligentCache.set(cacheKey, extracted, {
+        contentHash: textHash,
+        ttlMinutes: 120,
+        criticality: 'medium'
+      });
+
+      this.updateMetrics(2000, 0.02);
+      console.log(`[GPT-4o-mini] ✅ Extração concluída - R$ 0.02`);
+
+      return this.mergeExtractedFields(existingData, extracted);
+
+    } catch (error) {
+      console.error('[GPT-4o-mini] Erro na extração:', error);
+      return existingData;
+    }
+  }
+
+  /**
+   * Mescla campos extraídos com dados existentes (prioriza dados já preenchidos)
+   */
+  private mergeExtractedFields(
+    existing: Partial<PatientData>,
+    extracted: Partial<PatientData>
+  ): Partial<PatientData> {
+    const result = { ...existing };
+    
+    const fieldsToMerge = [
+      'braden', 'diagnostico', 'alergias', 'mobilidade', 'dieta',
+      'eliminacoes', 'dispositivos', 'atb', 'curativos', 
+      'aporteSaturacao', 'exames', 'cirurgia', 'observacoes', 'previsaoAlta'
+    ];
+
+    for (const field of fieldsToMerge) {
+      const existingValue = result[field];
+      const extractedValue = extracted[field];
+      
+      // Só preenche se o campo existente estiver vazio e o extraído tiver valor
+      if (
+        (!existingValue || existingValue === '' || existingValue === 'null') &&
+        extractedValue && extractedValue !== '' && extractedValue !== 'null'
+      ) {
+        (result as any)[field] = extractedValue;
+        console.log(`[GPT-4o-mini] 📝 ${field}: "${extractedValue.substring(0, 50)}..."`);
+      }
+    }
+
+    return result;
+  }
 }
 
 export const aiServiceGPT4oMini = new AIServiceGPT4oMini();
