@@ -54,21 +54,27 @@ export class N8NIntegrationService {
       // Build flowId from unit IDs (e.g., "22-23" from "22,23")
       const flowId = unitIds ? unitIds.replace(/,/g, "-") : "all";
 
+      // STRATEGY: forceUpdate=true causa timeout no N8N (~60s+)
+      // 1. Para syncs agendados: sempre usar false (rápido, ~1s)
+      // 2. Para syncs manuais com forceUpdate: tentar true primeiro, fallback para false se timeout
+      const TIMEOUT_NORMAL = 30000; // 30s para forceUpdate=false
+      const TIMEOUT_FORCE = 120000; // 120s para forceUpdate=true
+      
       const payload: N8NRequest = {
         flowId: flowId,
         forceUpdate: forceUpdate,
         meta: {
-          params: [unitIds], // ["22,23"] - single string with comma-separated IDs
+          params: [unitIds],
           formJson: JSON.stringify(formJsonObject)
         }
       };
 
-      // Log FULL payload for debugging
       console.log(`[N8N] REQUEST PAYLOAD:`);
       console.log(JSON.stringify(payload, null, 2));
       
+      const timeout = forceUpdate ? TIMEOUT_FORCE : TIMEOUT_NORMAL;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
       
       let response: Response;
       try {
@@ -81,6 +87,15 @@ export class N8NIntegrationService {
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
+      } catch (fetchError: unknown) {
+        clearTimeout(timeoutId);
+        
+        // Se timeout com forceUpdate=true, tentar novamente com false
+        if (forceUpdate && fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.warn(`[N8N] ⚠️ forceUpdate=true causou timeout, tentando com forceUpdate=false...`);
+          return this.fetchEvolucoes(unitIds, false);
+        }
+        throw fetchError;
       } finally {
         clearTimeout(timeoutId);
       }
