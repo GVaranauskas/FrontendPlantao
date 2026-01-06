@@ -1,0 +1,125 @@
+{
+  "id": "729fafc7-1c7b-427f-b6ae-dce0e4985d50",
+  "leito": "11",
+  "especialidadeRamal": "CLINICA MEDICA",
+  "nome": "ENALDO OLIVEIRA DOS SANTOS",
+  "registro": "1140962",
+  "dataNascimento": "13/04/1953",
+  "sexo": "M",
+  "dataInternacao": "27/12/2025",
+  "braden": "",
+  "diagnostico": null,
+  "alergias": null,
+  "mobilidade": "",
+  "dieta": "",
+  "eliminacoes": "",
+  "dispositivos": "",
+  "atb": "",
+  "curativos": "",
+  "aporteSaturacao": "",
+  "exames": "",
+  "cirurgia": "",
+  "observacoes": null,
+  "previsaoAlta": "",
+  "alerta": null,
+  "idade": 72,
+  "status": "pending",
+  "idEvolucao": "",
+  "dsEnfermaria": "10A06",
+  "dsLeitoCompleto": "10A0611",
+  "dsEspecialidade": "CLINICA MEDICA",
+  "codigoAtendimento": "10150690",
+  "dsEvolucaoCompleta": null,
+  "dhCriacaoEvolucao": "2026-01-06T04:50:00.000Z",
+  "fonteDados": "N8N_IAMSPE",
+  "dadosBrutosJson": {
+    "sexo": "M",
+    "leito": "11",
+    "dsLeito": "10A0611",
+    "dhCriacao": "06/01/2026 04:50",
+    "dsEvolucao": "EVOLUÇÃO DE ENFERMAGEM - 05/01  LEITO - 11\n\nDIH: 27/12/2025\nAcompanhante: Marcia (filha)\n\n# Id: Enaldo Oliveira, 72 anos \n\n# Hd:\n1) ITU \n> Urina 1: leuco > 1.000.000, hifas + pseudo-hifas\n\n2) IRA KDIGO 2 melhorada\n> Cr adm: 2,03 / Cr basal: não ha \n> Cr atual: 0,87\n> Uso de SVD devido a bexiga neurogenica\n\n\n\nPACIENTE NO LEITO EM REPOUSO, EM USO DE PULSEIRA DE IDENTIFICAÇÃO E RISCO DE QUEDA CONFORME PROTOCOLO INSTITUCIONAL , SEM ACOMPANHANTE NO MOMENTO DA VISITA, NO LEITO COM CAMA E DECUBITOS ELEVADOS, RODAS TRAVADAS, GRADES ELEVADAS, EVOILUI: EM ALERTA, CALMA, ORIENTADO, CONTACTUANDO VERBALMENTE, CORADO, HIDRATADO, EUPNEICO EM AA SEM APRESENTAR DESCONFORTO RESPIRATORIO, PELE INTEGRA, MANTENDO AVP MSE 04/01  PERVIO, INSERÇÃO SEM A PRESENÇA DE SINAIS FLOGISTICOS, OCLUIDO COM PELICULA TRANSPARENTE LIMPA, SECA E IDENTIFICADA, REFERE BOA ACEITAÇÃO DA DIETA OFERTADA, ELIMINAÇÕES VESICOINTESTINAIS SVD COM SISTEMA FECHADO, EM BOLSA COLETORA E EVACUAÇÃO AUSENTE NO PERIODO. SEM APRESENTAR QUEIXAS ALGICAS SEGUE NO LEITO EM REPOUSO SENDO ACOMPANHADA PELA EQUIPE DE ENFERMAGEM, ORIENTO A CHAMAR SEMPRE QUE NECESSARIO DEIXO CAMPAINHA NO ALCANCE DAS MÃOS. \n\n\n#EXAME FISICO:\nNEURO: CRANIO NORMOCEFALICO, COURO CABELUDO LIMPO E SECO, PUPILAS ISOCORICAS E FOTORREAGENTES, ABERTURA OCULAR ESPONTANEA, ACUIDADE VISUAL E AUDITIVA PRESERVADA, MUCOSA ORAL HIDRATADA, REGIÃO CERVICAL SEM PRESENÇA DE GANGLIOS PALPAVEIS.\nAC: BRNF EM 2 T SEM SOPROS, PULSOS CHEIOS RITMICOS E PALPAVEIS\nAP:  MV+ SEM RA\nABD: GLOBOSO, FLACIDO, RHA+, INDOLOR A PALPAÇÃO\nMMII: MOBILIDADE FISICA E FORÇA MOTORA  DIMINUIDA , SEM EDEMAS E SINAIS DE TVP, BOA PERFUSÃO PERIFERICA.\nTEGUMENTAR: PELE INTEGRA",
+    "cdPrestador": 127539,
+    "dsEpecialid": "CLINICA MEDICA",
+    "dsEnfermaria": "10A06",
+    "nomePaciente": "ENALDO OLIVEIRA DOS SANTOS   PT: 1140962 AT: 10150690",
+    "dhAtualizacao": "2026-01-06T12:46:47.629-05:00",
+    "dataInternacao": "27/12/2025",
+    "dataNascimento": "13/04/1953",
+    "situacoes_risco_clinico": {
+      "risco_queda": {
+        "justificativa": "Paciente com 72 anos e em repouso, utilizando pulseira de identificação e risco de queda conforme o protocolo, grades elevadas, rodas travadas.",
+        "alerta_vermelho": false
+      },
+      "risco_infeccioso": {
+        "justificativa": "AVP sem sinais flogísticos e em boas condições.",
+        "alerta_amarelo": false
+      },
+      "risco_nutricional": {
+        "justificativa": "Boa aceitação da dieta oferecida, sem sinais de desnutrição.",
+        "alerta_amarelo": false
+      },
+      "risco_respiratorio": {
+        "justificativa": "Saturação e conforto respiratório normais, em AA.",
+        "alerta_vermelho": false
+      },
+      "risco_broncoaspiracao": {
+        "justificativa": "Paciente em estado de alerta e calmo, dieta bem aceita, sem sinais de desconforto respiratório.",
+        "alerta_vermelho": false
+      },
+      "risco_lesao_por_pressao": {
+        "justificativa": "Paciente em leito, em repouso, pele íntegra, sem relatos de mudança de decúbito.",
+        "alerta_vermelho": false
+      }
+    },
+    "cdEspecialidadePrestador": null,
+    "alertas_seguranca_paciente": {
+      "monitoramento": "Sensibilização para chamar sempre que necessário.",
+      "identificacao_paciente": "Pulseira de identificação em uso."
+    },
+    "lacunas_documentacao_clinica": {
+      "documentacao": "Nenhuma lacuna significativa identificada."
+    },
+    "oportunidades_educacao_continuada": {
+      "educacao": "Orientar a família sobre a importância da monitorização do paciente e da chamada da equipe de enfermagem quando necessário."
+    },
+    "necessidades_nutricionais_dieteticas": {
+      "dieta": "Aceitação boa, dieta não especificada.",
+      "comentarios": "Nenhuma necessidade especial identificada até o momento."
+    }
+  },
+  "importedAt": "2026-01-06T17:45:40.216Z",
+  "clinicalInsights": {
+    "timestamp": "2026-01-06T18:00:07.116Z",
+    "nivel_alerta": "VERMELHO",
+    "alertas_count": {
+      "verde": 0,
+      "amarelo": 0,
+      "vermelho": 2
+    },
+    "gaps_criticos": [
+      "Avaliação do Braden não registrada",
+      "Histórico de mobilidade do paciente não documentado"
+    ],
+    "prioridade_acao": "Reavaliar Braden e mobilidade do paciente",
+    "score_qualidade": 40,
+    "principais_alertas": [
+      {
+        "tipo": "QUEDA",
+        "nivel": "VERMELHO",
+        "titulo": "Risco de Queda"
+      },
+      {
+        "tipo": "LESÃO PRESSÃO",
+        "nivel": "VERMELHO",
+        "titulo": "Risco de Lesão por Pressão"
+      }
+    ],
+    "categoria_qualidade": "REGULAR",
+    "recomendacoes_enfermagem": [
+      "Reavaliar Braden e mobilidade do paciente",
+      "Implementar protocolo de prevenção de quedas",
+      "Reavaliar cuidados de pele"
+    ]
+  },
+  "clinicalInsightsUpdatedAt": "2026-01-06T18:00:40.944Z"
+}
