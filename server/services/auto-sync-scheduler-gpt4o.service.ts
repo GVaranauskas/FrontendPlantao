@@ -96,8 +96,9 @@ export class AutoSyncSchedulerGPT4o {
     console.log(`[AutoSync] 🔄 INICIANDO CICLO DE SINCRONIZAÇÃO (GPT-4o-mini)${forceUpdate ? ' [FORCE UPDATE]' : ''}`);
     console.log('='.repeat(80));
 
-    // Collect all codigoAtendimento from N8N response for cleanup later
+    // Collect all codigoAtendimento e leitos from N8N response for cleanup later
     const n8nCodigosAtendimento = new Set<string>();
+    const n8nLeitos = new Set<string>();
     
     const result: SyncResult = {
       timestamp: new Date(),
@@ -170,9 +171,12 @@ export class AutoSyncSchedulerGPT4o {
             continue;
           }
 
-          // Collect codigoAtendimento for cleanup later (only for valid enfermarias)
+          // Collect codigoAtendimento e leito for cleanup later (only for valid enfermarias)
           if (processed.dadosProcessados.codigoAtendimento) {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
+          }
+          if (processed.dadosProcessados.leito) {
+            n8nLeitos.add(processed.dadosProcessados.leito);
           }
           
           // CHANGE DETECTION (bypassed when forceUpdate is true)
@@ -236,9 +240,9 @@ export class AutoSyncSchedulerGPT4o {
       }
 
       // 5. REMOVER PACIENTES QUE NÃO VIERAM NA RESPOSTA DO N8N (alta hospitalar)
-      if (n8nCodigosAtendimento.size > 0) {
+      if (n8nCodigosAtendimento.size > 0 || n8nLeitos.size > 0) {
         console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
-        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento);
+        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos);
         result.stats.removedRecords = removedCount;
         if (removedCount > 0) {
           console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
@@ -299,23 +303,35 @@ export class AutoSyncSchedulerGPT4o {
     console.log(`[AutoSync] ✅ ${results.length} análises concluídas`);
   }
 
-  private async removeDischargedPatients(currentCodigosAtendimento: Set<string>): Promise<number> {
+  private async removeDischargedPatients(currentCodigosAtendimento: Set<string>, currentLeitos: Set<string>): Promise<number> {
     // Get all patients from database
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
     
     for (const patient of allPatients) {
-      // Only check patients that have codigoAtendimento (proper N8N records)
+      let shouldRemove = false;
+      
+      // Caso 1: Paciente TEM codigoAtendimento - verificar se ainda existe no N8N
       if (patient.codigoAtendimento) {
-        // If patient is not in the current N8N response, they had "alta" (discharged)
         if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
-          try {
-            await storage.deletePatient(patient.id);
-            removedCount++;
-            console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - alta hospitalar`);
-          } catch (error) {
-            console.error(`[AutoSync] Erro ao remover paciente ${patient.id}:`, error);
-          }
+          shouldRemove = true;
+        }
+      } 
+      // Caso 2: Paciente SEM codigoAtendimento - verificar pelo leito
+      // Isso remove registros antigos/órfãos que não têm identificador
+      else if (patient.leito) {
+        if (!currentLeitos.has(patient.leito)) {
+          shouldRemove = true;
+        }
+      }
+      
+      if (shouldRemove) {
+        try {
+          await storage.deletePatient(patient.id);
+          removedCount++;
+          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - alta hospitalar`);
+        } catch (error) {
+          console.error(`[AutoSync] Erro ao remover paciente ${patient.id}:`, error);
         }
       }
     }
@@ -328,8 +344,8 @@ export class AutoSyncSchedulerGPT4o {
     const allPatients = await storage.getAllPatients();
     
     for (const patient of patients) {
-      // Use codigoAtendimento as PRIMARY key for deduplication (unique per admission)
-      // Fallback to registro, then leito only if codigoAtendimento is not available
+      // CORREÇÃO: Buscar por QUALQUER identificador disponível, incluindo leito
+      // Isso evita duplicatas quando o N8N adiciona codigoAtendimento/registro depois
       const existing = allPatients.find(p => {
         // Priority 1: Match by codigoAtendimento (most reliable - unique per admission)
         if (patient.codigoAtendimento && p.codigoAtendimento === patient.codigoAtendimento) {
@@ -339,9 +355,9 @@ export class AutoSyncSchedulerGPT4o {
         if (patient.registro && p.registro === patient.registro) {
           return true;
         }
-        // Priority 3: Match by leito (fallback - least reliable)
-        // Only use if no other identifiers are available
-        if (!patient.codigoAtendimento && !patient.registro && p.leito === patient.leito) {
+        // Priority 3: Match by leito - SEMPRE verificar, não apenas quando falta identificadores
+        // Isso captura registros antigos que não tinham codigoAtendimento/registro
+        if (patient.leito && p.leito === patient.leito) {
           return true;
         }
         return false;
@@ -349,6 +365,8 @@ export class AutoSyncSchedulerGPT4o {
       
       if (existing) {
         await storage.updatePatient(existing.id, patient);
+        // Atualizar cache local com os novos dados (especialmente identificadores)
+        Object.assign(existing, patient, { id: existing.id });
       } else {
         // Create new patient and add to cache to prevent duplicates within same batch
         const created = await storage.createPatient(patient);
