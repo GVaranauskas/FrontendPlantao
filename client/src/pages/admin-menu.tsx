@@ -114,10 +114,20 @@ interface DedupeResult {
   message: string;
 }
 
+interface CleanupOrphansResult {
+  success: boolean;
+  orphansRemoved: number;
+  removedPatients: { id: string; leito: string; nome: string }[];
+  n8nLeitosCount: number;
+  totalPatientsAfter: number;
+  message: string;
+}
+
 export default function AdminMenuPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDeduping, setIsDeduping] = useState(false);
+  const [isCleaningOrphans, setIsCleaningOrphans] = useState(false);
 
   const { data: pendingCount } = useQuery<{ count: number }>({
     queryKey: ["/api/nursing-unit-changes/count"],
@@ -145,6 +155,32 @@ export default function AdminMenuPage() {
       toast({
         title: "Erro na Limpeza",
         description: error.message || "Falha ao remover duplicatas",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cleanupOrphansMutation = useMutation({
+    mutationFn: async (): Promise<CleanupOrphansResult> => {
+      setIsCleaningOrphans(true);
+      const response = await apiRequest("POST", "/api/admin/cleanup-orphans");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setIsCleaningOrphans(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      toast({
+        title: "Limpeza de Órfãos Concluída",
+        description: data.orphansRemoved > 0 
+          ? `${data.orphansRemoved} pacientes órfãos removidos (alta hospitalar). Total atual: ${data.totalPatientsAfter} pacientes.`
+          : `Nenhum órfão encontrado. ${data.n8nLeitosCount} leitos válidos no N8N.`,
+      });
+    },
+    onError: (error: Error) => {
+      setIsCleaningOrphans(false);
+      toast({
+        title: "Erro na Limpeza",
+        description: error.message || "Falha ao remover órfãos",
         variant: "destructive",
       });
     },
@@ -247,31 +283,61 @@ export default function AdminMenuPage() {
             <Trash2 className="w-5 h-5 text-destructive" />
             <h3 className="font-semibold text-foreground">Manutenção do Banco de Dados</h3>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground">
-                Remove pacientes duplicados mantendo o registro mais recente por leito.
-                Use esta função após migração ou se houver registros duplicados.
-              </p>
+          
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-background rounded-lg border">
+              <div className="flex-1">
+                <h4 className="font-medium text-sm mb-1">Limpar Duplicatas</h4>
+                <p className="text-sm text-muted-foreground">
+                  Remove pacientes duplicados mantendo o registro mais recente por leito.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => dedupeMutation.mutate()}
+                disabled={isDeduping}
+                data-testid="button-dedupe-patients"
+              >
+                {isDeduping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Limpando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Limpar Duplicatas
+                  </>
+                )}
+              </Button>
             </div>
-            <Button
-              variant="destructive"
-              onClick={() => dedupeMutation.mutate()}
-              disabled={isDeduping}
-              data-testid="button-dedupe-patients"
-            >
-              {isDeduping ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Limpando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Limpar Duplicatas
-                </>
-              )}
-            </Button>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-background rounded-lg border">
+              <div className="flex-1">
+                <h4 className="font-medium text-sm mb-1">Limpar Órfãos (Alta Hospitalar)</h4>
+                <p className="text-sm text-muted-foreground">
+                  Remove pacientes que não existem mais no N8N (alta hospitalar ou transferência).
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => cleanupOrphansMutation.mutate()}
+                disabled={isCleaningOrphans}
+                data-testid="button-cleanup-orphans"
+              >
+                {isCleaningOrphans ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verificando N8N...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCcw className="w-4 h-4 mr-2" />
+                    Limpar Órfãos
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 

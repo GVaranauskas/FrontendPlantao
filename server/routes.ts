@@ -641,6 +641,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // ==========================================
+  // Remove orphan patients that no longer exist in N8N
+  // ==========================================
+  app.post("/api/admin/cleanup-orphans", requireRole('admin'), asyncHandler(async (req, res) => {
+    logger.info(`[${getTimestamp()}] [Cleanup] Starting orphan patient cleanup...`);
+    
+    // Fetch current data from N8N to get valid leitos
+    const unitIds = '22,23'; // PROD units
+    logger.info(`[Cleanup] Fetching N8N data for units: ${unitIds}`);
+    
+    const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, false);
+    
+    if (rawData === null) {
+      logger.error('[Cleanup] Failed to fetch N8N data - cannot determine orphans');
+      return res.status(502).json({
+        success: false,
+        message: 'Falha ao buscar dados do N8N. Tente novamente mais tarde.'
+      });
+    }
+    
+    // Collect valid identifiers from N8N (only 10A* enfermarias)
+    const ALLOWED_ENFERMARIA_PATTERN = /^10A/;
+    const n8nCodigosAtendimento = new Set<string>();
+    const n8nLeitos = new Set<string>();
+    
+    for (const rawPatient of rawData) {
+      const leito = rawPatient.leito || 'DESCONHECIDO';
+      
+      try {
+        const processed = await n8nIntegrationService.processEvolucao(leito, rawPatient);
+        
+        if (processed.erros.length > 0) continue;
+        
+        const dsEnfermaria = processed.dadosProcessados.dsEnfermaria || '';
+        if (!ALLOWED_ENFERMARIA_PATTERN.test(dsEnfermaria)) continue;
+        
+        if (processed.dadosProcessados.codigoAtendimento) {
+          n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
+        }
+        if (processed.dadosProcessados.leito) {
+          n8nLeitos.add(processed.dadosProcessados.leito);
+        }
+      } catch (error) {
+        logger.warn(`[Cleanup] Error processing leito ${leito}: ${error}`);
+      }
+    }
+    
+    logger.info(`[Cleanup] N8N reference sets: ${n8nLeitos.size} leitos, ${n8nCodigosAtendimento.size} códigos`);
+    
+    // Get all patients from database
+    const allPatients = await storage.getAllPatients();
+    let removedCount = 0;
+    const removedPatients: { id: string; leito: string; nome: string }[] = [];
+    
+    for (const patient of allPatients) {
+      let shouldRemove = false;
+      
+      // Case 1: Patient HAS codigoAtendimento - check if it still exists in N8N
+      if (patient.codigoAtendimento) {
+        if (!n8nCodigosAtendimento.has(patient.codigoAtendimento)) {
+          shouldRemove = true;
+        }
+      } 
+      // Case 2: Patient WITHOUT codigoAtendimento - check by leito
+      else if (patient.leito) {
+        if (!n8nLeitos.has(patient.leito)) {
+          shouldRemove = true;
+        }
+      }
+      
+      if (shouldRemove) {
+        try {
+          await storage.deletePatient(patient.id);
+          removedCount++;
+          removedPatients.push({
+            id: patient.id,
+            leito: patient.leito || 'unknown',
+            nome: patient.nome || 'unknown'
+          });
+          logger.info(`[Cleanup] Removed orphan: ${patient.leito} (${patient.nome})`);
+        } catch (error) {
+          logger.error(`[Cleanup] Error removing patient ${patient.id}: ${error}`);
+        }
+      }
+    }
+    
+    const finalPatients = await storage.getAllPatients();
+    
+    logger.info(`[${getTimestamp()}] [Cleanup] Completed: ${removedCount} orphans removed`);
+    res.json({
+      success: true,
+      orphansRemoved: removedCount,
+      removedPatients,
+      n8nLeitosCount: n8nLeitos.size,
+      totalPatientsAfter: finalPatients.length,
+      message: removedCount > 0 
+        ? `Removidos ${removedCount} pacientes órfãos (alta hospitalar)`
+        : 'Nenhum paciente órfão encontrado - banco já está sincronizado'
+    });
+  }));
+
+  // ==========================================
   // Security Audit Endpoints - ADMIN ONLY
   // ==========================================
   
