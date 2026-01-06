@@ -5,8 +5,68 @@ import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from '.
 import { asyncHandler, AppError } from '../middleware/error-handler';
 import bcryptjs from 'bcryptjs';
 import { z } from 'zod';
+import { logger } from '../lib/logger';
 
 export function registerAuthRoutes(app: Express) {
+  // Initial setup endpoint - creates admin user if none exists
+  app.post('/api/auth/setup', asyncHandler(async (req: Request, res: Response) => {
+    const { setupKey } = req.body;
+    const expectedKey = process.env.SETUP_KEY;
+    
+    if (!expectedKey) {
+      logger.warn('Setup endpoint accessed but SETUP_KEY not configured');
+      throw new AppError(503, 'Setup not available - SETUP_KEY not configured');
+    }
+    
+    if (!setupKey || setupKey !== expectedKey) {
+      logger.warn('Invalid setup key attempted');
+      throw new AppError(403, 'Invalid setup key');
+    }
+    
+    const existingAdmin = await storage.getUserByUsername('admin');
+    if (existingAdmin) {
+      return res.json({ 
+        success: true, 
+        message: 'Admin user already exists',
+        alreadySetup: true 
+      });
+    }
+    
+    const adminPassword = await bcryptjs.hash('admin123', 10);
+    await storage.createUser({
+      username: 'admin',
+      email: 'admin@11care.com.br',
+      password: adminPassword,
+      name: 'Administrador',
+      role: 'admin',
+      isActive: true,
+    });
+    
+    const enfermeiroPassword = await bcryptjs.hash('enf123', 10);
+    const existingEnfermeiro = await storage.getUserByUsername('enfermeiro');
+    if (!existingEnfermeiro) {
+      await storage.createUser({
+        username: 'enfermeiro',
+        email: 'enfermagem@11care.com.br',
+        password: enfermeiroPassword,
+        name: 'Enfermeiro(a)',
+        role: 'enfermagem',
+        isActive: true,
+      });
+    }
+    
+    logger.info('Initial setup completed - admin user created');
+    
+    res.json({ 
+      success: true, 
+      message: 'Setup completed successfully',
+      credentials: {
+        admin: { username: 'admin', password: 'admin123' },
+        enfermeiro: { username: 'enfermeiro', password: 'enf123' }
+      }
+    });
+  }));
+
   // Login endpoint
   app.post('/api/auth/login', asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;

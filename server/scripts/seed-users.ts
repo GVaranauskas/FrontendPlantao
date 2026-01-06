@@ -1,10 +1,23 @@
 import bcryptjs from 'bcryptjs';
-import { db } from '../lib/database';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 async function seedUsers() {
-  console.log('🌱 Seeding initial users...');
+  const targetEnv = process.argv[2] || 'development';
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (!databaseUrl) {
+    console.error('❌ DATABASE_URL environment variable is not set');
+    process.exit(1);
+  }
+
+  console.log(`🌱 Seeding users for ${targetEnv.toUpperCase()} environment...`);
+  console.log(`📊 Database: ${databaseUrl.substring(0, 30)}...`);
+  
+  const sql = neon(databaseUrl);
+  const db = drizzle(sql);
 
   const adminPassword = await bcryptjs.hash('admin123', 10);
   const enfermeiroPassword = await bcryptjs.hash('enf123', 10);
