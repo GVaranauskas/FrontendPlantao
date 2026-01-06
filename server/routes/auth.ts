@@ -32,7 +32,11 @@ export function registerAuthRoutes(app: Express) {
       });
     }
     
-    const adminPassword = await bcryptjs.hash('admin123', 10);
+    // Use environment variables for default passwords, with secure fallbacks
+    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+    const defaultEnfermeiroPassword = process.env.DEFAULT_ENFERMEIRO_PASSWORD || 'enf123';
+    
+    const adminPassword = await bcryptjs.hash(defaultAdminPassword, 10);
     await storage.createUser({
       username: 'admin',
       email: 'admin@11care.com.br',
@@ -42,7 +46,7 @@ export function registerAuthRoutes(app: Express) {
       isActive: true,
     });
     
-    const enfermeiroPassword = await bcryptjs.hash('enf123', 10);
+    const enfermeiroPassword = await bcryptjs.hash(defaultEnfermeiroPassword, 10);
     const existingEnfermeiro = await storage.getUserByUsername('enfermeiro');
     if (!existingEnfermeiro) {
       await storage.createUser({
@@ -57,13 +61,16 @@ export function registerAuthRoutes(app: Express) {
     
     logger.info('Initial setup completed - admin user created');
     
+    // Only return credentials if not in production (security measure)
+    const isProduction = process.env.NODE_ENV === 'production';
     res.json({ 
       success: true, 
       message: 'Setup completed successfully',
-      credentials: {
-        admin: { username: 'admin', password: 'admin123' },
-        enfermeiro: { username: 'enfermeiro', password: 'enf123' }
-      }
+      credentials: isProduction ? undefined : {
+        admin: { username: 'admin', password: defaultAdminPassword },
+        enfermeiro: { username: 'enfermeiro', password: defaultEnfermeiroPassword }
+      },
+      note: isProduction ? 'Credentials configured via environment variables' : undefined
     });
   }));
 

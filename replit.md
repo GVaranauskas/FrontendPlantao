@@ -24,11 +24,11 @@ Preferred communication style: Simple, everyday language.
 - **Data Models**: User (authentication, role-based access), Patient (14 normalized N8N fields: braden, diagnostico, alergias, mobilidade, dieta, eliminacoes, dispositivos, atb, curativos, aporteSaturacao, exames, cirurgia, observacoes, previsaoAlta), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange.
 - **API Endpoints**: Standard CRUD for patients and alerts. N8N sync endpoint (`/api/sync/evolucoes`). Template management. Authentication (`/api/auth/*`). WebSocket (`/ws/import`). User management (`/api/users/*`).
 - **N8N Integration Service**: Simple direct mapping from N8N webhook response to patient fields. No complex extraction - fields are mapped 1:1 as returned by N8N. **PRODUÇÃO**: Apenas unidades 22,23 (enfermarias 10A01-10A20).
-- **Auto Sync Scheduler GPT-4o**: Cron-based automation (cada 15 minutos) com sistema de economia de custos em 4 camadas:
+- **Auto Sync Scheduler GPT-4o**: Cron-based automation (1 hora por padrão, configurável) com sistema de economia de custos em 4 camadas:
   1. Change Detection (85-90% economia) - processa apenas dados alterados
   2. Intelligent Cache (60-80% economia) - cache com TTL dinâmico
   3. GPT-4o-mini (50% economia) - modelo otimizado para custo
-  4. Auto Sync 15min (95%+ economia) - sincronização automática
+  4. Auto Sync 1h (95%+ economia) - sincronização automática (padrão: a cada hora)
 - **Validação de Enfermaria**: Camada de segurança no storage que BLOQUEIA qualquer paciente de enfermarias não-10A*.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware for error catching, automatic logging of request context.
 - **Security**: 
@@ -125,3 +125,38 @@ A resposta inclui uma análise consolidada (`AnaliseGeralMelhorada`) com:
 6. **recomendacoes_gerais_plantao**: Recomendações gerais para a equipe
 
 Resultados são armazenados no campo `clinicalInsights` (JSONB) de cada paciente e exibidos como badges coloridos na tabela de passagem de plantão. O painel lateral de análise IA mostra todos os dados detalhados com cards por protocolo, indicadores visuais e informações expandidas por leito.
+
+## Environment Variables
+
+### Required Secrets (configured via Replit Secrets)
+- `SETUP_KEY` - Chave de setup inicial para criar usuários admin/enfermeiro
+- `SESSION_SECRET` - JWT secret (mínimo 32 caracteres em produção)
+- `OPENAI_API_KEY` - Chave API OpenAI para análise IA
+- `ANTHROPIC_API_KEY` - Chave API Claude (fallback, opcional)
+- `N8N_WEBHOOK_SECRET` - Secret para validação de webhooks N8N
+- `ENCRYPTION_KEY` - Chave AES-256-GCM para criptografia de dados
+
+### N8N Configuration
+- `N8N_API_URL` - URL do webhook N8N para evoluções (padrão: `https://dev-n8n.7care.com.br/webhook/evolucoes`)
+- `N8N_UNIDADES_API_URL` - URL do webhook N8N para unidades de internação (padrão: `https://dev-n8n.7care.com.br/webhook/unidades-internacao`)
+- `N8N_UNIT_IDS` - IDs das unidades para sincronização, separados por vírgula (padrão: `22,23`)
+
+### Auto Sync Configuration
+- `AUTO_SYNC_ENABLED` - Habilita/desabilita sincronização automática (`true`/`false`, padrão: `true`)
+- `AUTO_SYNC_CRON` - Expressão cron para intervalo de sync (padrão: `0 * * * *` = 1 hora)
+
+### Setup Configuration
+- `DEFAULT_ADMIN_PASSWORD` - Senha inicial do usuário admin (padrão: `admin123`, **alterar em produção**)
+- `DEFAULT_ENFERMEIRO_PASSWORD` - Senha inicial do usuário enfermeiro (padrão: `enf123`, **alterar em produção**)
+
+### AI Configuration
+- `OPENAI_MODEL` - Modelo OpenAI para análise (padrão: `gpt-4o-mini`)
+- `ANTHROPIC_MODEL` - Modelo Claude para fallback (padrão: `claude-3-haiku-20240307`)
+
+## Admin Features
+
+### Orphan Cleanup (`/api/admin/cleanup-orphans`)
+Remove pacientes do banco de dados local que não existem mais no N8N. Útil para sincronizar ambientes DEV/PROD após mudanças na fonte de dados.
+
+### Manual Sync
+Sincronização manual disponível via botão no painel admin, independente do scheduler automático.

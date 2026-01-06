@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "./security/jwt";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAlertSchema, insertNursingUnitTemplateSchema, insertNursingUnitManualSchema, updateNursingUnitSchema } from "@shared/schema";
 import { stringifyToToon, isToonFormat } from "./toon";
@@ -790,18 +790,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Verify JWT token (jwt.verify is synchronous)
+      // Verify JWT token using centralized JWT service
       try {
-        const secret = process.env.JWT_SECRET || "11care-secret-key-change-in-production";
-        jwt.verify(token, secret);
+        const payload = verifyAccessToken(token);
+        if (!payload) {
+          logger.warn(`[WebSocket] Connection rejected: Invalid token`);
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
+        }
         
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit("connection", ws, request);
         });
       } catch (error) {
-        logger.warn(`[WebSocket] Connection rejected: Invalid token`);
+        logger.warn(`[WebSocket] Connection rejected: Token verification failed`);
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
+        return;
       }
     } else {
       socket.destroy();
