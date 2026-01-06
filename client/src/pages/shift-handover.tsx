@@ -284,9 +284,11 @@ export default function ShiftHandoverPage() {
       }
       
       // Usa o endpoint correto que inclui análise de IA
+      // IMPORTANTE: forceUpdate: false porque forceUpdate: true causa timeout no N8N
+      // O comportamento é idêntico ao sync automático de 15 minutos
       const response = await apiRequest("POST", "/api/sync-gpt4o/manual", {
         unitIds: "22,23",
-        forceUpdate: true, // Força atualização, bypassing cache
+        forceUpdate: false,
       });
       return response.json();
     },
