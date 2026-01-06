@@ -100,6 +100,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to clear all patients (for database reset)
+  app.delete("/api/admin/patients/clear-all", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { confirm } = req.body;
+    if (confirm !== 'CONFIRMAR_LIMPEZA') {
+      throw new AppError(400, 'Confirmação necessária: envie {"confirm": "CONFIRMAR_LIMPEZA"}');
+    }
+    
+    const patients = await storage.getAllPatients();
+    const totalBefore = patients.length;
+    
+    let deleted = 0;
+    for (const patient of patients) {
+      const success = await storage.deletePatient(patient.id);
+      if (success) deleted++;
+    }
+    
+    logger.info(`Admin cleared all patients: ${deleted}/${totalBefore} deleted`);
+    
+    res.json({ 
+      success: true, 
+      message: `${deleted} pacientes removidos`,
+      totalBefore,
+      deleted,
+      remaining: totalBefore - deleted
+    });
+  }));
+
   app.get("/api/alerts", authMiddleware, async (req, res) => {
     try {
       const alerts = await storage.getAllAlerts();
