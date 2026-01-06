@@ -8,6 +8,7 @@ import { AuthProvider, RequireAuth } from "./lib/auth-context";
 import { Loader2 } from "lucide-react";
 
 const LoginPage = lazy(() => import("@/pages/login"));
+const SetupPage = lazy(() => import("@/pages/setup"));
 const ModulesPage = lazy(() => import("@/pages/modules"));
 const ShiftHandoverPage = lazy(() => import("@/pages/shift-handover"));
 const ImportPage = lazy(() => import("@/pages/import"));
@@ -55,6 +56,9 @@ function Router() {
     <Switch>
         <Route path="/">
           <LazyRoute component={LoginPage} />
+        </Route>
+        <Route path="/setup">
+          <LazyRoute component={SetupPage} />
         </Route>
         <Route path="/modules">
           <ProtectedRoute component={ModulesPage} />
