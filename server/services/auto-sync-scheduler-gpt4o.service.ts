@@ -179,15 +179,15 @@ export class AutoSyncSchedulerGPT4o {
           let fieldsWereExtracted = false;
           const dsEvolucaoText = processed.dadosProcessados.dsEvolucaoCompleta || '';
           if (dsEvolucaoText && dsEvolucaoText.trim() !== '') {
-            // Guarda estado ANTES da extração para comparar
-            const beforeExtraction = JSON.stringify({
-              braden: processed.dadosProcessados.braden,
-              diagnostico: processed.dadosProcessados.diagnostico,
-              dispositivos: processed.dadosProcessados.dispositivos,
-              dieta: processed.dadosProcessados.dieta,
-              mobilidade: processed.dadosProcessados.mobilidade,
-              atb: processed.dadosProcessados.atb
-            });
+            // Guarda estado ANTES da extração para comparar (TODOS os campos clínicos)
+            const clinicalFields = ['braden', 'diagnostico', 'dispositivos', 'dieta', 'mobilidade', 
+                                    'atb', 'alergias', 'curativos', 'aporteSaturacao', 'exames', 
+                                    'cirurgia', 'observacoes', 'previsaoAlta', 'eliminacoes'];
+            
+            const beforeExtraction: Record<string, any> = {};
+            for (const field of clinicalFields) {
+              beforeExtraction[field] = (processed.dadosProcessados as any)[field];
+            }
             
             console.log(`[AutoSync] 📄 Extraindo campos do texto para ${leito}...`);
             const extractedData = await aiServiceGPT4oMini.extractStructuredFieldsFromEvolucao(
@@ -197,19 +197,19 @@ export class AutoSyncSchedulerGPT4o {
             // Merge extracted fields back into processed data
             Object.assign(processed.dadosProcessados, extractedData);
             
-            // Verifica se extração alterou algum campo
-            const afterExtraction = JSON.stringify({
-              braden: processed.dadosProcessados.braden,
-              diagnostico: processed.dadosProcessados.diagnostico,
-              dispositivos: processed.dadosProcessados.dispositivos,
-              dieta: processed.dadosProcessados.dieta,
-              mobilidade: processed.dadosProcessados.mobilidade,
-              atb: processed.dadosProcessados.atb
-            });
+            // Verifica se extração alterou QUALQUER campo clínico
+            const afterExtraction: Record<string, any> = {};
+            for (const field of clinicalFields) {
+              afterExtraction[field] = (processed.dadosProcessados as any)[field];
+            }
             
-            fieldsWereExtracted = beforeExtraction !== afterExtraction;
+            fieldsWereExtracted = JSON.stringify(beforeExtraction) !== JSON.stringify(afterExtraction);
             if (fieldsWereExtracted) {
-              console.log(`[AutoSync] ✅ Extração enriqueceu campos para ${leito}`);
+              // Identifica quais campos foram enriquecidos
+              const enrichedFields = clinicalFields.filter(f => 
+                beforeExtraction[f] !== afterExtraction[f] && afterExtraction[f]
+              );
+              console.log(`[AutoSync] ✅ Extração enriqueceu ${leito}: ${enrichedFields.join(', ')}`);
             }
           }
           

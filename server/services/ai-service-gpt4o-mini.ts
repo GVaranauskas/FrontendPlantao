@@ -475,17 +475,10 @@ JSON:
       return existingData;
     }
 
-    // OTIMIZAÇÃO: Skip se campos principais já estão preenchidos com dados REAIS
-    const fieldsToCheck = ['braden', 'diagnostico', 'dispositivos', 'dieta', 'mobilidade', 'atb'];
-    const filledFields = fieldsToCheck.filter(f => {
-      const val = existingData[f];
-      return this.isRealValue(val);
-    });
-    
-    if (filledFields.length >= 4) {
-      console.log(`[GPT-4o-mini] ⏩ Skip extração: ${filledFields.length}/6 campos já preenchidos`);
-      return existingData;
-    }
+    // OTIMIZAÇÃO: O cache gerencia quando re-extrair baseado no hash do dsEvolucao
+    // Se o texto mudou → cache miss → re-extrai
+    // Se o texto não mudou → cache hit → usa resultado anterior
+    // NÃO fazemos skip baseado em campos preenchidos pois texto pode ter sido atualizado
 
     this.metrics.totalCalls++;
 
