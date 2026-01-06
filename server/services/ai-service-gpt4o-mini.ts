@@ -475,11 +475,24 @@ JSON:
       return existingData;
     }
 
+    // OTIMIZAÇÃO: Skip se campos principais já estão preenchidos com dados REAIS
+    const fieldsToCheck = ['braden', 'diagnostico', 'dispositivos', 'dieta', 'mobilidade', 'atb'];
+    const filledFields = fieldsToCheck.filter(f => {
+      const val = existingData[f];
+      return this.isRealValue(val);
+    });
+    
+    if (filledFields.length >= 4) {
+      console.log(`[GPT-4o-mini] ⏩ Skip extração: ${filledFields.length}/6 campos já preenchidos`);
+      return existingData;
+    }
+
     this.metrics.totalCalls++;
 
-    // Gera chave de cache baseada no texto
-    const textHash = createHash('md5').update(dsEvolucao).digest('hex').substring(0, 12);
-    const cacheKey = `gpt4o-mini:extraction:${textHash}`;
+    // Gera chave de cache baseada no texto E no paciente (full hash para evitar colisões)
+    const patientId = existingData.leito || existingData.id || 'unknown';
+    const textHash = createHash('md5').update(dsEvolucao).digest('hex'); // FULL hash
+    const cacheKey = `gpt4o-mini:extraction:${patientId}:${textHash}`;
 
     // Tenta buscar do cache
     const cached = intelligentCache.get<Partial<PatientData>>(cacheKey, textHash);
@@ -562,6 +575,26 @@ Responda em JSON:
   }
 
   /**
+   * Verifica se um valor é real (não é placeholder/sentinela)
+   */
+  private isRealValue(val: any): boolean {
+    if (val == null || val === undefined) return false;
+    if (typeof val !== 'string') return true;
+    
+    const normalized = val.trim().toUpperCase();
+    if (normalized === '') return false;
+    
+    // Valores sentinela que devem ser tratados como "vazio"
+    const placeholders = [
+      'NULL', 'NULO', 'N/A', 'NA', 'SEM DADOS', 'SEM INFORMAÇÃO', 
+      'SEM INFORMACAO', 'NÃO INFORMADO', 'NAO INFORMADO', 'VAZIO',
+      'INDEFINIDO', 'UNDEFINED', '-', '--', '---', 'S/D', 'S/I'
+    ];
+    
+    return !placeholders.includes(normalized);
+  }
+
+  /**
    * Mescla campos extraídos com dados existentes (prioriza dados já preenchidos)
    */
   private mergeExtractedFields(
@@ -580,13 +613,13 @@ Responda em JSON:
       const existingValue = result[field];
       const extractedValue = extracted[field];
       
-      // Só preenche se o campo existente estiver vazio e o extraído tiver valor
-      if (
-        (!existingValue || existingValue === '' || existingValue === 'null') &&
-        extractedValue && extractedValue !== '' && extractedValue !== 'null'
-      ) {
+      // Só preenche se o campo existente estiver vazio E o extraído tiver valor REAL
+      if (!this.isRealValue(existingValue) && this.isRealValue(extractedValue)) {
         (result as any)[field] = extractedValue;
-        console.log(`[GPT-4o-mini] 📝 ${field}: "${extractedValue.substring(0, 50)}..."`);
+        const preview = typeof extractedValue === 'string' && extractedValue.length > 50 
+          ? extractedValue.substring(0, 50) + '...' 
+          : extractedValue;
+        console.log(`[GPT-4o-mini] 📝 ${field}: "${preview}"`);
       }
     }
 

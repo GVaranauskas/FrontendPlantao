@@ -175,9 +175,20 @@ export class AutoSyncSchedulerGPT4o {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
           
-          // EXTRAÇÃO DE CAMPOS ESTRUTURADOS DO TEXTO dsEvolucao (se campos vazios)
+          // EXTRAÇÃO DE CAMPOS ESTRUTURADOS DO TEXTO dsEvolucao (ANTES do change detection!)
+          let fieldsWereExtracted = false;
           const dsEvolucaoText = processed.dadosProcessados.dsEvolucaoCompleta || '';
           if (dsEvolucaoText && dsEvolucaoText.trim() !== '') {
+            // Guarda estado ANTES da extração para comparar
+            const beforeExtraction = JSON.stringify({
+              braden: processed.dadosProcessados.braden,
+              diagnostico: processed.dadosProcessados.diagnostico,
+              dispositivos: processed.dadosProcessados.dispositivos,
+              dieta: processed.dadosProcessados.dieta,
+              mobilidade: processed.dadosProcessados.mobilidade,
+              atb: processed.dadosProcessados.atb
+            });
+            
             console.log(`[AutoSync] 📄 Extraindo campos do texto para ${leito}...`);
             const extractedData = await aiServiceGPT4oMini.extractStructuredFieldsFromEvolucao(
               dsEvolucaoText,
@@ -185,12 +196,28 @@ export class AutoSyncSchedulerGPT4o {
             );
             // Merge extracted fields back into processed data
             Object.assign(processed.dadosProcessados, extractedData);
+            
+            // Verifica se extração alterou algum campo
+            const afterExtraction = JSON.stringify({
+              braden: processed.dadosProcessados.braden,
+              diagnostico: processed.dadosProcessados.diagnostico,
+              dispositivos: processed.dadosProcessados.dispositivos,
+              dieta: processed.dadosProcessados.dieta,
+              mobilidade: processed.dadosProcessados.mobilidade,
+              atb: processed.dadosProcessados.atb
+            });
+            
+            fieldsWereExtracted = beforeExtraction !== afterExtraction;
+            if (fieldsWereExtracted) {
+              console.log(`[AutoSync] ✅ Extração enriqueceu campos para ${leito}`);
+            }
           }
           
-          // CHANGE DETECTION (bypassed when forceUpdate is true)
+          // CHANGE DETECTION (roda DEPOIS da extração para detectar campos enriquecidos)
+          // Bypassed when forceUpdate is true OU quando extração enriqueceu campos
           const patientId = processed.registro || leito;
           
-          if (!forceUpdate) {
+          if (!forceUpdate && !fieldsWereExtracted) {
             const changeResult = changeDetectionService.detectChanges(
               patientId,
               processed.dadosProcessados
@@ -206,7 +233,14 @@ export class AutoSyncSchedulerGPT4o {
               result.stats.newRecords++;
             } else {
               result.stats.changedRecords++;
+              console.log(`[AutoSync] 🔄 ${leito} alterado: ${changeResult.changedFields.join(', ')}`);
             }
+          } else if (fieldsWereExtracted) {
+            // Extração preencheu campos - SEMPRE salvar
+            result.stats.changedRecords++;
+            console.log(`[AutoSync] 📝 ${leito} enriquecido via extração - forçando persistência`);
+            // Atualiza snapshot para evitar reprocessamento nas próximas execuções
+            changeDetectionService.detectChanges(patientId, processed.dadosProcessados);
           } else {
             // forceUpdate: trata todos como alterados para reprocessar
             result.stats.changedRecords++;
