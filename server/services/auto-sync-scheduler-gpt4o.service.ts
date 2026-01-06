@@ -133,16 +133,19 @@ export class AutoSyncSchedulerGPT4o {
       console.log(`[AutoSync] 🔗 Request unitIds: ${unitIds}, forceUpdate: ${forceUpdate}`);
       const rawData = await n8nIntegrationService.fetchEvolucoes(unitIds, forceUpdate);
 
-      if (!rawData || rawData.length === 0) {
-        console.log('[AutoSync] ⚠️  Nenhum dado retornado do N8N');
-        result.duration = Date.now() - startTime;
-        return result;
-      }
-
-      console.log(`[AutoSync] ✅ ${rawData.length} registros recebidos do N8N`);
-
       // PRODUÇÃO: Filtrar apenas enfermarias das unidades 22,23 (padrão 10A*)
       const ALLOWED_ENFERMARIA_PATTERN = /^10A/; // Unidades 22,23 = enfermarias 10A*
+
+      // Flag para indicar se o fetch do N8N foi bem-sucedido
+      const n8nFetchSuccessful = rawData !== null;
+      
+      if (rawData && rawData.length > 0) {
+        console.log(`[AutoSync] ✅ ${rawData.length} registros recebidos do N8N`);
+      } else if (rawData !== null) {
+        console.log('[AutoSync] ⚠️  N8N retornou array vazio - executando limpeza de órfãos');
+      } else {
+        console.log('[AutoSync] ❌ Falha no fetch do N8N - limpeza será ignorada');
+      }
 
       // 2. PROCESSAR E DETECTAR MUDANÇAS
       console.log('[AutoSync] 🔍 Processando registros...');
@@ -150,7 +153,7 @@ export class AutoSyncSchedulerGPT4o {
       const patientsToProcess: InsertPatient[] = [];
       let skippedCount = 0;
 
-      for (const rawPatient of rawData) {
+      for (const rawPatient of (rawData || [])) {
         const leito = rawPatient.leito || 'DESCONHECIDO';
         
         try {
@@ -163,15 +166,15 @@ export class AutoSyncSchedulerGPT4o {
           }
 
           // PRODUÇÃO: Filtrar apenas enfermarias das unidades 22,23 (padrão 10A*)
-          // Filtro aplicado APÓS processamento para garantir que dsEnfermaria está preenchido
           const dsEnfermaria = processed.dadosProcessados.dsEnfermaria || '';
           if (!ALLOWED_ENFERMARIA_PATTERN.test(dsEnfermaria)) {
             console.log(`[AutoSync] ⚠️  Ignorando paciente leito ${leito} - enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*)`);
             skippedCount++;
             continue;
           }
-
-          // Collect codigoAtendimento e leito for cleanup later (only for valid enfermarias)
+          
+          // COLETAR IDENTIFICADORES após processamento bem-sucedido e validação de enfermaria
+          // Isso garante que usamos exatamente os mesmos dados que serão salvos no banco
           if (processed.dadosProcessados.codigoAtendimento) {
             n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
           }
@@ -217,9 +220,9 @@ export class AutoSyncSchedulerGPT4o {
         }
       }
 
-      result.stats.totalRecords = rawData.length - skippedCount;
+      result.stats.totalRecords = (rawData?.length || 0) - skippedCount;
       console.log(`[AutoSync] 📊 Estatísticas:`);
-      console.log(`   - Recebidos: ${rawData.length}`);
+      console.log(`   - Recebidos: ${rawData?.length || 0}`);
       console.log(`   - Filtrados (outras enfermarias): ${skippedCount}`);
       console.log(`   - Válidos (10A*): ${result.stats.totalRecords}`);
       console.log(`   - Novos: ${result.stats.newRecords}`);
@@ -240,13 +243,20 @@ export class AutoSyncSchedulerGPT4o {
       }
 
       // 5. REMOVER PACIENTES QUE NÃO VIERAM NA RESPOSTA DO N8N (alta hospitalar)
-      if (n8nCodigosAtendimento.size > 0 || n8nLeitos.size > 0) {
+      // SEMPRE executar limpeza quando o fetch do N8N foi bem-sucedido
+      // Isso garante que pacientes órfãos sejam removidos mesmo quando N8N retorna zero registros
+      if (n8nFetchSuccessful) {
         console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
+        console.log(`[AutoSync] 📋 Sets de referência: ${n8nLeitos.size} leitos, ${n8nCodigosAtendimento.size} códigos`);
         const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos);
         result.stats.removedRecords = removedCount;
         if (removedCount > 0) {
           console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
+        } else {
+          console.log(`[AutoSync] ✅ Nenhum paciente para remover`);
         }
+      } else {
+        console.log(`[AutoSync] ⚠️ Limpeza ignorada - falha no fetch do N8N`);
       }
 
       // 6. CALCULAR ECONOMIA
