@@ -100,6 +100,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to get patient stats
+  app.get("/api/admin/patients/stats", requireRole('admin'), asyncHandler(async (req, res) => {
+    const patients = await storage.getAllPatients();
+    res.json({
+      totalPatients: patients.length,
+      timestamp: new Date().toISOString()
+    });
+  }));
+
+  // Admin endpoint to trigger manual sync
+  app.post("/api/admin/patients/sync", requireRole('admin'), asyncHandler(async (req, res) => {
+    const unitIds = '22,23';
+    logger.info(`Admin triggered manual sync for units: ${unitIds}`);
+    
+    const result = await syncEvolucoesByUnitIds(unitIds);
+    const patients = await storage.getAllPatients();
+    
+    res.json({
+      success: true,
+      message: 'Sincronização concluída',
+      syncResult: result,
+      totalPatients: patients.length
+    });
+  }));
+
   // Admin endpoint to clear all patients (for database reset)
   app.delete("/api/admin/patients/clear-all", requireRole('admin'), asyncHandler(async (req, res) => {
     const { confirm } = req.body;
