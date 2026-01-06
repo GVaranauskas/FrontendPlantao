@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   ArrowLeft,
   Users,
@@ -17,6 +20,9 @@ import {
   FileJson,
   Building2,
   AlertCircle,
+  Trash2,
+  RefreshCcw,
+  Loader2,
 } from "lucide-react";
 
 interface AdminModule {
@@ -101,12 +107,47 @@ const adminModules: AdminModule[] = [
   },
 ];
 
+interface DedupeResult {
+  success: boolean;
+  duplicatesRemoved: number;
+  totalPatientsAfter: number;
+  message: string;
+}
+
 export default function AdminMenuPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isDeduping, setIsDeduping] = useState(false);
 
   const { data: pendingCount } = useQuery<{ count: number }>({
     queryKey: ["/api/nursing-unit-changes/count"],
     refetchInterval: 30000,
+  });
+
+  const dedupeMutation = useMutation({
+    mutationFn: async (): Promise<DedupeResult> => {
+      setIsDeduping(true);
+      const response = await apiRequest("POST", "/api/admin/dedupe-patients");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setIsDeduping(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      toast({
+        title: "Limpeza Concluída",
+        description: data.duplicatesRemoved > 0 
+          ? `${data.duplicatesRemoved} registros duplicados removidos. Total atual: ${data.totalPatientsAfter} pacientes.`
+          : "Nenhuma duplicata encontrada. Banco de dados já está limpo.",
+      });
+    },
+    onError: (error: Error) => {
+      setIsDeduping(false);
+      toast({
+        title: "Erro na Limpeza",
+        description: error.message || "Falha ao remover duplicatas",
+        variant: "destructive",
+      });
+    },
   });
 
   const modulesWithPendingCount = adminModules.map((module) => {
@@ -202,6 +243,39 @@ export default function AdminMenuPage() {
         </div>
 
         <div className="mt-8 p-6 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-3 mb-4">
+            <Trash2 className="w-5 h-5 text-destructive" />
+            <h3 className="font-semibold text-foreground">Manutenção do Banco de Dados</h3>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">
+                Remove pacientes duplicados mantendo o registro mais recente por leito.
+                Use esta função após migração ou se houver registros duplicados.
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => dedupeMutation.mutate()}
+              disabled={isDeduping}
+              data-testid="button-dedupe-patients"
+            >
+              {isDeduping ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Limpando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Limpar Duplicatas
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 p-6 bg-muted/50 rounded-lg border">
           <div className="flex items-center gap-3 mb-4">
             <Settings className="w-5 h-5 text-muted-foreground" />
             <h3 className="font-semibold text-foreground">Informações do Sistema</h3>
