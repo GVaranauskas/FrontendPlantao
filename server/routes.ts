@@ -585,6 +585,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==========================================
+  // Dedupe Patients Endpoint - ADMIN ONLY
+  // Remove duplicate patients keeping the most recent by importedAt
+  // ==========================================
+  app.post("/api/admin/dedupe-patients", requireRole('admin'), asyncHandler(async (req, res) => {
+    logger.info(`[${getTimestamp()}] [Dedupe] Starting patient deduplication...`);
+    
+    const allPatients = await storage.getAllPatients();
+    const patientsByLeito = new Map<string, typeof allPatients>();
+    
+    // Group patients by leito
+    for (const patient of allPatients) {
+      const key = patient.leito || 'unknown';
+      if (!patientsByLeito.has(key)) {
+        patientsByLeito.set(key, []);
+      }
+      patientsByLeito.get(key)!.push(patient);
+    }
+    
+    let duplicatesRemoved = 0;
+    const removedIds: string[] = [];
+    
+    // For each leito with multiple patients, keep only the most recent
+    for (const [leito, patients] of patientsByLeito) {
+      if (patients.length > 1) {
+        // Sort by importedAt descending (most recent first)
+        patients.sort((a, b) => {
+          const dateA = a.importedAt ? new Date(a.importedAt).getTime() : 0;
+          const dateB = b.importedAt ? new Date(b.importedAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        
+        // Keep the first (most recent), delete the rest
+        for (let i = 1; i < patients.length; i++) {
+          try {
+            await storage.deletePatient(patients[i].id);
+            removedIds.push(patients[i].id);
+            duplicatesRemoved++;
+            logger.info(`[Dedupe] Removed duplicate for leito ${leito}: ${patients[i].id}`);
+          } catch (error) {
+            logger.error(`[Dedupe] Failed to remove ${patients[i].id}: ${error}`);
+          }
+        }
+      }
+    }
+    
+    logger.info(`[${getTimestamp()}] [Dedupe] Completed: ${duplicatesRemoved} duplicates removed`);
+    res.json({
+      success: true,
+      duplicatesRemoved,
+      removedIds,
+      totalPatientsAfter: allPatients.length - duplicatesRemoved,
+      message: `Removed ${duplicatesRemoved} duplicate patient records`
+    });
+  }));
+
+  // ==========================================
   // Security Audit Endpoints - ADMIN ONLY
   // ==========================================
   
