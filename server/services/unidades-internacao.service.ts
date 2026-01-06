@@ -10,7 +10,8 @@ export interface Enfermaria {
   nome: string;
 }
 
-const API_URL = "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
+// N8N Unidades API URL - configurável via variável de ambiente
+const API_URL = process.env.N8N_UNIDADES_API_URL || "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
 
 export class UnidadesInternacaoService {
   /**

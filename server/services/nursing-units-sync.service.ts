@@ -2,7 +2,8 @@ import { storage } from "../storage";
 import type { InsertNursingUnit, InsertNursingUnitChange, NursingUnit } from "@shared/schema";
 import { logger } from "../lib/logger";
 
-const N8N_UNITS_API = "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
+// N8N Units API URL - configurável via variável de ambiente
+const N8N_UNITS_API = process.env.N8N_UNIDADES_API_URL || "https://dev-n8n.7care.com.br/webhook/unidades-internacao";
 
 // Simple in-memory cache for N8N API responses
 interface CacheEntry<T> {

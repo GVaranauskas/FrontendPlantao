@@ -3,8 +3,6 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { parseToon, isToonFormat } from "./toon";
-// Legado: ImportScheduler desabilitado - sync via AutoSyncSchedulerGPT4o
-// import { importScheduler } from "./services/import-scheduler";
 import { nursingUnitsScheduler } from "./services/nursing-units-scheduler";
 import { setupHelmet, setupRateLimit } from "./security";
 import { registerErrorHandler, AppError } from "./middleware/error-handler";
@@ -112,10 +110,6 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Auto-sync is now handled by frontend via useAutoSync hook
-    // Backend scheduler disabled to avoid conflicts
-    // await importScheduler.startDefaultSchedule();
-
     // Start daily nursing units sync (runs at 6:00 AM)
     await nursingUnitsScheduler.startDailySync("0 6 * * *");
 
@@ -135,15 +129,12 @@ app.use((req, res, next) => {
       console.log('');
       console.log('🚀 Iniciando sistema de otimização GPT-4o-mini...');
 
-      // Inicia scheduler automático (a cada 15 minutos)
-      autoSyncSchedulerGPT4o.start({
-        cronExpression: '*/15 * * * *',
-        enfermarias: [], // Vazio = todas
-        enableAI: true,
-        batchSize: 10
-      });
-
-      console.log('✅ Auto Sync Scheduler iniciado - sincronizando a cada 15 minutos');
+      // Inicia scheduler automático (configurável via AUTO_SYNC_CRON, padrão: 1 hora)
+      autoSyncSchedulerGPT4o.start();
+      
+      const cronInterval = process.env.AUTO_SYNC_CRON || '0 * * * *';
+      const intervalDesc = cronInterval === '0 * * * *' ? '1 hora' : cronInterval;
+      console.log(`✅ Auto Sync Scheduler iniciado - sincronizando a cada ${intervalDesc}`);
 
       // Limpeza automática (a cada 6 horas)
       setInterval(() => {
@@ -163,7 +154,7 @@ app.use((req, res, next) => {
       console.log('   1️⃣ Change Detection (85-90% economia)');
       console.log('   2️⃣ Intelligent Cache (60-80% economia)');
       console.log('   3️⃣ GPT-4o-mini (50% economia)');
-      console.log('   4️⃣ Auto Sync 15min (95%+ economia)');
+      console.log('   4️⃣ Auto Sync 1h (95%+ economia)');
       console.log('   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('   🎯 TOTAL: ~99.8% de economia!');
       console.log('');

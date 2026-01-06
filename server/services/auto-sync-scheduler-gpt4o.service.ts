@@ -9,10 +9,16 @@ import type { InsertPatient } from '@shared/schema';
 /**
  * AUTO SYNC SCHEDULER - GPT-4o-mini
  * 
- * Sincroniza N8N a cada 15 minutos com:
+ * Sincroniza N8N automaticamente com intervalo configurável:
+ * - Padrão: 1 hora (configurável via env AUTO_SYNC_CRON)
  * - Change Detection (processa apenas o que mudou)
  * - IA com GPT-4o-mini (R$ 0,03/análise)
  * - Cache inteligente
+ * 
+ * Variáveis de ambiente:
+ * - AUTO_SYNC_CRON: Expressão cron (padrão: '0 * * * *' = a cada hora)
+ * - AUTO_SYNC_ENABLED: 'true' ou 'false' (padrão: 'true')
+ * - N8N_UNIT_IDS: IDs das unidades (padrão: '22,23')
  * 
  * ECONOMIA: 99.8% vs cenário base
  */
@@ -51,17 +57,24 @@ export class AutoSyncSchedulerGPT4o {
   private lastRun: Date | null = null;
   private syncHistory: SyncResult[] = [];
   
-  // PRODUÇÃO: Apenas unidades 22 e 23 (conforme requisito)
-  private static readonly DEFAULT_UNITS = '22,23';
+  // Configurações via variáveis de ambiente
+  private static readonly DEFAULT_UNITS = process.env.N8N_UNIT_IDS || '22,23';
+  private static readonly DEFAULT_CRON = process.env.AUTO_SYNC_CRON || '0 * * * *'; // A cada hora (padrão)
+  private static readonly AUTO_SYNC_ENABLED = process.env.AUTO_SYNC_ENABLED !== 'false';
   
   private config: SchedulerConfig = {
-    cronExpression: '*/15 * * * *', // A cada 15 minutos
-    enfermarias: ['22', '23'], // Unidades fixas de produção
+    cronExpression: AutoSyncSchedulerGPT4o.DEFAULT_CRON,
+    enfermarias: AutoSyncSchedulerGPT4o.DEFAULT_UNITS.split(','),
     enableAI: true,
     batchSize: 10
   };
 
   start(config?: Partial<SchedulerConfig>): void {
+    if (!AutoSyncSchedulerGPT4o.AUTO_SYNC_ENABLED) {
+      console.log('[AutoSync] ⚠️ Auto-sync desabilitado via AUTO_SYNC_ENABLED=false');
+      return;
+    }
+    
     if (this.isRunning) {
       console.warn('[AutoSync] Já está rodando');
       return;
@@ -70,7 +83,11 @@ export class AutoSyncSchedulerGPT4o {
     this.config = { ...this.config, ...config };
 
     console.log('[AutoSync] Iniciando scheduler...');
-    console.log('[AutoSync] Config:', this.config);
+    console.log('[AutoSync] Config:', {
+      ...this.config,
+      cronExpression: this.config.cronExpression,
+      unitIds: AutoSyncSchedulerGPT4o.DEFAULT_UNITS
+    });
 
     this.task = cron.schedule(this.config.cronExpression, async () => {
       await this.runSyncCycle();

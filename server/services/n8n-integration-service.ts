@@ -23,7 +23,8 @@ interface ProcessedEvolucao {
   erros: string[];
 }
 
-const N8N_API_URL = "https://dev-n8n.7care.com.br/webhook/evolucoes";
+// N8N API URL - configurável via variável de ambiente
+const N8N_API_URL = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
 
 export class N8NIntegrationService {
   /**

@@ -505,13 +505,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endTime = Date.now();
       const latency = endTime - startTime;
 
+      const apiUrl = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
+      
       if (result !== null) {
         logger.info(`[${getTimestamp()}] [Status] N8N API is online (latency: ${latency}ms)`);
         return res.json({
           status: "online",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes"
+          api_url: apiUrl
         });
       } else {
         logger.info(`[${getTimestamp()}] [Status] N8N API returned null (latency: ${latency}ms)`);
@@ -519,18 +521,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "offline",
           latency: `${latency}ms`,
           timestamp: new Date().toISOString(),
-          api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes"
+          api_url: apiUrl
         });
       }
     } catch (error) {
       const latency = 0;
+      const apiUrl = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
       logger.error(`[${getTimestamp()}] [Status] N8N API test failed: ${error instanceof Error ? error.message : String(error)}`);
       
       return res.json({
         status: "offline",
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
-        api_url: "https://dev-n8n.7care.com.br/webhook/evolucoes",
+        api_url: apiUrl,
         erro: error instanceof Error ? error.message : "Connection timeout"
       });
     }
