@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Global Error Handling**: Structured JSON logging (production) and human-readable logs (development), middleware for error catching, automatic logging of request context.
 - **Security**: 
   - **Authentication**: JWT authentication (access/refresh tokens) applied to ALL API endpoints
-  - **Authorization**: Role-Based Access Control (admin, enfermeiro, visualizador) with `requireRole()` middleware
+  - **Authorization**: Role-Based Access Control (admin, enfermagem, visualizador) with `requireRole()` middleware
   - **Input Validation**: Detection-only middleware (`server/middleware/input-validation.ts`) with:
     - SQL injection detection (55+ patterns) - blocks requests but preserves data types for Zod validation
     - UUID parameter validation for all `:id` routes
@@ -160,3 +160,21 @@ Remove pacientes do banco de dados local que não existem mais no N8N. Útil par
 
 ### Manual Sync
 Sincronização manual disponível via botão no painel admin, independente do scheduler automático.
+
+### Bed Transfer Detection
+O sistema detecta automaticamente transferências de leito durante a sincronização:
+- Quando um `codigo_atendimento` existe no N8N com um leito diferente do banco local, o registro antigo é removido
+- Exemplo: Paciente transferido de Leito 24 para Leito 39 - o registro do Leito 24 é removido automaticamente
+- Logs indicam: `[AutoSync] 🔄 Paciente X transferido: leito A -> B`
+
+## Recent Changes (January 2026)
+
+### Role Consistency Fix
+- RBAC roles alinhados com schema.ts: usa "enfermagem" (não "enfermeiro")
+- Afeta: `server/middleware/rbac.ts`, `server/routes/sync-gpt4o.routes.ts`
+- Roles válidos: `admin`, `enfermagem`, `visualizador`
+
+### Bed Transfer Detection
+- Auto-sync agora detecta transferências de leito via `codigo_atendimento`
+- Evita duplicatas quando paciente muda de leito
+- Implementado em: `server/services/auto-sync-scheduler-gpt4o.service.ts`
