@@ -2,11 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from './error-handler';
 import type { JWTPayload } from '../security/jwt';
 
-export type UserRole = 'admin' | 'enfermeiro' | 'visualizador';
+// Match schema definition in shared/schema.ts
+export type UserRole = 'admin' | 'enfermagem';
 
 /**
  * RBAC Middleware - checks if user has required role
- * Usage: requireRole('admin', 'enfermeiro')
+ * Usage: requireRole('admin', 'enfermagem')
  */
 export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -25,12 +26,11 @@ export function requireRole(...allowedRoles: UserRole[]) {
 
 /**
  * Role hierarchy for permission inheritance
- * admin > enfermeiro > visualizador
+ * admin > enfermagem
  */
 export const roleHierarchy: Record<UserRole, number> = {
-  admin: 3,
-  enfermeiro: 2,
-  visualizador: 1,
+  admin: 2,
+  enfermagem: 1,
 };
 
 /**
@@ -56,17 +56,11 @@ export const rolePermissions: Record<UserRole, string[]> = {
     'users:manage',
     'alerts:manage',
   ],
-  enfermeiro: [
+  enfermagem: [
     'patients:read',
     'patients:write',
     'templates:read',
     'import:trigger',
-    'import:view',
-    'alerts:read',
-  ],
-  visualizador: [
-    'patients:read',
-    'templates:read',
     'import:view',
     'alerts:read',
   ],

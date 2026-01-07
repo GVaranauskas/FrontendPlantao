@@ -9,8 +9,8 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// POST /api/sync-gpt4o/manual - requires admin or enfermeiro role
-router.post('/manual', requireRole('admin', 'enfermeiro'), validateUnitIdsBody, (req, res) => {
+// POST /api/sync-gpt4o/manual - requires admin or enfermagem role
+router.post('/manual', requireRole('admin', 'enfermagem'), validateUnitIdsBody, (req, res) => {
   // Support specific unit IDs and forceUpdate via request body
   const { unitIds, forceUpdate } = req.body || {};
   const shouldForceUpdate = forceUpdate === true;

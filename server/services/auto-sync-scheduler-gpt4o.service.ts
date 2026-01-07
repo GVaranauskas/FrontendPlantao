@@ -114,8 +114,10 @@ export class AutoSyncSchedulerGPT4o {
     console.log('='.repeat(80));
 
     // Collect all codigoAtendimento e leitos from N8N response for cleanup later
+    // Also map codigoAtendimento -> leito to detect bed transfers
     const n8nCodigosAtendimento = new Set<string>();
     const n8nLeitos = new Set<string>();
+    const n8nCodigoToLeito = new Map<string, string>();
     
     const result: SyncResult = {
       timestamp: new Date(),
@@ -192,11 +194,17 @@ export class AutoSyncSchedulerGPT4o {
           
           // COLETAR IDENTIFICADORES após processamento bem-sucedido e validação de enfermaria
           // Isso garante que usamos exatamente os mesmos dados que serão salvos no banco
-          if (processed.dadosProcessados.codigoAtendimento) {
-            n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
+          const codigo = processed.dadosProcessados.codigoAtendimento;
+          const leitoProcessado = processed.dadosProcessados.leito;
+          
+          if (codigo) {
+            n8nCodigosAtendimento.add(codigo);
+            if (leitoProcessado) {
+              n8nCodigoToLeito.set(codigo, leitoProcessado);
+            }
           }
-          if (processed.dadosProcessados.leito) {
-            n8nLeitos.add(processed.dadosProcessados.leito);
+          if (leitoProcessado) {
+            n8nLeitos.add(leitoProcessado);
           }
           
           // CHANGE DETECTION (bypassed when forceUpdate is true)
@@ -265,7 +273,7 @@ export class AutoSyncSchedulerGPT4o {
       if (n8nFetchSuccessful) {
         console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
         console.log(`[AutoSync] 📋 Sets de referência: ${n8nLeitos.size} leitos, ${n8nCodigosAtendimento.size} códigos`);
-        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos);
+        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos, n8nCodigoToLeito);
         result.stats.removedRecords = removedCount;
         if (removedCount > 0) {
           console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
@@ -330,18 +338,34 @@ export class AutoSyncSchedulerGPT4o {
     console.log(`[AutoSync] ✅ ${results.length} análises concluídas`);
   }
 
-  private async removeDischargedPatients(currentCodigosAtendimento: Set<string>, currentLeitos: Set<string>): Promise<number> {
+  private async removeDischargedPatients(
+    currentCodigosAtendimento: Set<string>, 
+    currentLeitos: Set<string>,
+    codigoToLeito: Map<string, string>
+  ): Promise<number> {
     // Get all patients from database
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
     
     for (const patient of allPatients) {
       let shouldRemove = false;
+      let removeReason = '';
       
-      // Caso 1: Paciente TEM codigoAtendimento - verificar se ainda existe no N8N
+      // Caso 1: Paciente TEM codigoAtendimento
       if (patient.codigoAtendimento) {
         if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
+          // codigoAtendimento não existe no N8N - paciente teve alta
           shouldRemove = true;
+          removeReason = 'alta hospitalar (código não existe no N8N)';
+        } else if (patient.leito) {
+          // codigoAtendimento existe - verificar se o leito corresponde
+          const n8nLeito = codigoToLeito.get(patient.codigoAtendimento);
+          if (n8nLeito && n8nLeito !== patient.leito) {
+            // Paciente foi transferido de leito - este é um registro órfão
+            shouldRemove = true;
+            removeReason = `transferência de leito (${patient.leito} -> ${n8nLeito})`;
+            console.log(`[AutoSync] 🔄 Paciente ${patient.codigoAtendimento} transferido: leito ${patient.leito} -> ${n8nLeito}`);
+          }
         }
       } 
       // Caso 2: Paciente SEM codigoAtendimento - verificar pelo leito
@@ -349,6 +373,7 @@ export class AutoSyncSchedulerGPT4o {
       else if (patient.leito) {
         if (!currentLeitos.has(patient.leito)) {
           shouldRemove = true;
+          removeReason = 'leito não existe no N8N';
         }
       }
       
@@ -356,7 +381,7 @@ export class AutoSyncSchedulerGPT4o {
         try {
           await storage.deletePatient(patient.id);
           removedCount++;
-          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - alta hospitalar`);
+          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - ${removeReason}`);
         } catch (error) {
           console.error(`[AutoSync] Erro ao remover paciente ${patient.id}:`, error);
         }

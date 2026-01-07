@@ -664,9 +664,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Collect valid identifiers from N8N (only 10A* enfermarias)
+    // Store both individual sets AND the mapping between codigoAtendimento and leito
     const ALLOWED_ENFERMARIA_PATTERN = /^10A/;
     const n8nCodigosAtendimento = new Set<string>();
     const n8nLeitos = new Set<string>();
+    const n8nCodigoToLeito = new Map<string, string>(); // Maps codigoAtendimento -> current leito
     
     for (const rawPatient of rawData) {
       const leito = rawPatient.leito || 'DESCONHECIDO';
@@ -679,11 +681,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dsEnfermaria = processed.dadosProcessados.dsEnfermaria || '';
         if (!ALLOWED_ENFERMARIA_PATTERN.test(dsEnfermaria)) continue;
         
-        if (processed.dadosProcessados.codigoAtendimento) {
-          n8nCodigosAtendimento.add(processed.dadosProcessados.codigoAtendimento);
+        const codigo = processed.dadosProcessados.codigoAtendimento;
+        const leitoProcessado = processed.dadosProcessados.leito;
+        
+        if (codigo) {
+          n8nCodigosAtendimento.add(codigo);
+          if (leitoProcessado) {
+            n8nCodigoToLeito.set(codigo, leitoProcessado);
+          }
         }
-        if (processed.dadosProcessados.leito) {
-          n8nLeitos.add(processed.dadosProcessados.leito);
+        if (leitoProcessado) {
+          n8nLeitos.add(leitoProcessado);
         }
       } catch (error) {
         logger.warn(`[Cleanup] Error processing leito ${leito}: ${error}`);
@@ -695,21 +703,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Get all patients from database
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
-    const removedPatients: { id: string; leito: string; nome: string }[] = [];
+    const removedPatients: { id: string; leito: string; nome: string; reason: string }[] = [];
     
     for (const patient of allPatients) {
       let shouldRemove = false;
+      let removeReason = '';
       
-      // Case 1: Patient HAS codigoAtendimento - check if it still exists in N8N
+      // Case 1: Patient HAS codigoAtendimento
       if (patient.codigoAtendimento) {
         if (!n8nCodigosAtendimento.has(patient.codigoAtendimento)) {
+          // codigoAtendimento doesn't exist in N8N - patient was discharged
           shouldRemove = true;
+          removeReason = 'alta hospitalar (código não existe no N8N)';
+        } else if (patient.leito) {
+          // codigoAtendimento exists - check if leito matches
+          const n8nLeito = n8nCodigoToLeito.get(patient.codigoAtendimento);
+          if (n8nLeito && n8nLeito !== patient.leito) {
+            // Patient was transferred to a different bed - this is an orphan record
+            shouldRemove = true;
+            removeReason = `transferência de leito (${patient.leito} -> ${n8nLeito})`;
+            logger.info(`[Cleanup] Patient ${patient.codigoAtendimento} transferred: leito ${patient.leito} -> ${n8nLeito}`);
+          }
         }
       } 
       // Case 2: Patient WITHOUT codigoAtendimento - check by leito
       else if (patient.leito) {
         if (!n8nLeitos.has(patient.leito)) {
           shouldRemove = true;
+          removeReason = 'leito não existe no N8N';
         }
       }
       
@@ -720,9 +741,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           removedPatients.push({
             id: patient.id,
             leito: patient.leito || 'unknown',
-            nome: patient.nome || 'unknown'
+            nome: patient.nome || 'unknown',
+            reason: removeReason
           });
-          logger.info(`[Cleanup] Removed orphan: ${patient.leito} (${patient.nome})`);
+          logger.info(`[Cleanup] Removed orphan: ${patient.leito} (${patient.nome}) - ${removeReason}`);
         } catch (error) {
           logger.error(`[Cleanup] Error removing patient ${patient.id}: ${error}`);
         }
@@ -1102,7 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -1114,7 +1136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patients = await storage.getAllPatients();
     
@@ -1127,7 +1149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -1140,7 +1162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - single patient
-  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermeiro'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1212,7 +1234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
-  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermeiro'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
