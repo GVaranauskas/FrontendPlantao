@@ -1499,6 +1499,10 @@ export default function ShiftHandoverPage() {
                       </span>
                     </div>
                     <div>
+                      <span className="text-muted-foreground">Sexo:</span>{" "}
+                      <span className="font-medium">{selectedPatient.sexo || "-"}</span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">Data Internação:</span>{" "}
                       <span className="font-medium">{selectedPatient.dataInternacao || "-"}</span>
                     </div>
