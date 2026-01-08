@@ -185,6 +185,7 @@ export default function ShiftHandoverPage() {
   const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [filterCritical, setFilterCritical] = useState(false);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -344,10 +345,22 @@ export default function ShiftHandoverPage() {
   });
 
 
-  const filteredPatients = patients?.filter(p =>
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.leito.includes(searchTerm)
-  ).sort((a, b) => {
+  const isAICritical = (patient: Patient): boolean => {
+    const insights = patient.clinicalInsights as ClinicalInsights | null;
+    return insights?.nivel_alerta === "VERMELHO";
+  };
+
+  const isAIAlert = (patient: Patient): boolean => {
+    const insights = patient.clinicalInsights as ClinicalInsights | null;
+    return insights?.nivel_alerta === "AMARELO";
+  };
+
+  const filteredPatients = patients?.filter(p => {
+    const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.leito.includes(searchTerm);
+    const matchesCriticalFilter = !filterCritical || isAICritical(p);
+    return matchesSearch && matchesCriticalFilter;
+  }).sort((a, b) => {
     const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
     const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
     return leitoA - leitoB;
@@ -356,8 +369,8 @@ export default function ShiftHandoverPage() {
   const stats = {
     complete: patients?.filter(p => p.status === "complete").length || 0,
     pending: patients?.filter(p => p.status === "pending").length || 0,
-    alert: patients?.filter(p => p.alerta === "medium").length || 0,
-    critical: patients?.filter(p => p.alerta === "critical").length || 0,
+    alert: patients?.filter(p => isAIAlert(p)).length || 0,
+    critical: patients?.filter(p => isAICritical(p)).length || 0,
     total: patients?.length || 0
   };
 
@@ -1271,11 +1284,22 @@ export default function ShiftHandoverPage() {
             </div>
             <div className="text-sm font-semibold text-muted-foreground">Com Alertas</div>
           </Card>
-          <Card className="p-4 text-center border-t-4 border-t-destructive bg-gradient-to-br from-card to-destructive/5">
+          <Card 
+            className={`p-4 text-center border-t-4 border-t-destructive bg-gradient-to-br from-card to-destructive/5 cursor-pointer transition-all duration-200 ${
+              filterCritical 
+                ? "ring-2 ring-destructive ring-offset-2 ring-offset-background shadow-lg scale-[1.02]" 
+                : "hover:shadow-md hover:scale-[1.01]"
+            } ${stats.critical === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+            onClick={() => stats.critical > 0 && setFilterCritical(!filterCritical)}
+            data-testid="card-filter-critical"
+          >
             <div className="text-3xl font-bold text-destructive mb-1" data-testid="stat-critical">
               {stats.critical}
             </div>
-            <div className="text-sm font-semibold text-muted-foreground">Críticos</div>
+            <div className="text-sm font-semibold text-muted-foreground flex items-center justify-center gap-1">
+              {filterCritical && <Filter className="w-3 h-3" />}
+              Críticos
+            </div>
           </Card>
           <Card className="p-4 text-center border-t-4 border-t-primary bg-gradient-to-br from-card to-primary/5">
             <div className="text-3xl font-bold text-primary mb-1" data-testid="stat-total">
@@ -1286,16 +1310,31 @@ export default function ShiftHandoverPage() {
         </div>
 
         <div className="mb-4 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar por paciente ou leito..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-              data-testid="input-search"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por paciente ou leito..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+                data-testid="input-search"
+              />
+            </div>
+            {filterCritical && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setFilterCritical(false)}
+                className="flex items-center gap-2 whitespace-nowrap"
+                data-testid="button-clear-filter"
+              >
+                <Filter className="w-4 h-4" />
+                Críticos ({stats.critical})
+                <span className="ml-1 opacity-70">×</span>
+              </Button>
+            )}
           </div>
           <Card className="p-3 bg-muted/30">
             <div className="flex items-center gap-6 text-xs flex-wrap">
