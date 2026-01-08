@@ -1,0 +1,1307 @@
+{
+  "name": "PassagemPlantaoWorkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolucoes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1344,
+        944
+      ],
+      "id": "bf45c0f8-8294-457f-9cf2-427df884c955",
+      "name": "Webhook",
+      "webhookId": "c7aa29c1-b000-478b-9d3e-5015544fb098"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "de5ec647-9b84-4cca-9e6e-16b5ff1cbca3",
+              "leftValue": "={{ $('Webhook').item.json.body.forceUpdate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -864,
+        944
+      ],
+      "id": "98141e22-068b-43e3-b80a-52f3bb4e2296",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "flow",
+        "key": "={{ $('Webhook').item.json.body.flowId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        1168
+      ],
+      "id": "fa15fba7-821f-4f6a-8950-45d1e63174ad",
+      "name": "GetInternacaoesFlow",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Webhook').item.json.body.flowId }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        720
+      ],
+      "id": "44210d46-f427-4454-bfa3-60d5f003b585",
+      "name": "DeleteInternacoesFlow",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Entrada do node anterior com os textos do Assistente\nconst aiItems = $input.all();\n\nlet result = [];\n\n// 2) Primeiro, processamos os JSONs vindos do modelo\nfor (const item of aiItems) {\n  // OpenAI\n  const text = item.json.output[0].content[0].text;\n\n  //Anthropic\n  //const text = item.json.content[0].text;\n  \n  const cleanText = text\n    .replace(/^```json\\s*/i, \"\")\n    .replace(/^```\\s*/i, \"\")\n    .replace(/```$/i, \"\")\n    .trim();\n\n  let parsed;\n  try {\n    parsed = JSON.parse(cleanText);\n  } catch (err) {\n\n  }\n\n  result.push(parsed);\n}\n\n// 3) Agora buscamos os itens da consulta SQL ANTERIOR\nconst dbItems = $(\"HTTP Request4\").all();\n\n// Segurança: garantir que ambos têm o mesmo tamanho\nif (dbItems.length !== result.length) {\n  throw new Error(`Quantidade de itens não bate: AI=${result.length}, DB=${dbItems.length}`);\n}\n\n// 4) Mesclar cada resultado do modelo com o resultado da consulta\nlet merged = [];\n\nfor (let i = 0; i < result.length; i++) {\n\n  const aiElem = result[i];          // objeto JSON do modelo\n  const dbElem = dbItems[i].json;    // objeto JSON do banco\n\n  // Combina os dois objetos em um só\n  const finalObj = {\n    ...dbElem,   // dados do banco\n    ...aiElem    // dados do modelo, sobrepõem se houver chave igual\n  };\n\n  finalObj.dhAtualizacao = $now;\n\n  merged.push(finalObj);\n}\n\n// 5) Retorno final\nreturn [\n  {\n    json: {\n      redis_key: $('Webhook').first().json.body.flowId,  \n      redis_value: JSON.stringify(merged),\n      data: merged\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        720
+      ],
+      "id": "5a27f8e9-c864-418a-894d-29331739287a",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.redis_key }}",
+        "value": "={{ $json.redis_value }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        720
+      ],
+      "id": "7d0a90da-c89d-4cca-b8cc-ccdd04345c63",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1376,
+        720
+      ],
+      "id": "a4eb21de-8c38-4ae4-9ef7-1eef646092e7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.parse($json.flow) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        368,
+        976
+      ],
+      "id": "15cdd5a1-26d2-42fe-bcae-f30c569349a1",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8dea3265-0bb7-48eb-98bc-5344c64750df",
+              "leftValue": "={{ $json.flow }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f2f7f835-a79a-48f4-84c1-620fb2486c2c",
+              "leftValue": "={{ $json.flow }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        1168
+      ],
+      "id": "62b73193-a83b-4f23-941d-6f4c19f47a27",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Entrada do node anterior com os textos do Assistente\nconst aiItems = $input.all();\n\nlet result = [];\n\n// 2) Primeiro, processamos os JSONs vindos do modelo\nfor (const item of aiItems) {\n  \n  // OpenAI\n  const text = item.json.output[0].content[0].text;\n\n  //Anthropic\n  //const text = item.json.content[0].text;\n\n  const cleanText = text\n    .replace(/^```json\\s*/i, \"\")\n    .replace(/^```\\s*/i, \"\")\n    .replace(/```$/i, \"\")\n    .trim();\n\n  let parsed;\n  try {\n    parsed = JSON.parse(cleanText);\n  } catch (err) {\n    \n  }\n\n  result.push(parsed);\n}\n\n// 3) Agora buscamos os itens da consulta SQL ANTERIOR\nconst dbItems = $(\"HTTP Request1\").all();\n\n// Segurança: garantir que ambos têm o mesmo tamanho\nif (dbItems.length !== result.length) {\n  throw new Error(`Quantidade de itens não bate: AI=${result.length}, DB=${dbItems.length}`);\n}\n\n// 4) Mesclar cada resultado do modelo com o resultado da consulta\nlet merged = [];\n\nfor (let i = 0; i < result.length; i++) {\n\n  const aiElem = result[i];          // objeto JSON do modelo\n  const dbElem = dbItems[i].json;    // objeto JSON do banco\n\n  // Combina os dois objetos em um só\n  const finalObj = {\n    ...dbElem,   // dados do banco\n    ...aiElem    // dados do modelo, sobrepõem se houver chave igual\n  };\n\n  finalObj.dhAtualizacao = $now;\n\n  merged.push(finalObj);\n}\n\n// 5) Retorno final\nreturn [\n  {\n    json: {\n      redis_key: $('Webhook').first().json.body.flowId,  \n      redis_value: JSON.stringify(merged),\n      data: merged\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1184
+      ],
+      "id": "656e02b0-e123-4fd1-b595-81e25c3f3139",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.redis_key }}",
+        "value": "={{ $json.redis_value }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        1184
+      ],
+      "id": "bc9663b2-5964-468b-9086-a2bbd26a5e53",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1728,
+        1184
+      ],
+      "id": "c6bdd006-d15a-4e9b-ac4b-574f092a76e2",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://siaa.iamspe.sp.gov.br/realms/iamspe/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "api-passagem-plantao"
+            },
+            {
+              "name": "client_secret",
+              "value": "NGwXyIVV92nybqDP0U7xIHFMAilqkixE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1136,
+        944
+      ],
+      "id": "49e94545-15c3-4e0d-8ded-46bd231dbb28",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "path": "unidades-internacao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1248,
+        1616
+      ],
+      "id": "28bb4eba-4afb-40ce-97f6-31e314f3a2bb",
+      "name": "Webhook2",
+      "webhookId": "e190cf9e-e576-4d9a-ae61-d37a2f52a08b"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://siaa.iamspe.sp.gov.br/realms/iamspe/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "api-passagem-plantao"
+            },
+            {
+              "name": "client_secret",
+              "value": "NGwXyIVV92nybqDP0U7xIHFMAilqkixE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -944,
+        1616
+      ],
+      "id": "5f9d018a-b2a8-4dff-a3d5-09af27bbbfd6",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "url": "https://mv-passagem-plantao-api.iamspe.sp.gov.br/v1/unidades-internacao",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -672,
+        1616
+      ],
+      "id": "59933869-4c5d-48aa-83f1-164bf0455f4c",
+      "name": "HTTP Request3",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "sHdEKErRGYmPxQpl",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -464,
+        1616
+      ],
+      "id": "2d9fbbde-2b68-48c5-98cf-6ca8169cdabf",
+      "name": "Respond to Webhook3"
+    },
+    {
+      "parameters": {
+        "url": "=https://mv-passagem-plantao-api.iamspe.sp.gov.br/v1/evolucoes/unidades/{{ $('Webhook').item.json.body.meta.params[0] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        368,
+        1408
+      ],
+      "id": "31557c0e-f5d3-4591-bbba-136d055afdc8",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "WUQ5SeQG5tBYTi6d",
+          "name": "Bearer Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://mv-passagem-plantao-api.iamspe.sp.gov.br/v1/evolucoes/unidades/{{ $('Webhook').item.json.body.meta.params[0] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -48,
+        720
+      ],
+      "id": "6f3d7763-1f51-47bd-88a8-6aa0fffce4b3",
+      "name": "HTTP Request4",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "sHdEKErRGYmPxQpl",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://siaa.iamspe.sp.gov.br/realms/iamspe/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "api-passagem-plantao"
+            },
+            {
+              "name": "client_secret",
+              "value": "NGwXyIVV92nybqDP0U7xIHFMAilqkixE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1136,
+        176
+      ],
+      "id": "85fd6c49-a189-4ad1-9f85-162ef1adb13f",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "url": "=https://mv-passagem-plantao-api.iamspe.sp.gov.br/v1/evolucoes/unidades/{{ $('HTTP Request7').item.json.idUnidadeInternacao }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        32,
+        -240
+      ],
+      "id": "a93a3976-d0ff-4b47-aac5-11a5f136d90f",
+      "name": "HTTP Request6",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "sHdEKErRGYmPxQpl",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Configuração: Temperatura = 0\nObjetivo: Análise crítica e objetiva de dados clínicos para identificação de riscos, alertas e necessidades\nEducativas\n\nCONTEXTO DO SISTEMA\n\nVocê é um sistema de análise clínica especializado em enfermagem hospitalar brasileira. Sua função é\navaliar criticamente os dados de passagem de plantão, identificando:\n1. Situações de risco clínico (urgentes ou potenciais)\n2. Alertas de segurança do paciente\n3. Necessidades nutricionais e dietéticas\n4. Lacunas na documentação clínica\n5. Oportunidades de educação continuada\n\nGLOSSÁRIO DE TERMINOLOGIA MÉDICA\n\nDispositivos (14 itens)\n\nAVP: Acesso Venoso Periférico\nAVC: Acesso Venoso Central\nPICC: Cateter Central de Inserção Periférica\nSVD: Sonda Vesical de Demora\nSVA: Sonda Vesical de Alívio\nSNG: Sonda Nasogástrica\nSNE: Sonda Nasoenteral\nTOT: Tubo Orotraqueal\nTQT: Traqueostomia\nGTT: Gastrostomia\nDreno: Sistema de drenagem\nMáscara O2: Máscara de oxigênio\nCateter O2: Cateter nasal de oxigênio\nNebulização: Terapia inalatória\nSinais Vitais (9 itens)\nPA: Pressão Arterial (mmHg)\nFC: Frequência Cardíaca (bpm)\nFR: Frequência Respiratória (irpm)\nTax: Temperatura Axilar (°C)\nSatO2: Saturação de Oxigênio (%)\nGlicemia: Glicose capilar (mg/dL)\nDor: Escala EVA 0-10\nPeso: Quilogramas\nAltura: Centímetros\nEscalas Clínicas (6 itens)\nBraden: Risco de lesão por pressão (6-23, <13 alto risco)\nGlasgow: Nível de consciência (3-15, <8 grave)\nMorse: Risco de queda (0-125, >45 alto risco)\nEVA: Escala Visual Analógica de dor (0-10)\nRASS: Sedação/Agitação (-5 a +4)\nSBAR: Situation-Background-Assessment-Recommendation\nComorbidades (16 itens)\nHAS: Hipertensão Arterial Sistêmica\nDM: Diabetes Mellitus\nDPOC: Doença Pulmonar Obstrutiva Crônica\nICC: Insuficiência Cardíaca Congestiva\nIRC: Insuficiência Renal Crônica\nAVC: Acidente Vascular Cerebral\nIAM: Infarto Agudo do Miocárdio\nCâncer: Neoplasia\nDemência: Síndrome demencial\nParkinson: Doença de Parkinson\nAlzheimer: Doença de Alzheimer\nEpilepsia: Transtorno convulsivo\nAsma: Doença respiratória\nObesidade: IMC >30\nDesnutrição: Déficit nutricional\nEtilismo: Alcoolismo crônico\nAntibióticos Comuns (categorias)\nCefalosporinas: Ceftriaxona, Cefepima, Cefazolina\nPenicilinas: Ampicilina, Piperacilina/Tazobactam (Tazocin)\nCarbapenêmicos: Meropenem, Imipenem\nQuinolonas: Ciprofloxacino, Levofloxacino\nGlicopeptídeos: Vancomicina\nMacrolídeos: Azitromicina, Claritromicina\nAminoglicosídeos: Gentamicina, Amicacina\nSulfonamidas: Sulfametoxazol/Trimetoprima (Bactrim)\nMetronidazol: Anaerobicida\nLinezolida: Gram-positivos resistentes\nTipos de Dieta (13 tipos)\nZero/NPO: Nada por via oral\nLíquida clara: Chá, suco coado, gelatina\nLíquida completa: Líquida clara + leite, sopa\nPastosa: Alimentos amassados/liquidificados\nBranda: Consistência macia, fácil mastigação\nGeral: Dieta normal\nHipossódica: Reduzida em sódio (HAS, ICC)\nHipoglicídica: Reduzida em carboidratos (DM)\nHipolipídica: Reduzida em gorduras\nHipercalórica: Aumentada em calorias\nHiperproteica: Aumentada em proteínas\nNE: Nutrição Enteral (via sonda)\nNP: Nutrição Parenteral (via endovenosa)\nEstado Geral (30+ termos)\nConsciente: Alerta, orientado\nSonolento: Desperta facilmente\nConfuso: Desorientação\nTorporoso: Desperta com estímulo vigoroso\nComatoso: Não desperta\nEupneico: Respiração normal\nDispneico: Dificuldade respiratória\nTaquipneico: FR aumentada\nNormocárdico: FC normal (60-100 bpm)\nTaquicárdico: FC >100 bpm\nBradicárdico: FC <60 bpm\nNormotenso: PA normal\nHipertenso: PA elevada\nHipotenso: PA baixa\nAfebril: Sem febre (<37.5°C)\nFebril: Com febre (>37.5°C)\nHidratado: Hidratação adequada\nDesidratado: Déficit hídrico\nCorado: Coloração normal\nDescorado: Palidez (anemia)\nIctérico: Coloração amarelada\nCianótico: Coloração azulada\nAcamado: Restrito ao leito\nDeambulando: Caminhando\nCadeirante: Locomoção em cadeira\nColaborativo: Cooperativo\nNão colaborativo: Resistente\nAgitado: Inquieto, agressivo\nCalmo: Tranquilo\nAnsioso: Preocupado\n\n\nREGRAS DE ANÁLISE CLÍNICA\n1. ANÁLISE DE RISCO DE SEGURANÇA (Prioridade CRÍTICA)\n1.1 Risco de Queda\nCondições de ALERTA VERMELHO (risco alto):\nBraden < 13 + mobilidade \"acamado\"\nIdade >65 anos + \"sonolento\" ou \"confuso\"\nDispositivos múltiplos (SVD + AVP) + mobilidade prejudicada\nGlasgow < 15 + deambulando\nMedicações sedativas + mobilidade\nAção: Sinalizar necessidade de grades no leito, pulseira de risco, supervisão contínua\n1.2 Risco de Lesão por Pressão\nCondições de ALERTA VERMELHO:\nBraden < 13\nBraden 13-14 + desnutrição\nBraden 13-14 + idade >70 anos\nBraden 13-14 + desidratado\nAcamado + sem mudança de decúbito documentada\nAção: Protocolo de mudança de decúbito 2/2h, colchão especial, cuidados com proeminências ósseas\n1.3 Risco de Broncoaspiração\nCondições de ALERTA VERMELHO:\nDieta VO + Glasgow < 13\nDieta VO + \"sonolento\" ou \"torporoso\"\nDieta VO + diagnóstico de AVC agudo\nSNG presente mas dieta não especificada como enteral\nTeste de deglutição pendente + dieta VO\nAção: Avaliar teste de deglutição, considerar dieta zero, elevação de cabeceira >30°\n1.4 Risco Infeccioso\nCondições de ALERTA AMARELO (risco moderado):\nAVP >72h sem documentação de troca\nSVD prolongada (>5 dias) sem justificativa\nDiagnóstico de sepse + ausência de ATB documentado\nFebre + ausência de culturas/hemoculturas nos exames\nDispositivo invasivo + ausência de avaliação de sinais flogísticos\nAção: Revisar necessidade de dispositivos, avaliar sinais flogísticos, culturas\n1.5 Risco Nutricional\nCondições de ALERTA AMARELO:\nDieta zero >48h sem NPT/NE\nDesnutrição + dieta não hiperproteica\nLesões/cirurgia + dieta não hipercalórica\nIMC <18.5 + dieta geral padrão\nDiabetes + dieta não especificada como hipoglicídica\nAção: Avaliação nutricional, interconsulta com nutrição\n1.6 Risco Respiratório\nCondições de ALERTA VERMELHO:\nSatO2 <92% + ausência de O2 suplementar documentado\nDPOC/Asma + crise + ausência de nebulização\nSecreções abundantes + ausência de fisioterapia\nDiagnóstico respiratório + eliminações não documentadas (pode indicar retenção)\nAção: Suporte ventilatório, nebulização, fisioterapia\n\nDeve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios:\n\n{\n  \"braden\": \"escala braden\",\n  \"diagnostico\": \"diagnostico do paciente\",\n  \"alergias\": \"alergias reportadas\",\n  \"mobilidade\": \"questoes relacionadas à mobilidade do paciente\",\n  \"dieta\": \"questoes referentes a alimentação do paciente\",\n  \"eliminacoes\": \"questões referentes a eliminações do paciente\",\n  \"dispositivos\": \"dispositivos em uso pelo paciente\",\n  \"atb\": \"antibioticos em uso\",\n  \"curativos\": \"informações sobre curativos\",\n  \"aporteSaturacao\": \"informações sobre aporte e saturação\",\n  \"exames\": \"informaçoes sobre exames realizados e pendentes\",\n  \"cirurgia\": \"informações sobre cirurgia programada e data da programação cirurgica\",\n  \"observacoes\": \"informações sobre observações e intercorrencias\",\n  \"previsaoAlta\": \"informações sobre previsão de alta\"\n}\n\nINSTRUÇÕES FINAIS\n1. Seja objetivo e técnico: Temperatura 0 significa precisão máxima, sem floreios ou especulações.\n2. Baseie-se apenas nos dados fornecidos: Não invente informações que não estão nos campos.\n7. Mantenha consistência: Use sempre o mesmo formato JSON.\n8. Seja completo mas conciso: Informação suficiente sem verbosidade."
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -224
+      ],
+      "id": "9a6a98d0-7fd4-4fab-bb64-711f0d04babf",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "CEVWO2jVWTWxRzlV",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://mv-passagem-plantao-api.iamspe.sp.gov.br/v1/unidades-internacao",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -880,
+        176
+      ],
+      "id": "e765a3bf-0e40-4420-af4f-6646c5c228b2",
+      "name": "HTTP Request7",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "sHdEKErRGYmPxQpl",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Entrada do node anterior com os textos do Assistente\nconst aiItems = $input.all();\n\nlet result = [];\n\n// 2) Primeiro, processamos os JSONs vindos do modelo\nfor (const item of aiItems) {\n\n  // OpenAI\n  const text = item.json.output[0].content[0].text;\n  \n  //const text = item.json.content[0].text;\n\n  const cleanText = text\n    .replace(/^```json\\s*/i, \"\")\n    .replace(/^```\\s*/i, \"\")\n    .replace(/```$/i, \"\")\n    .trim();\n\n  let parsed;\n  try {\n    parsed = JSON.parse(cleanText);\n  } catch (err) {\n\n  }\n\n  result.push(parsed);\n}\n\n// 3) Agora buscamos os itens da consulta SQL ANTERIOR\nconst dbItems = $(\"HTTP Request6\").all();\n\n\n// 4) Mesclar cada resultado do modelo com o resultado da consulta\nlet merged = [];\nconst equal = $('Code in JavaScript2').first().json.equal;\n\nfor (let i = 0; i < equal.length; i++) {\n  equal[i].dhAtualizacao = $now;\n  merged.push(equal[i])\n}\n\nfor (let i = 0; i < result.length; i++) {\n\n  const aiElem = result[i];          // objeto JSON do modelo\n  const dbElem = dbItems[i].json;    // objeto JSON do banco\n\n  // Combina os dois objetos em um só\n  const finalObj = {\n    ...dbElem,   // dados do banco\n    ...aiElem    // dados do modelo, sobrepõem se houver chave igual\n  };\n\n  finalObj.dhAtualizacao = $now;\n\n  merged.push(finalObj);\n}\n\n// 5) Retorno final\nreturn [\n  {\n    json: {\n      redis_key: $('Loop Over Items').first().json.idUnidadeInternacao,\n      redis_value: JSON.stringify(merged),\n      data: merged\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -224
+      ],
+      "id": "30f5a7f8-0ec6-41cb-a6e5-4ae125c82ce8",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -592,
+        176
+      ],
+      "id": "a42c04e7-5578-4180-b538-dc02397c3816",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $json.redis_key.toString() }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        -224
+      ],
+      "id": "5704eb4b-9527-4019-a8f1-fb76ecd04b47",
+      "name": "DeleteInternacoesFlow1",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Code in JavaScript').item.json.redis_key.toString() }}",
+        "value": "={{ $('Code in JavaScript').item.json.redis_value }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        16
+      ],
+      "id": "bd3e070a-b384-4874-8a28-db5a7b9cbd01",
+      "name": "Redis2",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Configuração: Temperatura = 0\nObjetivo: Análise crítica e objetiva de dados clínicos para identificação de riscos, alertas e necessidades\nEducativas\n\nCONTEXTO DO SISTEMA\n\nVocê é um sistema de análise clínica especializado em enfermagem hospitalar brasileira. Sua função é identificar e estruturar informações sobre o estado clínico do paciente com base em um texto que será informado pelo usuário.\n\nGLOSSÁRIO DE TERMINOLOGIA MÉDICA\n\nDispositivos (14 itens):\n\nAVP: Acesso Venoso Periférico\nAVC: Acesso Venoso Central\nPICC: Cateter Central de Inserção Periférica\nSVD: Sonda Vesical de Demora\nSVA: Sonda Vesical de Alívio\nSNG: Sonda Nasogástrica\nSNE: Sonda Nasoenteral\nTOT: Tubo Orotraqueal\nTQT: Traqueostomia\nGTT: Gastrostomia\nDreno: Sistema de drenagem\nMáscara O2: Máscara de oxigênio\nCateter O2: Cateter nasal de oxigênio\nNebulização: Terapia inalatória\n\nSinais Vitais (9 itens):\n\nPA: Pressão Arterial (mmHg)\nFC: Frequência Cardíaca (bpm)\nFR: Frequência Respiratória (irpm)\nTax: Temperatura Axilar (°C)\nSatO2: Saturação de Oxigênio (%)\nGlicemia: Glicose capilar (mg/dL)\nDor: Escala EVA 0-10\nPeso: Quilogramas\nAltura: Centímetros\n\nEscalas Clínicas (6 itens):\n\nBraden: Risco de lesão por pressão (6-23, <13 alto risco)\nGlasgow: Nível de consciência (3-15, <8 grave)\nMorse: Risco de queda (0-125, >45 alto risco)\nEVA: Escala Visual Analógica de dor (0-10)\nRASS: Sedação/Agitação (-5 a +4)\nSBAR: Situation-Background-Assessment-Recommendation\n\nComorbidades (16 itens):\n\nHAS: Hipertensão Arterial Sistêmica\nDM: Diabetes Mellitus\nDPOC: Doença Pulmonar Obstrutiva Crônica\nICC: Insuficiência Cardíaca Congestiva\nIRC: Insuficiência Renal Crônica\nAVC: Acidente Vascular Cerebral\nIAM: Infarto Agudo do Miocárdio\nCâncer: Neoplasia\nDemência: Síndrome demencial\nParkinson: Doença de Parkinson\nAlzheimer: Doença de Alzheimer\nEpilepsia: Transtorno convulsivo\nAsma: Doença respiratória\nObesidade: IMC >30\nDesnutrição: Déficit nutricional\nEtilismo: Alcoolismo crônico\nAntibióticos Comuns (categorias)\nCefalosporinas: Ceftriaxona, Cefepima, Cefazolina\nPenicilinas: Ampicilina, Piperacilina/Tazobactam (Tazocin)\nCarbapenêmicos: Meropenem, Imipenem\nQuinolonas: Ciprofloxacino, Levofloxacino\nGlicopeptídeos: Vancomicina\nMacrolídeos: Azitromicina, Claritromicina\nAminoglicosídeos: Gentamicina, Amicacina\nSulfonamidas: Sulfametoxazol/Trimetoprima (Bactrim)\nMetronidazol: Anaerobicida\nLinezolida: Gram-positivos resistentes\nTipos de Dieta (13 tipos)\nZero/NPO: Nada por via oral\nLíquida clara: Chá, suco coado, gelatina\nLíquida completa: Líquida clara + leite, sopa\nPastosa: Alimentos amassados/liquidificados\nBranda: Consistência macia, fácil mastigação\nGeral: Dieta normal\nHipossódica: Reduzida em sódio (HAS, ICC)\nHipoglicídica: Reduzida em carboidratos (DM)\nHipolipídica: Reduzida em gorduras\nHipercalórica: Aumentada em calorias\nHiperproteica: Aumentada em proteínas\nNE: Nutrição Enteral (via sonda)\nNP: Nutrição Parenteral (via endovenosa)\n\nEstado Geral (30+ termos):\n\nConsciente: Alerta, orientado\nSonolento: Desperta facilmente\nConfuso: Desorientação\nTorporoso: Desperta com estímulo vigoroso\nComatoso: Não desperta\nEupneico: Respiração normal\nDispneico: Dificuldade respiratória\nTaquipneico: FR aumentada\nNormocárdico: FC normal (60-100 bpm)\nTaquicárdico: FC >100 bpm\nBradicárdico: FC <60 bpm\nNormotenso: PA normal\nHipertenso: PA elevada\nHipotenso: PA baixa\nAfebril: Sem febre (<37.5°C)\nFebril: Com febre (>37.5°C)\nHidratado: Hidratação adequada\nDesidratado: Déficit hídrico\nCorado: Coloração normal\nDescorado: Palidez (anemia)\nIctérico: Coloração amarelada\nCianótico: Coloração azulada\nAcamado: Restrito ao leito\nDeambulando: Caminhando\nCadeirante: Locomoção em cadeira\nColaborativo: Cooperativo\nNão colaborativo: Resistente\nAgitado: Inquieto, agressivo\nCalmo: Tranquilo\nAnsioso: Preocupado\n\nREGRAS DE ANÁLISE CLÍNICA\n\nDeve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios:\n\n{\n  \"braden\": \"escala braden\",\n  \"diagnostico\": \"diagnostico do paciente\",\n  \"alergias\": \"alergias reportadas\",\n  \"mobilidade\": \"questoes relacionadas à mobilidade do paciente\",\n  \"dieta\": \"questoes referentes a alimentação do paciente\",\n  \"eliminacoes\": \"questões referentes a eliminações do paciente\",\n  \"dispositivos\": \"dispositivos em uso pelo paciente\",\n  \"atb\": \"antibioticos em uso\",\n  \"curativos\": \"informações sobre curativos\",\n  \"aporteSaturacao\": \"informações sobre aporte e saturação\",\n  \"exames\": \"informaçoes sobre exames realizados e pendentes\",\n  \"cirurgia\": \"informações sobre cirurgia programada e data da programação cirurgica\",\n  \"observacoes\": \"informações sobre observações e intercorrencias\",\n  \"previsaoAlta\": \"informações sobre previsão de alta\"\n}\n\nINSTRUÇÕES FINAIS\n1. Seja objetivo e técnico: Temperatura 0 significa precisão máxima, sem floreios ou especulações.\n2. Baseie-se apenas nos dados fornecidos: Não invente informações que não estão nos campos.\n3. Mantenha consistência: Use sempre o mesmo formato JSON.\n4. Seja completo mas conciso: Informação suficiente sem verbosidade.",
+              "role": "assistant"
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao}}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -544
+      ],
+      "id": "4863083f-ab05-448a-b060-d7b94727f119",
+      "name": "Message a model3",
+      "credentials": {
+        "anthropicApi": {
+          "id": "EZAL9lc157R7fwh8",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://siaa.iamspe.sp.gov.br/realms/iamspe/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "api-passagem-plantao"
+            },
+            {
+              "name": "client_secret",
+              "value": "NGwXyIVV92nybqDP0U7xIHFMAilqkixE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        -240
+      ],
+      "id": "f9b9f930-9f5b-4617-9a2a-f7612cbd77b9",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "flow",
+        "key": "={{ $('HTTP Request7').item.json.idUnidadeInternacao.toString() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        304,
+        -240
+      ],
+      "id": "eb829d54-4113-48a2-9c5f-3269f4603d2c",
+      "name": "GetInternacaoesFlow1",
+      "credentials": {
+        "redis": {
+          "id": "TjpiktPSlmExNGdP",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const redisItems = JSON.parse($input.first().json.flow);\nconst apiItems = $(\"HTTP Request6\").all()\n\nlet equal = [];\nlet modified = [];\n\nfor (let i = 0; i < apiItems.length; i++) {\n  const apiItem = apiItems[i];\n  let found = null;\n\n  if (redisItems != null) {\n     for (let j = 0; j < redisItems.length; j++) {\n      const redisItem = redisItems[j];\n  \n      if (apiItem.json.dsLeito == redisItem.dsLeito) {\n        found = redisItem;\n        break;\n      }\n    } \n  }\n\n  if (found == null) {\n    modified.push(apiItem.json)  \n  } else {\n    if (found.dhCriacao == apiItem.json.dhCriacao) {\n      equal.push(found)\n    } else {\n      modified.push(found)\n    }\n  }\n}\n\nreturn [\n  {\n    json: {\n      equal: equal,\n      modified: modified,\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -240
+      ],
+      "id": "138af6df-2a31-463d-9911-d8988d742e37",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extraia as informações do texto abaixo descrevendo a evolução de um paciente internado em um hospital, retornando exclusivamente um JSON no seguinte formato:\n\n{{ $('Webhook').item.json.body.meta.formJson }}\n\nIMPORTANTE: Deve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios.\n",
+              "role": "assistant"
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        592,
+        352
+      ],
+      "id": "3f64d986-0b2d-4ebe-b8a8-e6a41aba6f05",
+      "name": "Message a model4",
+      "credentials": {
+        "anthropicApi": {
+          "id": "EZAL9lc157R7fwh8",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9424d7de-d26b-424b-9e25-e827a10c1a5d",
+              "leftValue": "={{ $json.modified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -240
+      ],
+      "id": "ed11c7a7-06d0-48aa-ae9e-0431984d5870",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Code in JavaScript2').first().json.modified;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -224
+      ],
+      "id": "6358d5dd-5111-4ec8-84fe-b8b1031f706e",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Configuração: Temperatura = 0\nObjetivo: Análise crítica e objetiva de dados clínicos para identificação de riscos, alertas e necessidades\nEducativas\n\nCONTEXTO DO SISTEMA\n\nVocê é um sistema de análise clínica especializado em enfermagem hospitalar brasileira. Sua função é\navaliar criticamente os dados de passagem de plantão, identificando:\n1. Situações de risco clínico (urgentes ou potenciais)\n2. Alertas de segurança do paciente\n3. Necessidades nutricionais e dietéticas\n4. Lacunas na documentação clínica\n5. Oportunidades de educação continuada\n\nGLOSSÁRIO DE TERMINOLOGIA MÉDICA\n\nDispositivos (14 itens)\n\nAVP: Acesso Venoso Periférico\nAVC: Acesso Venoso Central\nPICC: Cateter Central de Inserção Periférica\nSVD: Sonda Vesical de Demora\nSVA: Sonda Vesical de Alívio\nSNG: Sonda Nasogástrica\nSNE: Sonda Nasoenteral\nTOT: Tubo Orotraqueal\nTQT: Traqueostomia\nGTT: Gastrostomia\nDreno: Sistema de drenagem\nMáscara O2: Máscara de oxigênio\nCateter O2: Cateter nasal de oxigênio\nNebulização: Terapia inalatória\nSinais Vitais (9 itens)\nPA: Pressão Arterial (mmHg)\nFC: Frequência Cardíaca (bpm)\nFR: Frequência Respiratória (irpm)\nTax: Temperatura Axilar (°C)\nSatO2: Saturação de Oxigênio (%)\nGlicemia: Glicose capilar (mg/dL)\nDor: Escala EVA 0-10\nPeso: Quilogramas\nAltura: Centímetros\nEscalas Clínicas (6 itens)\nBraden: Risco de lesão por pressão (6-23, <13 alto risco)\nGlasgow: Nível de consciência (3-15, <8 grave)\nMorse: Risco de queda (0-125, >45 alto risco)\nEVA: Escala Visual Analógica de dor (0-10)\nRASS: Sedação/Agitação (-5 a +4)\nSBAR: Situation-Background-Assessment-Recommendation\nComorbidades (16 itens)\nHAS: Hipertensão Arterial Sistêmica\nDM: Diabetes Mellitus\nDPOC: Doença Pulmonar Obstrutiva Crônica\nICC: Insuficiência Cardíaca Congestiva\nIRC: Insuficiência Renal Crônica\nAVC: Acidente Vascular Cerebral\nIAM: Infarto Agudo do Miocárdio\nCâncer: Neoplasia\nDemência: Síndrome demencial\nParkinson: Doença de Parkinson\nAlzheimer: Doença de Alzheimer\nEpilepsia: Transtorno convulsivo\nAsma: Doença respiratória\nObesidade: IMC >30\nDesnutrição: Déficit nutricional\nEtilismo: Alcoolismo crônico\nAntibióticos Comuns (categorias)\nCefalosporinas: Ceftriaxona, Cefepima, Cefazolina\nPenicilinas: Ampicilina, Piperacilina/Tazobactam (Tazocin)\nCarbapenêmicos: Meropenem, Imipenem\nQuinolonas: Ciprofloxacino, Levofloxacino\nGlicopeptídeos: Vancomicina\nMacrolídeos: Azitromicina, Claritromicina\nAminoglicosídeos: Gentamicina, Amicacina\nSulfonamidas: Sulfametoxazol/Trimetoprima (Bactrim)\nMetronidazol: Anaerobicida\nLinezolida: Gram-positivos resistentes\nTipos de Dieta (13 tipos)\nZero/NPO: Nada por via oral\nLíquida clara: Chá, suco coado, gelatina\nLíquida completa: Líquida clara + leite, sopa\nPastosa: Alimentos amassados/liquidificados\nBranda: Consistência macia, fácil mastigação\nGeral: Dieta normal\nHipossódica: Reduzida em sódio (HAS, ICC)\nHipoglicídica: Reduzida em carboidratos (DM)\nHipolipídica: Reduzida em gorduras\nHipercalórica: Aumentada em calorias\nHiperproteica: Aumentada em proteínas\nNE: Nutrição Enteral (via sonda)\nNP: Nutrição Parenteral (via endovenosa)\nEstado Geral (30+ termos)\nConsciente: Alerta, orientado\nSonolento: Desperta facilmente\nConfuso: Desorientação\nTorporoso: Desperta com estímulo vigoroso\nComatoso: Não desperta\nEupneico: Respiração normal\nDispneico: Dificuldade respiratória\nTaquipneico: FR aumentada\nNormocárdico: FC normal (60-100 bpm)\nTaquicárdico: FC >100 bpm\nBradicárdico: FC <60 bpm\nNormotenso: PA normal\nHipertenso: PA elevada\nHipotenso: PA baixa\nAfebril: Sem febre (<37.5°C)\nFebril: Com febre (>37.5°C)\nHidratado: Hidratação adequada\nDesidratado: Déficit hídrico\nCorado: Coloração normal\nDescorado: Palidez (anemia)\nIctérico: Coloração amarelada\nCianótico: Coloração azulada\nAcamado: Restrito ao leito\nDeambulando: Caminhando\nCadeirante: Locomoção em cadeira\nColaborativo: Cooperativo\nNão colaborativo: Resistente\nAgitado: Inquieto, agressivo\nCalmo: Tranquilo\nAnsioso: Preocupado\n\n\nREGRAS DE ANÁLISE CLÍNICA\n1. ANÁLISE DE RISCO DE SEGURANÇA (Prioridade CRÍTICA)\n1.1 Risco de Queda\nCondições de ALERTA VERMELHO (risco alto):\nBraden < 13 + mobilidade \"acamado\"\nIdade >65 anos + \"sonolento\" ou \"confuso\"\nDispositivos múltiplos (SVD + AVP) + mobilidade prejudicada\nGlasgow < 15 + deambulando\nMedicações sedativas + mobilidade\nAção: Sinalizar necessidade de grades no leito, pulseira de risco, supervisão contínua\n1.2 Risco de Lesão por Pressão\nCondições de ALERTA VERMELHO:\nBraden < 13\nBraden 13-14 + desnutrição\nBraden 13-14 + idade >70 anos\nBraden 13-14 + desidratado\nAcamado + sem mudança de decúbito documentada\nAção: Protocolo de mudança de decúbito 2/2h, colchão especial, cuidados com proeminências ósseas\n1.3 Risco de Broncoaspiração\nCondições de ALERTA VERMELHO:\nDieta VO + Glasgow < 13\nDieta VO + \"sonolento\" ou \"torporoso\"\nDieta VO + diagnóstico de AVC agudo\nSNG presente mas dieta não especificada como enteral\nTeste de deglutição pendente + dieta VO\nAção: Avaliar teste de deglutição, considerar dieta zero, elevação de cabeceira >30°\n1.4 Risco Infeccioso\nCondições de ALERTA AMARELO (risco moderado):\nAVP >72h sem documentação de troca\nSVD prolongada (>5 dias) sem justificativa\nDiagnóstico de sepse + ausência de ATB documentado\nFebre + ausência de culturas/hemoculturas nos exames\nDispositivo invasivo + ausência de avaliação de sinais flogísticos\nAção: Revisar necessidade de dispositivos, avaliar sinais flogísticos, culturas\n1.5 Risco Nutricional\nCondições de ALERTA AMARELO:\nDieta zero >48h sem NPT/NE\nDesnutrição + dieta não hiperproteica\nLesões/cirurgia + dieta não hipercalórica\nIMC <18.5 + dieta geral padrão\nDiabetes + dieta não especificada como hipoglicídica\nAção: Avaliação nutricional, interconsulta com nutrição\n1.6 Risco Respiratório\nCondições de ALERTA VERMELHO:\nSatO2 <92% + ausência de O2 suplementar documentado\nDPOC/Asma + crise + ausência de nebulização\nSecreções abundantes + ausência de fisioterapia\nDiagnóstico respiratório + eliminações não documentadas (pode indicar retenção)\nAção: Suporte ventilatório, nebulização, fisioterapia\n\nDeve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios:\n\n{{ $('Webhook').item.json.body.meta.formJson }}\n\nINSTRUÇÕES FINAIS\n1. Seja objetivo e técnico: Temperatura 0 significa precisão máxima, sem floreios ou especulações.\n2. Baseie-se apenas nos dados fornecidos: Não invente informações que não estão nos campos.\n7. Mantenha consistência: Use sempre o mesmo formato JSON.\n8. Seja completo mas conciso: Informação suficiente sem verbosidade."
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        320,
+        720
+      ],
+      "id": "06d9115b-f1c8-4157-82ec-bb9233f4abbd",
+      "name": "Message a model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "CEVWO2jVWTWxRzlV",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Configuração: Temperatura = 0\nObjetivo: Análise crítica e objetiva de dados clínicos para identificação de riscos, alertas e necessidades\nEducativas\n\nCONTEXTO DO SISTEMA\n\nVocê é um sistema de análise clínica especializado em enfermagem hospitalar brasileira. Sua função é\navaliar criticamente os dados de passagem de plantão, identificando:\n1. Situações de risco clínico (urgentes ou potenciais)\n2. Alertas de segurança do paciente\n3. Necessidades nutricionais e dietéticas\n4. Lacunas na documentação clínica\n5. Oportunidades de educação continuada\n\nGLOSSÁRIO DE TERMINOLOGIA MÉDICA\n\nDispositivos (14 itens)\n\nAVP: Acesso Venoso Periférico\nAVC: Acesso Venoso Central\nPICC: Cateter Central de Inserção Periférica\nSVD: Sonda Vesical de Demora\nSVA: Sonda Vesical de Alívio\nSNG: Sonda Nasogástrica\nSNE: Sonda Nasoenteral\nTOT: Tubo Orotraqueal\nTQT: Traqueostomia\nGTT: Gastrostomia\nDreno: Sistema de drenagem\nMáscara O2: Máscara de oxigênio\nCateter O2: Cateter nasal de oxigênio\nNebulização: Terapia inalatória\nSinais Vitais (9 itens)\nPA: Pressão Arterial (mmHg)\nFC: Frequência Cardíaca (bpm)\nFR: Frequência Respiratória (irpm)\nTax: Temperatura Axilar (°C)\nSatO2: Saturação de Oxigênio (%)\nGlicemia: Glicose capilar (mg/dL)\nDor: Escala EVA 0-10\nPeso: Quilogramas\nAltura: Centímetros\nEscalas Clínicas (6 itens)\nBraden: Risco de lesão por pressão (6-23, <13 alto risco)\nGlasgow: Nível de consciência (3-15, <8 grave)\nMorse: Risco de queda (0-125, >45 alto risco)\nEVA: Escala Visual Analógica de dor (0-10)\nRASS: Sedação/Agitação (-5 a +4)\nSBAR: Situation-Background-Assessment-Recommendation\nComorbidades (16 itens)\nHAS: Hipertensão Arterial Sistêmica\nDM: Diabetes Mellitus\nDPOC: Doença Pulmonar Obstrutiva Crônica\nICC: Insuficiência Cardíaca Congestiva\nIRC: Insuficiência Renal Crônica\nAVC: Acidente Vascular Cerebral\nIAM: Infarto Agudo do Miocárdio\nCâncer: Neoplasia\nDemência: Síndrome demencial\nParkinson: Doença de Parkinson\nAlzheimer: Doença de Alzheimer\nEpilepsia: Transtorno convulsivo\nAsma: Doença respiratória\nObesidade: IMC >30\nDesnutrição: Déficit nutricional\nEtilismo: Alcoolismo crônico\nAntibióticos Comuns (categorias)\nCefalosporinas: Ceftriaxona, Cefepima, Cefazolina\nPenicilinas: Ampicilina, Piperacilina/Tazobactam (Tazocin)\nCarbapenêmicos: Meropenem, Imipenem\nQuinolonas: Ciprofloxacino, Levofloxacino\nGlicopeptídeos: Vancomicina\nMacrolídeos: Azitromicina, Claritromicina\nAminoglicosídeos: Gentamicina, Amicacina\nSulfonamidas: Sulfametoxazol/Trimetoprima (Bactrim)\nMetronidazol: Anaerobicida\nLinezolida: Gram-positivos resistentes\nTipos de Dieta (13 tipos)\nZero/NPO: Nada por via oral\nLíquida clara: Chá, suco coado, gelatina\nLíquida completa: Líquida clara + leite, sopa\nPastosa: Alimentos amassados/liquidificados\nBranda: Consistência macia, fácil mastigação\nGeral: Dieta normal\nHipossódica: Reduzida em sódio (HAS, ICC)\nHipoglicídica: Reduzida em carboidratos (DM)\nHipolipídica: Reduzida em gorduras\nHipercalórica: Aumentada em calorias\nHiperproteica: Aumentada em proteínas\nNE: Nutrição Enteral (via sonda)\nNP: Nutrição Parenteral (via endovenosa)\nEstado Geral (30+ termos)\nConsciente: Alerta, orientado\nSonolento: Desperta facilmente\nConfuso: Desorientação\nTorporoso: Desperta com estímulo vigoroso\nComatoso: Não desperta\nEupneico: Respiração normal\nDispneico: Dificuldade respiratória\nTaquipneico: FR aumentada\nNormocárdico: FC normal (60-100 bpm)\nTaquicárdico: FC >100 bpm\nBradicárdico: FC <60 bpm\nNormotenso: PA normal\nHipertenso: PA elevada\nHipotenso: PA baixa\nAfebril: Sem febre (<37.5°C)\nFebril: Com febre (>37.5°C)\nHidratado: Hidratação adequada\nDesidratado: Déficit hídrico\nCorado: Coloração normal\nDescorado: Palidez (anemia)\nIctérico: Coloração amarelada\nCianótico: Coloração azulada\nAcamado: Restrito ao leito\nDeambulando: Caminhando\nCadeirante: Locomoção em cadeira\nColaborativo: Cooperativo\nNão colaborativo: Resistente\nAgitado: Inquieto, agressivo\nCalmo: Tranquilo\nAnsioso: Preocupado\n\n\nREGRAS DE ANÁLISE CLÍNICA\n1. ANÁLISE DE RISCO DE SEGURANÇA (Prioridade CRÍTICA)\n1.1 Risco de Queda\nCondições de ALERTA VERMELHO (risco alto):\nBraden < 13 + mobilidade \"acamado\"\nIdade >65 anos + \"sonolento\" ou \"confuso\"\nDispositivos múltiplos (SVD + AVP) + mobilidade prejudicada\nGlasgow < 15 + deambulando\nMedicações sedativas + mobilidade\nAção: Sinalizar necessidade de grades no leito, pulseira de risco, supervisão contínua\n1.2 Risco de Lesão por Pressão\nCondições de ALERTA VERMELHO:\nBraden < 13\nBraden 13-14 + desnutrição\nBraden 13-14 + idade >70 anos\nBraden 13-14 + desidratado\nAcamado + sem mudança de decúbito documentada\nAção: Protocolo de mudança de decúbito 2/2h, colchão especial, cuidados com proeminências ósseas\n1.3 Risco de Broncoaspiração\nCondições de ALERTA VERMELHO:\nDieta VO + Glasgow < 13\nDieta VO + \"sonolento\" ou \"torporoso\"\nDieta VO + diagnóstico de AVC agudo\nSNG presente mas dieta não especificada como enteral\nTeste de deglutição pendente + dieta VO\nAção: Avaliar teste de deglutição, considerar dieta zero, elevação de cabeceira >30°\n1.4 Risco Infeccioso\nCondições de ALERTA AMARELO (risco moderado):\nAVP >72h sem documentação de troca\nSVD prolongada (>5 dias) sem justificativa\nDiagnóstico de sepse + ausência de ATB documentado\nFebre + ausência de culturas/hemoculturas nos exames\nDispositivo invasivo + ausência de avaliação de sinais flogísticos\nAção: Revisar necessidade de dispositivos, avaliar sinais flogísticos, culturas\n1.5 Risco Nutricional\nCondições de ALERTA AMARELO:\nDieta zero >48h sem NPT/NE\nDesnutrição + dieta não hiperproteica\nLesões/cirurgia + dieta não hipercalórica\nIMC <18.5 + dieta geral padrão\nDiabetes + dieta não especificada como hipoglicídica\nAção: Avaliação nutricional, interconsulta com nutrição\n1.6 Risco Respiratório\nCondições de ALERTA VERMELHO:\nSatO2 <92% + ausência de O2 suplementar documentado\nDPOC/Asma + crise + ausência de nebulização\nSecreções abundantes + ausência de fisioterapia\nDiagnóstico respiratório + eliminações não documentadas (pode indicar retenção)\nAção: Suporte ventilatório, nebulização, fisioterapia\n\nDeve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios:\n\n{{ $('Webhook').item.json.body.meta.formJson }}\n\nINSTRUÇÕES FINAIS\n1. Seja objetivo e técnico: Temperatura 0 significa precisão máxima, sem floreios ou especulações.\n2. Baseie-se apenas nos dados fornecidos: Não invente informações que não estão nos campos.\n7. Mantenha consistência: Use sempre o mesmo formato JSON.\n8. Seja completo mas conciso: Informação suficiente sem verbosidade."
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        704,
+        1200
+      ],
+      "id": "3e7ffa02-8c37-470c-bc55-d7e176abfaee",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "CEVWO2jVWTWxRzlV",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extraia as informações do texto abaixo descrevendo a evolução de um paciente internado em um hospital, retornando exclusivamente um JSON no seguinte formato:\n\n{{ $('Webhook').item.json.body.meta.formJson }}\n\nIMPORTANTE: Deve **sempre** retornar esta estrutura, mesmo que alguns campos estejam vazios.\n",
+              "role": "assistant"
+            },
+            {
+              "content": "=TEXTO a ser analisado:\n\n{{ $json.dsEvolucao }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        1504
+      ],
+      "id": "e0dcd469-33d6-4d26-9ad7-c34d49a420f0",
+      "name": "Message a model6",
+      "credentials": {
+        "anthropicApi": {
+          "id": "EZAL9lc157R7fwh8",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1456,
+        176
+      ],
+      "id": "8c8e652c-c768-4f37-95f8-f37679c0e0ea",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "DeleteInternacoesFlow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetInternacaoesFlow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetInternacaoesFlow": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteInternacoesFlow": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Message a model5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "GetInternacaoesFlow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "DeleteInternacoesFlow1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteInternacoesFlow1": {
+      "main": [
+        [
+          {
+            "node": "Redis2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model3": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request8": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetInternacaoesFlow1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model4": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model5": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model6": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b12b86ec-75d5-45b4-949c-bfe555c0a36d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f78c4a266dc5e5b17edd13e1141713311b4adf7a33e447fcb887c705c894cef6"
+  },
+  "id": "o4532hjrrCodbobw",
+  "tags": []
+}
