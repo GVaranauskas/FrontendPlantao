@@ -396,20 +396,23 @@ export class AutoSyncSchedulerGPT4o {
     const allPatients = await storage.getAllPatients();
     
     for (const patient of patients) {
-      // CORREÇÃO: Buscar por QUALQUER identificador disponível, incluindo leito
-      // Isso evita duplicatas quando o N8N adiciona codigoAtendimento/registro depois
+      // Normalizar codigoAtendimento para comparação
+      const patientCodigo = patient.codigoAtendimento?.toString().trim() || '';
+      const patientLeito = patient.leito?.toString().trim() || '';
+      
+      // CORREÇÃO: Buscar por codigoAtendimento OU leito
+      // NÃO comparar por registro - está criptografado e muda a cada sync
       const existing = allPatients.find(p => {
+        const pCodigo = p.codigoAtendimento?.toString().trim() || '';
+        const pLeito = p.leito?.toString().trim() || '';
+        
         // Priority 1: Match by codigoAtendimento (most reliable - unique per admission)
-        if (patient.codigoAtendimento && p.codigoAtendimento === patient.codigoAtendimento) {
+        if (patientCodigo && pCodigo && patientCodigo === pCodigo) {
           return true;
         }
-        // Priority 2: Match by registro (patient medical record number)
-        if (patient.registro && p.registro === patient.registro) {
-          return true;
-        }
-        // Priority 3: Match by leito - SEMPRE verificar, não apenas quando falta identificadores
-        // Isso captura registros antigos que não tinham codigoAtendimento/registro
-        if (patient.leito && p.leito === patient.leito) {
+        // Priority 2: Match by leito - captura registros antigos sem codigoAtendimento
+        // e previne duplicatas quando o identificador muda
+        if (patientLeito && pLeito && patientLeito === pLeito) {
           return true;
         }
         return false;
