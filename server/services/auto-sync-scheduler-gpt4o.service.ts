@@ -4,7 +4,7 @@ import { changeDetectionService } from './change-detection.service';
 import { aiServiceGPT4oMini } from './ai-service-gpt4o-mini';
 import { intelligentCache } from './intelligent-cache.service';
 import { storage } from '../storage';
-import type { InsertPatient } from '@shared/schema';
+import type { InsertPatient, Patient } from '@shared/schema';
 
 /**
  * AUTO SYNC SCHEDULER - GPT-4o-mini
@@ -169,6 +169,15 @@ export class AutoSyncSchedulerGPT4o {
       // 2. PROCESSAR E DETECTAR MUDANÇAS
       console.log('[AutoSync] 🔍 Processando registros...');
       
+      // Carregar pacientes existentes para verificar clinicalInsights
+      const existingPatients = await storage.getAllPatients();
+      const existingPatientsByLeito = new Map<string, Patient>();
+      for (const p of existingPatients) {
+        if (p.leito) {
+          existingPatientsByLeito.set(p.leito, p);
+        }
+      }
+      
       const patientsToProcess: InsertPatient[] = [];
       let skippedCount = 0;
 
@@ -217,12 +226,23 @@ export class AutoSyncSchedulerGPT4o {
             );
 
             if (!changeResult.hasChanged) {
-              result.stats.unchangedRecords++;
-              result.stats.aiCallsAvoided++;
-              continue;
-            }
-            
-            if (changeResult.changedFields.includes('NOVO_PACIENTE')) {
+              // Verificar se o paciente existente tem clinicalInsights
+              // Se não tiver, incluir na lista de processamento para análise IA
+              const existingPatient = existingPatientsByLeito.get(leitoProcessado || leito);
+              const hasClinicalInsights = existingPatient?.clinicalInsights && 
+                Object.keys(existingPatient.clinicalInsights).length > 0;
+              
+              if (hasClinicalInsights) {
+                // Paciente já tem análise IA - pode pular
+                result.stats.unchangedRecords++;
+                result.stats.aiCallsAvoided++;
+                continue;
+              } else {
+                // Paciente sem análise IA - incluir para processamento
+                console.log(`[AutoSync] 🔍 ${leito}: dados inalterados mas sem clinicalInsights - incluindo para análise IA`);
+                result.stats.changedRecords++;
+              }
+            } else if (changeResult.changedFields.includes('NOVO_PACIENTE')) {
               result.stats.newRecords++;
             } else {
               result.stats.changedRecords++;
