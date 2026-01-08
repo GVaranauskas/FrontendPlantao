@@ -186,7 +186,6 @@ export default function ShiftHandoverPage() {
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterCritical, setFilterCritical] = useState(false);
-  const [filterAlerts, setFilterAlerts] = useState(false);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -351,22 +350,16 @@ export default function ShiftHandoverPage() {
     return insights?.nivel_alerta === "VERMELHO";
   };
 
-  const hasCareAlert = (patient: Patient): boolean => {
-    const emptyValues = ["", "-", "n/a", "sem dados", "nenhum", "não", "nao", "null", "undefined"];
-    const isRealContent = (value: string | null | undefined): boolean => {
-      if (!value) return false;
-      const normalized = value.trim().toLowerCase();
-      return normalized.length > 0 && !emptyValues.includes(normalized);
-    };
-    return isRealContent(patient.dispositivos) || isRealContent(patient.curativos);
+  const isAIAlert = (patient: Patient): boolean => {
+    const insights = patient.clinicalInsights as ClinicalInsights | null;
+    return insights?.nivel_alerta === "AMARELO";
   };
 
   const filteredPatients = patients?.filter(p => {
     const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.leito.includes(searchTerm);
     const matchesCriticalFilter = !filterCritical || isAICritical(p);
-    const matchesAlertsFilter = !filterAlerts || hasCareAlert(p);
-    return matchesSearch && matchesCriticalFilter && matchesAlertsFilter;
+    return matchesSearch && matchesCriticalFilter;
   }).sort((a, b) => {
     const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
     const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
@@ -376,29 +369,9 @@ export default function ShiftHandoverPage() {
   const stats = {
     complete: patients?.filter(p => p.status === "complete").length || 0,
     pending: patients?.filter(p => p.status === "pending").length || 0,
-    alert: patients?.filter(p => hasCareAlert(p)).length || 0,
+    alert: patients?.filter(p => isAIAlert(p)).length || 0,
     critical: patients?.filter(p => isAICritical(p)).length || 0,
     total: patients?.length || 0
-  };
-
-  const handleFilterCritical = () => {
-    if (stats.critical === 0) return;
-    if (filterCritical) {
-      setFilterCritical(false);
-    } else {
-      setFilterCritical(true);
-      setFilterAlerts(false);
-    }
-  };
-
-  const handleFilterAlerts = () => {
-    if (stats.alert === 0) return;
-    if (filterAlerts) {
-      setFilterAlerts(false);
-    } else {
-      setFilterAlerts(true);
-      setFilterCritical(false);
-    }
   };
 
   return (
@@ -1305,22 +1278,11 @@ export default function ShiftHandoverPage() {
             </div>
             <div className="text-sm font-semibold text-muted-foreground">Pendentes</div>
           </Card>
-          <Card 
-            className={`p-4 text-center border-t-4 border-t-chart-4 bg-gradient-to-br from-card to-chart-4/5 cursor-pointer transition-all duration-200 ${
-              filterAlerts 
-                ? "ring-2 ring-chart-4 ring-offset-2 ring-offset-background shadow-lg scale-[1.02]" 
-                : "hover:shadow-md hover:scale-[1.01]"
-            } ${stats.alert === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-            onClick={handleFilterAlerts}
-            data-testid="card-filter-alerts"
-          >
+          <Card className="p-4 text-center border-t-4 border-t-chart-4 bg-gradient-to-br from-card to-chart-4/5">
             <div className="text-3xl font-bold text-chart-4 mb-1" data-testid="stat-alert">
               {stats.alert}
             </div>
-            <div className="text-sm font-semibold text-muted-foreground flex items-center justify-center gap-1">
-              {filterAlerts && <Filter className="w-3 h-3" />}
-              Com Alertas
-            </div>
+            <div className="text-sm font-semibold text-muted-foreground">Com Alertas</div>
           </Card>
           <Card 
             className={`p-4 text-center border-t-4 border-t-destructive bg-gradient-to-br from-card to-destructive/5 cursor-pointer transition-all duration-200 ${
@@ -1328,7 +1290,7 @@ export default function ShiftHandoverPage() {
                 ? "ring-2 ring-destructive ring-offset-2 ring-offset-background shadow-lg scale-[1.02]" 
                 : "hover:shadow-md hover:scale-[1.01]"
             } ${stats.critical === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-            onClick={handleFilterCritical}
+            onClick={() => stats.critical > 0 && setFilterCritical(!filterCritical)}
             data-testid="card-filter-critical"
           >
             <div className="text-3xl font-bold text-destructive mb-1" data-testid="stat-critical">
@@ -1366,23 +1328,10 @@ export default function ShiftHandoverPage() {
                 size="sm"
                 onClick={() => setFilterCritical(false)}
                 className="flex items-center gap-2 whitespace-nowrap"
-                data-testid="button-clear-filter-critical"
+                data-testid="button-clear-filter"
               >
                 <Filter className="w-4 h-4" />
                 Críticos ({stats.critical})
-                <span className="ml-1 opacity-70">×</span>
-              </Button>
-            )}
-            {filterAlerts && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilterAlerts(false)}
-                className="flex items-center gap-2 whitespace-nowrap border-chart-4 text-chart-4 hover:bg-chart-4/10"
-                data-testid="button-clear-filter-alerts"
-              >
-                <Filter className="w-4 h-4" />
-                Com Alertas ({stats.alert})
                 <span className="ml-1 opacity-70">×</span>
               </Button>
             )}
