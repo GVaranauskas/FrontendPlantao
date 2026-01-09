@@ -34,44 +34,20 @@ export async function syncPatientFromExternalAPI(leito: string): Promise<Patient
       return null;
     }
 
-    // Check if patient already exists for this leito
-    const existingPatients = await storage.getAllPatients();
+    // UPSERT: Usa codigoAtendimento ou leito para insert/update atômico
+    const codigoAtendimento = processada.codigoAtendimento?.toString().trim() || '';
     
-    // Find existing patient using multiple strategies
-    const registro = processada.registro;
-    const codigoAtendimento = processada.codigoAtendimento;
-    const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
-    
-    let existingPatient = null;
-    
-    if (registro && registro.trim() !== "") {
-      existingPatient = existingPatients.find(p => p.registro === registro);
-    }
-    
-    if (!existingPatient && codigoAtendimento && codigoAtendimento.trim() !== "") {
-      existingPatient = existingPatients.find(p => p.codigoAtendimento === codigoAtendimento);
-    }
-    
-    if (!existingPatient) {
-      existingPatient = existingPatients.find(p => 
-        p.leito === evoLeito && p.dsEnfermaria === patientEnfermaria
-      );
-    }
-
     let patient: Patient;
-    if (existingPatient) {
-      // Update existing patient
-      const updated = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
-      if (!updated) {
-        console.error(`Failed to update patient for leito: ${leito}`);
-        return null;
+    try {
+      if (codigoAtendimento) {
+        patient = await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);
+      } else {
+        patient = await storage.upsertPatientByLeito(processada.dadosProcessados);
       }
-      patient = updated;
-      console.log(`Updated patient for leito: ${leito} (${processada.pacienteName})`);
-    } else {
-      // Create new patient
-      patient = await storage.createPatient(processada.dadosProcessados);
-      console.log(`Created new patient for leito: ${leito} (${processada.pacienteName})`);
+      console.log(`[Sync] Upserted patient for leito: ${leito} (${processada.pacienteName})`);
+    } catch (error) {
+      console.error(`[Sync] Failed to upsert patient for leito: ${leito}`, error);
+      return null;
     }
 
     return patient;
@@ -116,14 +92,11 @@ export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: 
       return results;
     }
 
-    // OPTIMIZATION: Fetch all patients once before the loop, not inside each iteration
-    const existingPatients = await storage.getAllPatients();
-    console.log(`[Sync] Processing ${evolucoes.length} evolucoes against ${existingPatients.length} existing patients`);
+    console.log(`[Sync] Processing ${evolucoes.length} evolucoes with UPSERT`);
 
-    // Process each evolução
+    // Process each evolução usando UPSERT atômico
     for (const evolucao of evolucoes) {
       try {
-        // Extract leito if available
         const leito = evolucao.leito || evolucao.dsLeito || evolucao.ds_leito_completo || evolucao.leito_completo || "";
         
         if (!leito) {
@@ -131,10 +104,7 @@ export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: 
           continue;
         }
 
-        // Process evolução data
         const processada = await n8nIntegrationService.processEvolucao(leito, evolucao);
-        
-        // Validate processed data
         const validacao = n8nIntegrationService.validateProcessedData(processada);
         
         if (!validacao.valid) {
@@ -142,54 +112,21 @@ export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: 
           continue;
         }
 
-        // Find existing patient using multiple strategies (prevent duplicates)
-        // Priority: 1) registro (unique patient ID), 2) codigoAtendimento, 3) leito+enfermaria
-        const registro = processada.registro;
-        const codigoAtendimento = processada.codigoAtendimento;
-        const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || evolucao.dsEnfermaria || "";
+        // UPSERT atômico: usa codigoAtendimento ou leito como chave única
+        const codigoAtendimento = processada.codigoAtendimento?.toString().trim() || '';
         
-        let existingPatient = null;
-        
-        // Strategy 1: Match by registro (most reliable - hospital patient ID)
-        if (registro && registro.trim() !== "") {
-          existingPatient = existingPatients.find(p => p.registro === registro);
-        }
-        
-        // Strategy 2: Match by codigoAtendimento (appointment code)
-        if (!existingPatient && codigoAtendimento && codigoAtendimento.trim() !== "") {
-          existingPatient = existingPatients.find(p => p.codigoAtendimento === codigoAtendimento);
-        }
-        
-        // Strategy 3: Match by leito + enfermaria (fallback)
-        if (!existingPatient) {
-          existingPatient = existingPatients.find(p => 
-            p.leito === leito && p.dsEnfermaria === patientEnfermaria
-          );
-        }
-
-        let patient: Patient;
-        if (existingPatient) {
-          // Update existing patient - preserve the ID, update all other fields
-          const updated = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
-          if (updated) {
-            patient = updated;
-            // Update cached list with new data
-            const idx = existingPatients.findIndex(p => p.id === existingPatient!.id);
-            if (idx >= 0) existingPatients[idx] = patient;
-            console.log(`[Sync] Updated patient for leito: ${leito} (${processada.pacienteName})`);
+        try {
+          let patient: Patient;
+          if (codigoAtendimento) {
+            patient = await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);
           } else {
-            console.error(`[Sync] Failed to update patient for leito: ${leito}`);
-            continue;
+            patient = await storage.upsertPatientByLeito(processada.dadosProcessados);
           }
-        } else {
-          // Create new patient only if truly doesn't exist
-          patient = await storage.createPatient(processada.dadosProcessados);
-          // Add to cached list to prevent duplicate creates in same sync
-          existingPatients.push(patient);
-          console.log(`[Sync] Created new patient for leito: ${leito} (${processada.pacienteName})`);
+          results.push(patient);
+          console.log(`[Sync] Upserted patient for leito: ${leito} (${processada.pacienteName})`);
+        } catch (upsertError) {
+          console.error(`[Sync] UPSERT failed for leito ${leito}:`, upsertError);
         }
-
-        results.push(patient);
       } catch (error) {
         console.error(`[Sync] Error processing evolução:`, error);
         continue;

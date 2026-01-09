@@ -169,7 +169,7 @@ O sistema detecta automaticamente transferências de leito durante a sincroniza�
 
 ## Recent Changes (January 2026)
 
-### UPSERT Implementation (Duplicate Prevention)
+### UPSERT Implementation (Duplicate Prevention) - AUDITORIA COMPLETA
 - **Problema Resolvido**: Duplicatas de pacientes durante sincronização com N8N
 - **Solução**: UPSERT atômico usando ON CONFLICT no PostgreSQL
 - **Constraints UNIQUE no banco**:
@@ -178,6 +178,11 @@ O sistema detecta automaticamente transferências de leito durante a sincroniza�
 - **Novos Métodos Storage**:
   - `upsertPatientByCodigoAtendimento()`: Insere ou atualiza por código (prioridade)
   - `upsertPatientByLeito()`: Insere ou atualiza por leito (fallback)
+- **Arquivos Refatorados** (todos os pontos de sincronização):
+  - `server/sync.ts`: `syncPatientFromExternalAPI()` e `syncEvolucoesByUnitIds()` agora usam UPSERT
+  - `server/routes.ts`: Rota de importação manual usa UPSERT
+  - `server/services/auto-sync-scheduler-gpt4o.service.ts`: `saveToDatabase()` usa UPSERT
+- **Código Legado Removido**: PatientIndex, lógica de comparação manual, create/update separados em sincronização
 - **Benefícios**: Elimina race conditions, garante atomicidade, impede duplicatas mesmo em cenários de alta concorrência
 
 ### Frontend Type Consolidation

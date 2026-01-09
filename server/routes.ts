@@ -389,44 +389,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Check if patient exists by leito AND enfermaria
-          const existingPatients = await storage.getAllPatients();
-          const patientEnfermaria = processada.dadosProcessados.dsEnfermaria || enfermaria;
-          const existingPatient = existingPatients.find(p => 
-            p.leito === leito && p.dsEnfermaria === patientEnfermaria
-          );
-
-          let patient;
-          if (existingPatient) {
-            // Update existing
-            patient = await storage.updatePatient(existingPatient.id, processada.dadosProcessados);
-            if (patient) {
-              stats.importados++;
-              stats.detalhes.push({ 
-                leito, 
-                status: "atualizado", 
-                mensagem: processada.pacienteName 
-              });
-              logger.info(`[${getTimestamp()}] [Import] Updated patient for leito: ${leito} (${processada.pacienteName})`);
+          // UPSERT atômico: usa codigoAtendimento ou leito como chave única
+          const codigoAtendimento = processada.dadosProcessados.codigoAtendimento?.toString().trim() || '';
+          
+          try {
+            let patient;
+            if (codigoAtendimento) {
+              patient = await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);
             } else {
-              stats.erros++;
-              stats.detalhes.push({ 
-                leito, 
-                status: "erro", 
-                mensagem: "Falha ao atualizar paciente" 
-              });
-              logger.error(`[${getTimestamp()}] [Import] Failed to update patient for leito: ${leito}`);
+              patient = await storage.upsertPatientByLeito(processada.dadosProcessados);
             }
-          } else {
-            // Create new
-            patient = await storage.createPatient(processada.dadosProcessados);
+            
             stats.importados++;
             stats.detalhes.push({ 
               leito, 
-              status: "criado", 
+              status: "importado", 
               mensagem: processada.pacienteName 
             });
-            logger.info(`[${getTimestamp()}] [Import] Created new patient for leito: ${leito} (${processada.pacienteName})`);
+            logger.info(`[${getTimestamp()}] [Import] Upserted patient for leito: ${leito} (${processada.pacienteName})`);
+          } catch (upsertError) {
+            stats.erros++;
+            stats.detalhes.push({ 
+              leito, 
+              status: "erro", 
+              mensagem: upsertError instanceof Error ? upsertError.message : "Falha no UPSERT" 
+            });
+            logger.error(`[${getTimestamp()}] [Import] UPSERT failed for leito: ${leito}: ${upsertError}`);
           }
         } catch (error) {
           const leito = evolucao.leito || "DESCONHECIDO";
