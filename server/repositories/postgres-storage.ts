@@ -113,6 +113,44 @@ export class PostgresStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  async upsertPatientByCodigoAtendimento(patient: InsertPatient): Promise<Patient> {
+    const dsEnfermaria = patient.dsEnfermaria || '';
+    if (!dsEnfermaria.startsWith('10A')) {
+      throw new Error(`[BLOQUEADO] Enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*). Paciente não será salvo.`);
+    }
+    
+    const encryptedPatient = this.encryptPatientData(patient);
+    
+    const result = await db.insert(patients)
+      .values(encryptedPatient)
+      .onConflictDoUpdate({
+        target: patients.codigoAtendimento,
+        set: encryptedPatient
+      })
+      .returning();
+    
+    return this.decryptPatientData(result[0]);
+  }
+
+  async upsertPatientByLeito(patient: InsertPatient): Promise<Patient> {
+    const dsEnfermaria = patient.dsEnfermaria || '';
+    if (!dsEnfermaria.startsWith('10A')) {
+      throw new Error(`[BLOQUEADO] Enfermaria "${dsEnfermaria}" não pertence às unidades 22,23 (10A*). Paciente não será salvo.`);
+    }
+    
+    const encryptedPatient = this.encryptPatientData(patient);
+    
+    const result = await db.insert(patients)
+      .values(encryptedPatient)
+      .onConflictDoUpdate({
+        target: patients.leito,
+        set: encryptedPatient
+      })
+      .returning();
+    
+    return this.decryptPatientData(result[0]);
+  }
+
   async getAllAlerts(): Promise<Alert[]> {
     return await db.select().from(alerts);
   }

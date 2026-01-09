@@ -31,6 +31,8 @@ export interface IStorage {
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined>;
   deletePatient(id: string): Promise<boolean>;
+  upsertPatientByCodigoAtendimento(patient: InsertPatient): Promise<Patient>;
+  upsertPatientByLeito(patient: InsertPatient): Promise<Patient>;
 
   getAllAlerts(): Promise<Alert[]>;
   getAlert(id: string): Promise<Alert | undefined>;

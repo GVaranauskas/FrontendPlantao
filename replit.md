@@ -169,6 +169,22 @@ O sistema detecta automaticamente transferências de leito durante a sincroniza�
 
 ## Recent Changes (January 2026)
 
+### UPSERT Implementation (Duplicate Prevention)
+- **Problema Resolvido**: Duplicatas de pacientes durante sincronização com N8N
+- **Solução**: UPSERT atômico usando ON CONFLICT no PostgreSQL
+- **Constraints UNIQUE no banco**:
+  - `patients_leito_unique`: Um único paciente por leito
+  - `patients_codigo_atendimento_unique`: Um único paciente por código de atendimento
+- **Novos Métodos Storage**:
+  - `upsertPatientByCodigoAtendimento()`: Insere ou atualiza por código (prioridade)
+  - `upsertPatientByLeito()`: Insere ou atualiza por leito (fallback)
+- **Benefícios**: Elimina race conditions, garante atomicidade, impede duplicatas mesmo em cenários de alta concorrência
+
+### Frontend Type Consolidation
+- Criado `client/src/types/index.ts` centralizando interfaces compartilhadas
+- Interfaces consolidadas: Enfermaria, User, NursingTemplate, ImportResponse, ImportStats
+- Atualizados 7 arquivos para importar do arquivo centralizado
+
 ### Role Consistency Fix
 - RBAC roles alinhados com schema.ts: usa "enfermagem" (não "enfermeiro")
 - Afeta: `server/middleware/rbac.ts`, `server/routes/sync-gpt4o.routes.ts`

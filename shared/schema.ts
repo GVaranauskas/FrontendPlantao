@@ -20,7 +20,7 @@ export const users = pgTable("users", {
 
 export const patients = pgTable("patients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  leito: text("leito").notNull(),
+  leito: text("leito").notNull().unique(),
   especialidadeRamal: text("especialidade_ramal"),
   nome: text("nome").notNull(),
   registro: text("registro"),
@@ -50,7 +50,7 @@ export const patients = pgTable("patients", {
   dsEnfermaria: text("ds_enfermaria"),
   dsLeitoCompleto: text("ds_leito_completo"),
   dsEspecialidade: text("ds_especialidade"),
-  codigoAtendimento: text("codigo_atendimento"),
+  codigoAtendimento: text("codigo_atendimento").unique(),
   dsEvolucaoCompleta: text("ds_evolucao_completa"),
   dhCriacaoEvolucao: timestamp("dh_criacao_evolucao"),
   fonteDados: text("fonte_dados").default("N8N_IAMSPE"),

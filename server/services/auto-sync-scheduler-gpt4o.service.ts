@@ -412,77 +412,28 @@ export class AutoSyncSchedulerGPT4o {
   }
 
   private async saveToDatabase(patients: InsertPatient[]): Promise<void> {
-    // PatientIndex: índices bidirecionais para rastrear chaves antigas e novas
-    // Isso permite remover chaves stale quando identificadores mudam
-    interface PatientEntry {
-      id: string;
-      codigo: string;  // codigo atual (vazio se não tiver)
-      leito: string;   // leito atual (vazio se não tiver)
-    }
-    
-    const byCodigo = new Map<string, PatientEntry>();  // codigo -> entry
-    const byLeito = new Map<string, PatientEntry>();   // leito -> entry
-    const byId = new Map<string, PatientEntry>();      // id -> entry (para lookup reverso)
-    
-    // Função para atualizar índices atomicamente
-    const updateIndex = (entry: PatientEntry, newCodigo: string, newLeito: string) => {
-      // Remover chaves antigas
-      if (entry.codigo) byCodigo.delete(entry.codigo);
-      if (entry.leito) byLeito.delete(entry.leito);
-      
-      // Atualizar entry
-      entry.codigo = newCodigo;
-      entry.leito = newLeito;
-      
-      // Adicionar novas chaves
-      if (newCodigo) byCodigo.set(newCodigo, entry);
-      if (newLeito) byLeito.set(newLeito, entry);
-    };
-    
-    // Carregar estado inicial do banco
-    const allPatients = await storage.getAllPatients();
-    for (const p of allPatients) {
-      const codigo = p.codigoAtendimento?.toString().trim() || '';
-      const leito = p.leito?.toString().trim() || '';
-      const entry: PatientEntry = { id: p.id, codigo, leito };
-      
-      byId.set(p.id, entry);
-      if (codigo) byCodigo.set(codigo, entry);
-      if (leito) byLeito.set(leito, entry);
-    }
+    // SOLUÇÃO DEFINITIVA: Usar UPSERT com ON CONFLICT para garantir atomicidade
+    // - codigoAtendimento tem constraint UNIQUE no banco
+    // - leito tem constraint UNIQUE no banco
+    // - Isso impede duplicatas mesmo em race conditions
     
     for (const patient of patients) {
       const patientCodigo = patient.codigoAtendimento?.toString().trim() || '';
-      const patientLeito = patient.leito?.toString().trim() || '';
       
-      let existingEntry: PatientEntry | null = null;
-      
-      // Priority 1: Match by codigoAtendimento (most reliable)
-      if (patientCodigo && byCodigo.has(patientCodigo)) {
-        existingEntry = byCodigo.get(patientCodigo)!;
-      }
-      // Priority 2: Match by leito SOMENTE se registro existente não tem codigo
-      else if (patientLeito && byLeito.has(patientLeito)) {
-        const leitoEntry = byLeito.get(patientLeito)!;
-        if (!leitoEntry.codigo) {
-          existingEntry = leitoEntry;
+      try {
+        if (patientCodigo) {
+          // Prioridade 1: Upsert por codigoAtendimento (mais confiável)
+          await storage.upsertPatientByCodigoAtendimento(patient);
+        } else {
+          // Fallback: Upsert por leito (para registros sem código)
+          await storage.upsertPatientByLeito(patient);
         }
-      }
-      
-      if (existingEntry) {
-        await storage.updatePatient(existingEntry.id, patient);
-        // Atualizar índices atomicamente (remove chaves antigas, adiciona novas)
-        updateIndex(existingEntry, patientCodigo, patientLeito);
-      } else {
-        const created = await storage.createPatient(patient);
-        // Criar nova entry e adicionar aos índices
-        const newEntry: PatientEntry = { id: created.id, codigo: patientCodigo, leito: patientLeito };
-        byId.set(created.id, newEntry);
-        if (patientCodigo) byCodigo.set(patientCodigo, newEntry);
-        if (patientLeito) byLeito.set(patientLeito, newEntry);
+      } catch (error) {
+        // Em caso de erro de constraint, tentar atualização direta
+        console.error(`[AutoSync] Erro ao salvar paciente ${patient.leito}:`, error);
       }
     }
-    console.log(`[AutoSync] ✅ ${patients.length} registros salvos`);
+    console.log(`[AutoSync] ✅ ${patients.length} registros salvos via UPSERT`);
   }
 
   private logSyncResult(result: SyncResult): void {

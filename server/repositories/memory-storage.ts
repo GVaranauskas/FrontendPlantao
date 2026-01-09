@@ -125,6 +125,32 @@ export class MemStorage implements IStorage {
     return this.patients.delete(id);
   }
 
+  async upsertPatientByCodigoAtendimento(insertPatient: InsertPatient): Promise<Patient> {
+    const codigo = insertPatient.codigoAtendimento?.toString().trim() || '';
+    if (codigo) {
+      const existing = Array.from(this.patients.values()).find(p => p.codigoAtendimento === codigo);
+      if (existing) {
+        const updated = { ...existing, ...insertPatient, idade: insertPatient.idade ?? existing.idade };
+        this.patients.set(existing.id, updated);
+        return updated;
+      }
+    }
+    return this.createPatient(insertPatient);
+  }
+
+  async upsertPatientByLeito(insertPatient: InsertPatient): Promise<Patient> {
+    const leito = insertPatient.leito?.toString().trim() || '';
+    if (leito) {
+      const existing = Array.from(this.patients.values()).find(p => p.leito === leito);
+      if (existing) {
+        const updated = { ...existing, ...insertPatient, idade: insertPatient.idade ?? existing.idade };
+        this.patients.set(existing.id, updated);
+        return updated;
+      }
+    }
+    return this.createPatient(insertPatient);
+  }
+
   async getAllAlerts(): Promise<Alert[]> {
     return Array.from(this.alerts.values());
   }
