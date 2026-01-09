@@ -23,9 +23,9 @@ export function StatsCards({ stats, filterCritical, onFilterCriticalToggle }: St
         </div>
         <div className="text-sm font-semibold text-muted-foreground">Pendentes</div>
       </Card>
-      <Card className="p-4 text-center border-t-4 border-t-chart-4 bg-gradient-to-br from-card to-chart-4/5 opacity-50">
+      <Card className={`p-4 text-center border-t-4 border-t-chart-4 bg-gradient-to-br from-card to-chart-4/5 ${stats.alert === 0 ? "opacity-50" : ""}`}>
         <div className="text-3xl font-bold text-chart-4 mb-1" data-testid="stat-alert">
-          0
+          {stats.alert}
         </div>
         <div className="text-sm font-semibold text-muted-foreground">Com Alertas</div>
       </Card>
