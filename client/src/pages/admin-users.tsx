@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,9 +29,8 @@ import {
   XCircle,
   ChevronDown,
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { User, UserRole } from "@/types";
+import { UserRow } from "@/components/UserRow";
 
 export default function AdminUsersPage() {
   const [, setLocation] = useLocation();
@@ -106,7 +105,7 @@ export default function AdminUsersPage() {
     });
   };
 
-  const openEditSheet = (user: User) => {
+  const openEditSheet = useCallback((user: User) => {
     setEditingUser(user);
     setFormData({
       username: user.username,
@@ -116,12 +115,17 @@ export default function AdminUsersPage() {
       role: user.role as UserRole,
     });
     setIsEditSheetOpen(true);
-  };
+  }, []);
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "-";
-    return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: ptBR });
-  };
+  const handleDeactivate = useCallback((userId: string) => {
+    deleteMutation.mutate(userId);
+  }, [deleteMutation]);
+
+  const userStats = useMemo(() => ({
+    total: users?.length || 0,
+    active: users?.filter((u) => u.isActive).length || 0,
+    inactive: users?.filter((u) => !u.isActive).length || 0,
+  }), [users]);
 
   const renderFormFields = (isEdit: boolean) => (
     <>
@@ -272,21 +276,21 @@ export default function AdminUsersPage() {
           <Card className="p-4 text-center border-t-4 border-t-primary">
             <Users className="w-8 h-8 mx-auto mb-2 text-primary" />
             <div className="text-2xl font-bold" data-testid="stat-total-users">
-              {users?.length || 0}
+              {userStats.total}
             </div>
             <div className="text-sm text-muted-foreground">Total de Usuários</div>
           </Card>
           <Card className="p-4 text-center border-t-4 border-t-chart-2">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-chart-2" />
             <div className="text-2xl font-bold" data-testid="stat-active-users">
-              {users?.filter((u) => u.isActive).length || 0}
+              {userStats.active}
             </div>
             <div className="text-sm text-muted-foreground">Usuários Ativos</div>
           </Card>
           <Card className="p-4 text-center border-t-4 border-t-destructive">
             <XCircle className="w-8 h-8 mx-auto mb-2 text-destructive" />
             <div className="text-2xl font-bold" data-testid="stat-inactive-users">
-              {users?.filter((u) => !u.isActive).length || 0}
+              {userStats.inactive}
             </div>
             <div className="text-sm text-muted-foreground">Usuários Inativos</div>
           </Card>
@@ -327,55 +331,12 @@ export default function AdminUsersPage() {
                 </thead>
                 <tbody>
                   {filteredUsers?.map((user) => (
-                    <tr
+                    <UserRow
                       key={user.id}
-                      className="border-t hover:bg-muted/30 transition-colors"
-                      data-testid={`row-user-${user.id}`}
-                    >
-                      <td className="px-4 py-3 font-medium">{user.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{user.username}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{user.email || "-"}</td>
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant={user.role === "admin" ? "default" : "secondary"}>
-                          {user.role === "admin" ? "Admin" : "Enfermagem"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant={user.isActive ? "outline" : "destructive"}>
-                          {user.isActive ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-center text-muted-foreground">
-                        {formatDate(user.lastLogin)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditSheet(user)}
-                            data-testid={`button-edit-${user.id}`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          {user.isActive && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (confirm(`Desativar usuário "${user.name}"?`)) {
-                                  deleteMutation.mutate(user.id);
-                                }
-                              }}
-                              data-testid={`button-deactivate-${user.id}`}
-                            >
-                              <UserX className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                      user={user}
+                      onEdit={openEditSheet}
+                      onDeactivate={handleDeactivate}
+                    />
                   ))}
                   {filteredUsers?.length === 0 && (
                     <tr>

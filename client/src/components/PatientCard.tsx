@@ -136,11 +136,18 @@ export const PatientCard = memo(function PatientCard({
     </Card>
   );
 }, (prevProps, nextProps) => {
+  const p = prevProps.patient;
+  const n = nextProps.patient;
   return (
-    prevProps.patient.id === nextProps.patient.id &&
-    prevProps.patient.clinicalInsightsUpdatedAt === nextProps.patient.clinicalInsightsUpdatedAt &&
-    prevProps.patient.nome === nextProps.patient.nome &&
-    prevProps.patient.leito === nextProps.patient.leito &&
+    p.id === n.id &&
+    p.clinicalInsightsUpdatedAt === n.clinicalInsightsUpdatedAt &&
+    p.nome === n.nome &&
+    p.leito === n.leito &&
+    p.idade === n.idade &&
+    p.sexo === n.sexo &&
+    p.diagnostico === n.diagnostico &&
+    p.status === n.status &&
+    JSON.stringify(p.clinicalInsights) === JSON.stringify(n.clinicalInsights) &&
     prevProps.isSyncing === nextProps.isSyncing &&
     prevProps.isAnalyzing === nextProps.isAnalyzing
   );
