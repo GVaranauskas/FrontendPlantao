@@ -29,8 +29,9 @@ export default function ImportPage() {
     mutationFn: async (enfermaria: string) => {
       const response = await apiRequest("POST", "/api/import/evolucoes", {
         enfermaria
-      }) as unknown as ImportResponse;
-      return response;
+      });
+      const data: ImportResponse = await response.json();
+      return data;
     },
     onSuccess: (data) => {
       setLastImport(data);
