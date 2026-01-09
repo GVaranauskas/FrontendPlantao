@@ -18,7 +18,8 @@ import {
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { patientsService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { printShiftHandover } from "@/components/print-shift-handover";
 
@@ -55,10 +56,7 @@ export default function ShiftHandoverPage() {
   const { toast } = useToast();
 
   const analyzePatientsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/ai/analyze-patients");
-      return response.json();
-    },
+    mutationFn: () => patientsService.analyzeAll(),
     onSuccess: (data: AIAnalysisResult) => {
       setAiAnalysis(data);
       toast({
@@ -76,10 +74,7 @@ export default function ShiftHandoverPage() {
   });
 
   const clinicalAnalysisMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/ai/clinical-analysis-batch");
-      return response.json();
-    },
+    mutationFn: () => patientsService.clinicalAnalysisBatch(),
     onSuccess: (data: ClinicalBatchResult) => {
       setClinicalBatchResult(data);
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
@@ -98,10 +93,7 @@ export default function ShiftHandoverPage() {
   });
 
   const individualAnalysisMutation = useMutation({
-    mutationFn: async (patientId: string) => {
-      const response = await apiRequest("POST", `/api/ai/clinical-analysis/${patientId}`);
-      return response.json();
-    },
+    mutationFn: (patientId: string) => patientsService.clinicalAnalysisIndividual(patientId),
     onSuccess: (data: { insights: ClinicalInsights; analysis: unknown }) => {
       setIndividualAnalysis(data.insights);
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
@@ -144,11 +136,7 @@ export default function ShiftHandoverPage() {
         pollTimerRef.current = null;
       }
       
-      const response = await apiRequest("POST", "/api/sync-gpt4o/manual", {
-        unitIds: "22,23",
-        forceUpdate: false,
-      });
-      return response.json();
+      return patientsService.syncManualWithAI("22,23", false);
     },
     onSuccess: () => {
       const now = new Date();

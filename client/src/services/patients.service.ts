@@ -1,27 +1,11 @@
 import { apiRequest } from "@/lib/queryClient";
 import { ApiService } from "./api.service";
 import type { Patient } from "@shared/schema";
-
-interface AIAnalysisResult {
-  resumoGeral: string;
-  pacientesCriticos: string[];
-  alertasGerais: string[];
-  estatisticas: {
-    total: number;
-    altaComplexidade: number;
-    mediaBraden: number;
-  };
-}
-
-interface ClinicalBatchResult {
-  total: number;
-  success: number;
-  summary: { vermelho: number; amarelo: number; verde: number; errors: number };
-  analiseGeral?: unknown;
-  leitosAtencao: unknown[];
-  leitosAlerta: unknown[];
-  failedPatients: string[];
-}
+import type { 
+  AIAnalysisResult, 
+  ClinicalBatchResult, 
+  ClinicalInsights 
+} from "@/types";
 
 interface SyncResult {
   success: boolean;
@@ -62,7 +46,7 @@ class PatientsService extends ApiService {
     return response.json();
   }
 
-  async clinicalAnalysisIndividual(patientId: string): Promise<{ insights: unknown; analysis: unknown }> {
+  async clinicalAnalysisIndividual(patientId: string): Promise<{ insights: ClinicalInsights; analysis: unknown }> {
     const response = await apiRequest("POST", `/api/ai/clinical-analysis/${patientId}`);
     return response.json();
   }
