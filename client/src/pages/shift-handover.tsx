@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Patient, Alert } from "@shared/schema";
@@ -111,11 +111,11 @@ export default function ShiftHandoverPage() {
     },
   });
 
-  const openPatientDetails = (patient: Patient) => {
+  const openPatientDetails = useCallback((patient: Patient) => {
     setSelectedPatient(patient);
     setIndividualAnalysis((patient.clinicalInsights as ClinicalInsights) || null);
     setPatientDetailsOpen(true);
-  };
+  }, []);
   
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -185,36 +185,39 @@ export default function ShiftHandoverPage() {
     queryKey: ["/api/templates"],
   });
 
-  const isAICritical = (patient: Patient): boolean => {
+  const isAICritical = useCallback((patient: Patient): boolean => {
     const insights = patient.clinicalInsights as ClinicalInsights | null;
     return insights?.nivel_alerta === "VERMELHO";
-  };
+  }, []);
 
-  const isAIAlert = (patient: Patient): boolean => {
+  const isAIAlert = useCallback((patient: Patient): boolean => {
     const insights = patient.clinicalInsights as ClinicalInsights | null;
     return insights?.nivel_alerta === "AMARELO";
-  };
+  }, []);
 
-  const filteredPatients = patients?.filter(p => {
-    const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.leito.includes(searchTerm);
-    const matchesCriticalFilter = !filterCritical || isAICritical(p);
-    return matchesSearch && matchesCriticalFilter;
-  }).sort((a, b) => {
-    const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
-    const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
-    return leitoA - leitoB;
-  }) || [];
+  const filteredPatients = useMemo(() => {
+    if (!patients) return [];
+    return patients.filter(p => {
+      const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.leito.includes(searchTerm);
+      const matchesCriticalFilter = !filterCritical || isAICritical(p);
+      return matchesSearch && matchesCriticalFilter;
+    }).sort((a, b) => {
+      const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
+      const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
+      return leitoA - leitoB;
+    });
+  }, [patients, searchTerm, filterCritical, isAICritical]);
 
-  const stats: PatientStats = {
+  const stats: PatientStats = useMemo(() => ({
     complete: patients?.filter(p => p.status === "complete").length || 0,
     pending: patients?.filter(p => p.status === "pending").length || 0,
     alert: patients?.filter(p => isAIAlert(p)).length || 0,
     critical: patients?.filter(p => isAICritical(p)).length || 0,
     total: patients?.length || 0
-  };
+  }), [patients, isAIAlert, isAICritical]);
 
-  const getProtocolIcon = (icone: string) => {
+  const getProtocolIcon = useCallback((icone: string) => {
     switch(icone) {
       case "AlertTriangle": return <AlertTriangle className="w-4 h-4" />;
       case "Shield": return <Shield className="w-4 h-4" />;
@@ -224,9 +227,9 @@ export default function ShiftHandoverPage() {
       case "Heart": return <Heart className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
     }
-  };
+  }, []);
 
-  const getProtocolColor = (cor: string) => {
+  const getProtocolColor = useCallback((cor: string) => {
     switch(cor) {
       case "yellow": return "border-yellow-500/30 bg-yellow-500/5";
       case "red": return "border-red-500/30 bg-red-500/5";
@@ -236,9 +239,9 @@ export default function ShiftHandoverPage() {
       case "purple": return "border-purple-500/30 bg-purple-500/5";
       default: return "border-muted bg-muted/10";
     }
-  };
+  }, []);
 
-  const getTextColor = (cor: string) => {
+  const getTextColor = useCallback((cor: string) => {
     switch(cor) {
       case "yellow": return "text-yellow-600";
       case "red": return "text-red-500";
@@ -248,7 +251,7 @@ export default function ShiftHandoverPage() {
       case "purple": return "text-purple-500";
       default: return "text-muted-foreground";
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
