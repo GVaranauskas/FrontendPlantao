@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -14,8 +14,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useCrudMutations } from "@/hooks/use-crud-mutations";
 import {
   ArrowLeft,
   Plus,
@@ -35,7 +34,6 @@ import type { User, UserRole } from "@/types";
 
 export default function AdminUsersPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -53,60 +51,10 @@ export default function AdminUsersPage() {
     queryKey: ["/api/users"],
   });
 
-  const createUserMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      return apiRequest("POST", "/api/users", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setIsCreateSheetOpen(false);
-      resetForm();
-      toast({ title: "Usuário criado com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao criar usuário",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
-      return apiRequest("PATCH", `/api/users/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setIsEditSheetOpen(false);
-      setEditingUser(null);
-      resetForm();
-      toast({ title: "Usuário atualizado com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar usuário",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deactivateUserMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/users/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Usuário desativado com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao desativar usuário",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
+  const { createMutation, updateMutation, deleteMutation } = useCrudMutations<User>({
+    endpoint: "/api/users",
+    queryKey: ["/api/users"],
+    entityName: "Usuário",
   });
 
   const resetForm = () => {
@@ -121,7 +69,12 @@ export default function AdminUsersPage() {
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createUserMutation.mutate(formData);
+    createMutation.mutate(formData, {
+      onSuccess: () => {
+        setIsCreateSheetOpen(false);
+        resetForm();
+      }
+    });
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -139,7 +92,13 @@ export default function AdminUsersPage() {
       updateData.password = formData.password;
     }
     
-    updateUserMutation.mutate({ id: editingUser.id, data: updateData });
+    updateMutation.mutate({ id: editingUser.id, data: updateData }, {
+      onSuccess: () => {
+        setIsEditSheetOpen(false);
+        setEditingUser(null);
+        resetForm();
+      }
+    });
   };
 
   const openEditSheet = (user: User) => {
@@ -294,10 +253,10 @@ export default function AdminUsersPage() {
                   <div className="flex justify-end gap-2 pt-4">
                     <Button
                       type="submit"
-                      disabled={createUserMutation.isPending}
+                      disabled={createMutation.isPending}
                       data-testid="button-submit-create"
                     >
-                      {createUserMutation.isPending && (
+                      {createMutation.isPending && (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       )}
                       Criar Usuário
@@ -408,7 +367,7 @@ export default function AdminUsersPage() {
                               className="text-destructive hover:text-destructive"
                               onClick={() => {
                                 if (confirm(`Desativar usuário "${user.name}"?`)) {
-                                  deactivateUserMutation.mutate(user.id);
+                                  deleteMutation.mutate(user.id);
                                 }
                               }}
                               data-testid={`button-deactivate-${user.id}`}
@@ -447,10 +406,10 @@ export default function AdminUsersPage() {
             <div className="flex justify-end gap-2 pt-4">
               <Button
                 type="submit"
-                disabled={updateUserMutation.isPending}
+                disabled={updateMutation.isPending}
                 data-testid="button-submit-edit"
               >
-                {updateUserMutation.isPending && (
+                {updateMutation.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
                 Salvar Alterações

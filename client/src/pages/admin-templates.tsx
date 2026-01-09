@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { NursingUnitTemplate, InsertNursingUnitTemplate } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { Plus, Edit2, Trash2, ChevronLeft, Check, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, ChevronLeft, Check, ChevronDown, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useCrudMutations } from "@/hooks/use-crud-mutations";
 import { useToast } from "@/hooks/use-toast";
 import type { Enfermaria } from "@/types";
 
@@ -61,59 +61,22 @@ export default function AdminTemplatesPage() {
     queryKey: ["/api/enfermarias"],
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: InsertNursingUnitTemplate) =>
-      apiRequest("POST", "/api/templates", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
-      setFormData({
-        name: "",
-        description: "",
-        enfermariaCodigo: "",
-        fieldsConfiguration: [],
-        specialRules: {},
-        isActive: 1,
-      });
-      setIsFormOpen(false);
-      toast({ title: "Template criado com sucesso" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erro ao criar template", description: error.message, variant: "destructive" });
-    },
+  const { createMutation, updateMutation, deleteMutation } = useCrudMutations<NursingUnitTemplate>({
+    endpoint: "/api/templates",
+    queryKey: ["/api/templates"],
+    entityName: "Template",
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (data: { id: string; template: Partial<InsertNursingUnitTemplate> }) =>
-      apiRequest("PATCH", `/api/templates/${data.id}`, data.template),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
-      setEditingTemplate(null);
-      setFormData({
-        name: "",
-        description: "",
-        enfermariaCodigo: "",
-        fieldsConfiguration: [],
-        specialRules: {},
-        isActive: 1,
-      });
-      setIsFormOpen(false);
-      toast({ title: "Template atualizado com sucesso" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erro ao atualizar template", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/templates/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
-      toast({ title: "Template deletado com sucesso" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erro ao deletar template", description: error.message, variant: "destructive" });
-    },
-  });
+  const resetFormData = () => {
+    setFormData({
+      name: "",
+      description: "",
+      enfermariaCodigo: "",
+      fieldsConfiguration: [],
+      specialRules: {},
+      isActive: 1,
+    });
+  };
 
   const handleFieldToggle = (fieldId: string) => {
     const currentFields = (formData.fieldsConfiguration as string[]) || [];
@@ -153,9 +116,20 @@ export default function AdminTemplatesPage() {
     } as InsertNursingUnitTemplate;
 
     if (editingTemplate) {
-      updateMutation.mutate({ id: editingTemplate.id, template: submitData });
+      updateMutation.mutate({ id: editingTemplate.id, data: submitData }, {
+        onSuccess: () => {
+          setEditingTemplate(null);
+          resetFormData();
+          setIsFormOpen(false);
+        }
+      });
     } else {
-      createMutation.mutate(submitData);
+      createMutation.mutate(submitData, {
+        onSuccess: () => {
+          resetFormData();
+          setIsFormOpen(false);
+        }
+      });
     }
   };
 

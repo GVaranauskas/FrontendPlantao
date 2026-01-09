@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useCrudMutations } from "@/hooks/use-crud-mutations";
 import {
   ArrowLeft,
   Plus,
@@ -103,62 +104,10 @@ export default function AdminNursingUnitsPage() {
     refetchInterval: 30000,
   });
 
-  const createUnitMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest("POST", "/api/nursing-units", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nursing-units"] });
-      setIsCreateSheetOpen(false);
-      resetForm();
-      toast({ title: "Enfermaria criada com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao criar enfermaria",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateUnitMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof formData> }) => {
-      const response = await apiRequest("PATCH", `/api/nursing-units/${id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nursing-units"] });
-      setIsEditSheetOpen(false);
-      setEditingUnit(null);
-      resetForm();
-      toast({ title: "Enfermaria atualizada com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar enfermaria",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteUnitMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/nursing-units/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nursing-units"] });
-      toast({ title: "Enfermaria excluída com sucesso!" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir enfermaria",
-        description: error.message || "Tente novamente",
-        variant: "destructive",
-      });
-    },
+  const { createMutation, updateMutation, deleteMutation } = useCrudMutations<NursingUnit>({
+    endpoint: "/api/nursing-units",
+    queryKey: ["/api/nursing-units"],
+    entityName: "Enfermaria",
   });
 
   const syncMutation = useMutation({
@@ -281,13 +230,24 @@ export default function AdminNursingUnitsPage() {
 
   const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    createUnitMutation.mutate(formData);
+    createMutation.mutate(formData, {
+      onSuccess: () => {
+        setIsCreateSheetOpen(false);
+        resetForm();
+      }
+    });
   };
 
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (editingUnit) {
-      updateUnitMutation.mutate({ id: editingUnit.id, data: formData });
+      updateMutation.mutate({ id: editingUnit.id, data: formData }, {
+        onSuccess: () => {
+          setIsEditSheetOpen(false);
+          setEditingUnit(null);
+          resetForm();
+        }
+      });
     }
   };
 
@@ -445,8 +405,8 @@ export default function AdminNursingUnitsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deleteUnitMutation.mutate(unit.id)}
-                          disabled={deleteUnitMutation.isPending}
+                          onClick={() => deleteMutation.mutate(unit.id)}
+                          disabled={deleteMutation.isPending}
                           className="text-destructive hover:text-destructive"
                           data-testid={`button-delete-${unit.id}`}
                         >
@@ -669,11 +629,11 @@ export default function AdminNursingUnitsPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={createUnitMutation.isPending}
+                disabled={createMutation.isPending}
                 className="flex-1"
                 data-testid="button-submit-create"
               >
-                {createUnitMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Criar
               </Button>
             </div>
@@ -765,11 +725,11 @@ export default function AdminNursingUnitsPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={updateUnitMutation.isPending}
+                disabled={updateMutation.isPending}
                 className="flex-1"
                 data-testid="button-submit-edit"
               >
-                {updateUnitMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Salvar
               </Button>
             </div>

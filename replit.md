@@ -185,6 +185,13 @@ O sistema detecta automaticamente transferências de leito durante a sincroniza�
 - **Código Legado Removido**: PatientIndex, lógica de comparação manual, create/update separados em sincronização
 - **Benefícios**: Elimina race conditions, garante atomicidade, impede duplicatas mesmo em cenários de alta concorrência
 
+### CRUD Hook (`useCrudMutations`)
+- Criado `client/src/hooks/use-crud-mutations.ts` para eliminar duplicação de código CRUD
+- Hook genérico com create, update, delete mutations
+- Suporte para múltiplas query keys (`additionalQueryKeys`)
+- Toasts automáticos para sucesso e erro
+- Refatorados: `admin-users.tsx`, `admin-templates.tsx`, `admin-nursing-units.tsx`
+
 ### Frontend Type Consolidation
 - Criado `client/src/types/index.ts` centralizando interfaces compartilhadas
 - Interfaces consolidadas: Enfermaria, User, NursingTemplate, ImportResponse, ImportStats

@@ -1,0 +1,84 @@
+Crie um hook customizado client/src/hooks/use-crud-mutations.ts para eliminar duplicação de código CRUD.
+
+CÓDIGO DO HOOK:
+
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface UseCrudMutationsOptions<T> {
+  endpoint: string;
+  queryKey: string[];
+  entityName: string;
+}
+
+export function useCrudMutations<T>({ endpoint, queryKey, entityName }: UseCrudMutationsOptions<T>) {
+  const { toast } = useToast();
+
+  const createMutation = useMutation({
+    mutationFn: async (data: Partial<T>) => {
+      return apiRequest("POST", endpoint, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: `${entityName} criado(a) com sucesso!` });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: `Erro ao criar ${entityName}`,
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<T> }) => {
+      return apiRequest("PATCH", `${endpoint}/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: `${entityName} atualizado(a) com sucesso!` });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: `Erro ao atualizar ${entityName}`,
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `${endpoint}/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: `${entityName} excluído(a) com sucesso!` });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: `Erro ao excluir ${entityName}`,
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return {
+    createMutation,
+    updateMutation,
+    deleteMutation,
+  };
+}
+
+DEPOIS DE CRIAR O HOOK:
+1. Refatore admin-users.tsx para usar useCrudMutations
+2. Refatore admin-templates.tsx para usar useCrudMutations
+3. Refatore admin-nursing-units.tsx para usar useCrudMutations (adaptar para múltiplas invalidações)
+
+VALIDAÇÃO:
+- Teste cada página CRUD após refatoração
+- Verifique que os toasts aparecem corretamente
+- Confirme que a cache é invalidada apropriadamente
