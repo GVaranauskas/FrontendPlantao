@@ -1298,6 +1298,3 @@ Responda em JSON com:
 }
 
 export const aiService = new AIService();
-
-// Legacy export for backward compatibility
-export const openaiService = aiService;
