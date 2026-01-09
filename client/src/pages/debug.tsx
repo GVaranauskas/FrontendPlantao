@@ -6,11 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronUp, Copy, RefreshCw, ArrowLeft } from "lucide-react";
 import type { Patient, Alert } from "@shared/schema";
-
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
+import type { Enfermaria } from "@/types";
 
 export default function DebugPage() {
   const [, setLocation] = useLocation();

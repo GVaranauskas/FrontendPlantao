@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Patient, Alert } from "@shared/schema";
+import type { NursingTemplate } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -160,12 +161,6 @@ interface ClinicalBatchResult {
   leitosAtencao: LeitoDetalhadoSimples[];
   leitosAlerta: LeitoDetalhadoSimples[];
   failedPatients: string[];
-}
-
-interface NursingTemplate {
-  id: string;
-  name: string;
-  description?: string;
 }
 
 export default function ShiftHandoverPage() {

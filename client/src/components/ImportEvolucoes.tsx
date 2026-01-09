@@ -17,36 +17,12 @@ import {
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAutoSync } from "@/hooks/use-auto-sync";
-
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
-
-interface ImportStats {
-  total: number;
-  importados: number;
-  erros: number;
-  detalhes: Array<{ leito: string; status: string; mensagem?: string }>;
-}
-
-interface ImportResponse {
-  success: boolean;
-  enfermaria: string;
-  stats: ImportStats;
-  mensagem: string;
-}
+import type { Enfermaria, ImportResponse, NursingTemplate } from "@/types";
 
 interface ImportEvolucoeProps {
   autoSync?: boolean;
   syncInterval?: number;
   templateId?: string;
-}
-
-interface NursingTemplate {
-  id: string;
-  name: string;
-  description?: string;
 }
 
 export function ImportEvolucoes({ autoSync = false, syncInterval = 300000, templateId: propTemplateId }: ImportEvolucoeProps) {

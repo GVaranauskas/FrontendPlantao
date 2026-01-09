@@ -31,19 +31,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-interface User {
-  id: string;
-  username: string;
-  email: string | null;
-  name: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  lastLogin: string | null;
-}
-
-type UserRole = "admin" | "enfermagem";
+import type { User, UserRole } from "@/types";
 
 export default function AdminUsersPage() {
   const [, setLocation] = useLocation();
@@ -173,7 +161,7 @@ export default function AdminUsersPage() {
       (u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
-  const formatDate = (dateStr: string | null) => {
+  const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";
     return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: ptBR });
   };

@@ -12,11 +12,7 @@ import { Plus, Edit2, Trash2, ChevronLeft, Check, ChevronDown } from "lucide-rea
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
+import type { Enfermaria } from "@/types";
 
 const PATIENT_FIELDS = [
   { id: "leito", label: "Leito" },

@@ -2,13 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { useLocation } from "wouter";
 import { apiRequest } from "./queryClient";
 import { setAccessToken, clearAccessToken } from "./auth-token";
-
-interface User {
-  id: string;
-  username: string;
-  name: string;
-  role: string;
-}
+import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;

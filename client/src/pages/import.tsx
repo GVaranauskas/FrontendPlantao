@@ -9,28 +9,7 @@ import {
   Cloud, Home, CheckCircle, AlertCircle, Clock, Download, RefreshCcw, ChevronDown
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-
-interface Enfermaria {
-  codigo: string;
-  nome: string;
-}
-
-interface ImportResponse {
-  success: boolean;
-  enfermaria: string;
-  stats: {
-    total: number;
-    importados: number;
-    erros: number;
-    detalhes: Array<{ leito: string; status: string; mensagem?: string }>;
-  };
-  mensagem: string;
-}
-
-interface ImportStatus {
-  status: "online" | "offline";
-  latency: string;
-}
+import type { Enfermaria, ImportResponse, ImportStatus } from "@/types";
 
 export default function ImportPage() {
   const [, setLocation] = useLocation();
