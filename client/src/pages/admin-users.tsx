@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { useCrudMutations } from "@/hooks/use-crud-mutations";
+import { useSearchFilter } from "@/hooks/use-search-filter";
 import {
   ArrowLeft,
   Plus,
@@ -34,7 +35,6 @@ import type { User, UserRole } from "@/types";
 
 export default function AdminUsersPage() {
   const [, setLocation] = useLocation();
-  const [searchTerm, setSearchTerm] = useState("");
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -49,6 +49,11 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { searchTerm, setSearchTerm, filteredData: filteredUsers } = useSearchFilter({
+    data: users,
+    searchKeys: ["name", "username", "email"] as (keyof User)[],
   });
 
   const { createMutation, updateMutation, deleteMutation } = useCrudMutations<User>({
@@ -112,13 +117,6 @@ export default function AdminUsersPage() {
     });
     setIsEditSheetOpen(true);
   };
-
-  const filteredUsers = users?.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-  );
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return "-";

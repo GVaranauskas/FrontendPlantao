@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useCrudMutations } from "@/hooks/use-crud-mutations";
+import { useSearchFilter } from "@/hooks/use-search-filter";
 import {
   ArrowLeft,
   Plus,
@@ -75,7 +76,6 @@ interface SyncResult {
 export default function AdminNursingUnitsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState("");
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<NursingUnit | null>(null);
@@ -93,6 +93,11 @@ export default function AdminNursingUnitsPage() {
 
   const { data: units, isLoading: unitsLoading } = useQuery<NursingUnit[]>({
     queryKey: ["/api/nursing-units"],
+  });
+
+  const { searchTerm, setSearchTerm, filteredData: filteredUnits } = useSearchFilter({
+    data: units,
+    searchKeys: ["nome", "codigo", "localizacao"] as (keyof NursingUnit)[],
   });
 
   const { data: pendingChanges, isLoading: changesLoading } = useQuery<NursingUnitChange[]>({
@@ -250,13 +255,6 @@ export default function AdminNursingUnitsPage() {
       });
     }
   };
-
-  const filteredUnits = units?.filter(
-    (unit) =>
-      unit.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      unit.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (unit.localizacao && unit.localizacao.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   const getChangeTypeLabel = (change: NursingUnitChange) => {
     if (change.changeType === "create") {
