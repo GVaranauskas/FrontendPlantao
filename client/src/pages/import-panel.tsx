@@ -1,46 +1,19 @@
-import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
-import { Home, ShieldAlert, Database, Clock } from "lucide-react";
+import { ShieldAlert, Database, Clock } from "lucide-react";
 
 export default function ImportPanelPage() {
-  const [, setLocation] = useLocation();
+  const headerActions = (
+    <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
+      <ShieldAlert className="w-3 h-3 mr-1" />
+      Acesso Restrito
+    </Badge>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b-4 border-primary shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setLocation("/modules")}
-                data-testid="button-home"
-              >
-                <Home className="w-6 h-6 text-primary" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">
-                  Painel de Administração
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Importação de Dados
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
-              <ShieldAlert className="w-3 h-3 mr-1" />
-              Acesso Restrito
-            </Badge>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-5 py-8">
+    <PageLayout title="Painel de Administração" actions={headerActions}>
         <div className="grid gap-8 max-w-2xl">
           {/* Info Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -94,7 +67,6 @@ export default function ImportPanelPage() {
             </ul>
           </Card>
         </div>
-      </main>
-    </div>
+    </PageLayout>
   );
 }

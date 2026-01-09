@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageLayout } from "@/components/layout/PageLayout";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { 
-  Cloud, Home, CheckCircle, AlertCircle, Clock, Download, RefreshCcw, ChevronDown
+  Cloud, CheckCircle, AlertCircle, Clock, Download, RefreshCcw, ChevronDown
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Enfermaria, ImportResponse, ImportStatus } from "@/types";
 
 export default function ImportPage() {
-  const [, setLocation] = useLocation();
   const [selectedEnfermaria, setSelectedEnfermaria] = useState<string>("");
   const [lastImport, setLastImport] = useState<ImportResponse | null>(null);
 
@@ -43,34 +42,18 @@ export default function ImportPage() {
     await importMutation.mutateAsync(selectedEnfermaria);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b-4 border-primary shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setLocation("/modules")}
-                data-testid="button-home"
-              >
-                <Home className="w-6 h-6 text-primary" />
-              </Button>
-              <h1 className="text-2xl font-bold text-primary">Importar Evolucoes N8N</h1>
-            </div>
-            <Badge 
-              variant="outline"
-              className={status?.status === "online" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-              data-testid="badge-api-status"
-            >
-              {status?.status === "online" ? "API Online" : "API Offline"} ({status?.latency})
-            </Badge>
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <Badge 
+      variant="outline"
+      className={status?.status === "online" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+      data-testid="badge-api-status"
+    >
+      {status?.status === "online" ? "API Online" : "API Offline"} ({status?.latency})
+    </Badge>
+  );
 
-      <main className="container mx-auto px-5 py-8">
+  return (
+    <PageLayout title="Importar Evolucoes N8N" actions={headerActions}>
         <div className="grid gap-6 max-w-2xl">
           {/* Import Card */}
           <Card className="p-6" data-testid="card-import-form">
@@ -183,7 +166,6 @@ export default function ImportPage() {
             </Card>
           )}
         </div>
-      </main>
-    </div>
+    </PageLayout>
   );
 }

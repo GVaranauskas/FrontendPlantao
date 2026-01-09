@@ -1,10 +1,10 @@
-import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { 
-  Home, BarChart3, CheckCircle2, AlertCircle, Clock, RefreshCcw
+  BarChart3, CheckCircle2, AlertCircle, Clock, RefreshCcw
 } from "lucide-react";
 
 interface ImportRecord {
@@ -19,8 +19,6 @@ interface ImportRecord {
 }
 
 export default function DashboardPage() {
-  const [, setLocation] = useLocation();
-
   const { data: importHistory, isLoading, refetch } = useQuery<ImportRecord[]>({
     queryKey: ["/api/import/history"],
     refetchInterval: 30000,
@@ -38,35 +36,19 @@ export default function DashboardPage() {
     ? Math.round((stats.totalProcessados / (stats.totalProcessados + stats.totalErros)) * 100)
     : 0;
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b-4 border-primary shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setLocation("/modules")}
-                data-testid="button-home"
-              >
-                <Home className="w-6 h-6 text-primary" />
-              </Button>
-              <h1 className="text-2xl font-bold text-primary">Dashboard de Importações</h1>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => refetch()}
-              data-testid="button-refresh"
-            >
-              <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <Button 
+      variant="ghost" 
+      size="icon"
+      onClick={() => refetch()}
+      data-testid="button-refresh"
+    >
+      <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+    </Button>
+  );
 
-      <main className="container mx-auto px-5 py-8">
+  return (
+    <PageLayout title="Dashboard de Importações" actions={headerActions}>
         <div className="space-y-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -195,7 +177,6 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
-      </main>
-    </div>
+    </PageLayout>
   );
 }
