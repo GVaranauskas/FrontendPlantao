@@ -173,6 +173,20 @@ export const patientNotesHistory = pgTable("patient_notes_history", {
   userAgent: text("user_agent"),
 });
 
+// Tabela de métricas de custo de IA
+export const aiCostMetrics = pgTable("ai_cost_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  model: text("model"),
+  operation: text("operation"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  totalTokens: integer("total_tokens"),
+  estimatedCost: text("estimated_cost"),
+  userId: varchar("user_id").references(() => users.id),
+  metadata: jsonb("metadata"),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -260,3 +274,5 @@ export type InsertNursingUnitChange = z.infer<typeof insertNursingUnitChangeSche
 export type NursingUnitChange = typeof nursingUnitChanges.$inferSelect;
 export type PatientNotesHistory = typeof patientNotesHistory.$inferSelect;
 export type InsertPatientNotesHistory = typeof patientNotesHistory.$inferInsert;
+export type AiCostMetrics = typeof aiCostMetrics.$inferSelect;
+export type InsertAiCostMetrics = typeof aiCostMetrics.$inferInsert;
