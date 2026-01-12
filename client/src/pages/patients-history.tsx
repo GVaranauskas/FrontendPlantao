@@ -498,7 +498,7 @@ export default function PatientsHistoryPage() {
                   <Label htmlFor="motivo">Motivo da Saída</Label>
                   <Select
                     value={motivoFilter}
-                    onValueChange={(value) => {
+                    onValueChange={(value: string) => {
                       setMotivoFilter(value);
                       setPage(1);
                     }}
