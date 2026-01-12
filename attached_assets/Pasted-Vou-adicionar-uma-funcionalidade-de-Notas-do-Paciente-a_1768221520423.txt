@@ -1,0 +1,66 @@
+Vou adicionar uma funcionalidade de "Notas do Paciente" ao sistema. Esta é a primeira etapa: configurar o banco de dados.
+
+EXECUTE ESTAS AÇÕES AUTOMATICAMENTE:
+
+1. Abra o arquivo shared/schema.ts
+
+2. Localize onde está escrito: export const patients = pgTable("patients", {
+
+3. Dentro dessa definição de tabela, ANTES da linha que fecha com }); , adicione estas 5 novas linhas:
+
+notasPaciente: text("notas_paciente"),
+notasUpdatedAt: timestamp("notas_updated_at"),
+notasUpdatedBy: varchar("notas_updated_by").references(() => users.id),
+notasCreatedAt: timestamp("notas_created_at"),
+notasCreatedBy: varchar("notas_created_by").references(() => users.id),
+
+4. Ainda no mesmo arquivo shared/schema.ts, depois da linha export type InsertPatient = z.infer<typeof insertPatientSchema>; , adicione este bloco completo:
+
+export const patientNotesHistory = pgTable("patient_notes_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  patientId: varchar("patient_id").notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  notaAnterior: text("nota_anterior"),
+  notaNova: text("nota_nova"),
+  alteradoPorId: varchar("alterado_por_id").notNull().references(() => users.id),
+  alteradoPorNome: text("alterado_por_nome").notNull(),
+  alteradoEm: timestamp("alterado_em").notNull().defaultNow(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+});
+
+export type PatientNotesHistory = typeof patientNotesHistory.$inferSelect;
+export type InsertPatientNotesHistory = typeof patientNotesHistory.$inferInsert;
+
+5. Crie um NOVO arquivo chamado db/migrations/0006_patient_notes.sql com este conteúdo completo:
+
+ALTER TABLE patients 
+ADD COLUMN IF NOT EXISTS notas_paciente TEXT,
+ADD COLUMN IF NOT EXISTS notas_updated_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS notas_updated_by VARCHAR REFERENCES users(id),
+ADD COLUMN IF NOT EXISTS notas_created_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS notas_created_by VARCHAR REFERENCES users(id);
+
+CREATE TABLE IF NOT EXISTS patient_notes_history (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id VARCHAR NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  nota_anterior TEXT,
+  nota_nova TEXT,
+  alterado_por_id VARCHAR NOT NULL REFERENCES users(id),
+  alterado_por_nome TEXT NOT NULL,
+  alterado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+  ip_address TEXT,
+  user_agent TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_patient_notes_history_patient_id ON patient_notes_history(patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_notes_history_alterado_em ON patient_notes_history(alterado_em DESC);
+
+COMMENT ON COLUMN patients.notas_paciente IS 'Notas não clínicas sobre o paciente (máximo 200 caracteres)';
+COMMENT ON TABLE patient_notes_history IS 'Histórico completo de alterações nas notas dos pacientes';
+
+6. Execute esta migration no banco de dados. Se houver um comando npm run db:push ou similar, execute-o. Caso contrário, conecte ao PostgreSQL e execute o arquivo SQL.
+
+7. Confirme que tudo foi criado executando esta query no banco:
+SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name LIKE 'notas%';
+
+QUANDO TERMINAR, ME RESPONDA: "✅ ETAPA 1 CONCLUÍDA - Banco configurado com sucesso!"
