@@ -8,8 +8,8 @@ import { isProductionEnv } from '../config/env';
 export function setAccessTokenCookie(res: Response, token: string): void {
   res.cookie('accessToken', token, {
     httpOnly: true,
-    secure: isProductionEnv,
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/',
   });
@@ -21,8 +21,8 @@ export function setAccessTokenCookie(res: Response, token: string): void {
 export function setRefreshTokenCookie(res: Response, token: string): void {
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: isProductionEnv,
-    sameSite: 'strict',
+    secure: true,
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
   });
