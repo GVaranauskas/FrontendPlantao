@@ -187,3 +187,11 @@ export interface PatientStats {
   alert: number;
   critical: number;
 }
+
+export interface PatientNotesFields {
+  notasPaciente?: string | null;
+  notasUpdatedAt?: string | null;
+  notasUpdatedBy?: string | null;
+  notasCreatedAt?: string | null;
+  notasCreatedBy?: string | null;
+}

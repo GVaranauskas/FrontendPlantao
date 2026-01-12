@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Activity, CheckCircle } from "lucide-react";
+import { AlertTriangle, Activity, CheckCircle, Edit2, Save, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { Patient } from "@shared/schema";
 import type { ClinicalInsights } from "./types";
 
@@ -9,7 +12,111 @@ interface PatientTableProps {
   onPatientClick: (patient: Patient) => void;
 }
 
+function EditableNotesCell({ patientId, currentNotes, onSave, isUpdating }: {
+  patientId: string;
+  currentNotes: string | null;
+  onSave: (patientId: string, notes: string) => void;
+  isUpdating: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [noteValue, setNoteValue] = useState(currentNotes || "");
+  const maxLength = 200;
+
+  const handleSave = () => {
+    onSave(patientId, noteValue);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setNoteValue(currentNotes || "");
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-col gap-1 p-1" onClick={(e) => e.stopPropagation()}>
+        <textarea
+          value={noteValue}
+          onChange={(e) => setNoteValue(e.target.value.slice(0, maxLength))}
+          className="w-full min-h-[60px] text-xs border border-border rounded p-2 focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
+          placeholder="Adicione notas sobre o paciente..."
+          maxLength={maxLength}
+          disabled={isUpdating}
+          autoFocus
+          data-testid={`textarea-notes-${patientId}`}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{noteValue.length}/{maxLength}</span>
+          <div className="flex gap-1">
+            <button 
+              onClick={handleSave} 
+              disabled={isUpdating} 
+              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded disabled:opacity-50" 
+              title="Salvar"
+              data-testid={`button-save-notes-${patientId}`}
+            >
+              <Save className="h-4 w-4" />
+            </button>
+            <button 
+              onClick={handleCancel} 
+              disabled={isUpdating} 
+              className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded disabled:opacity-50" 
+              title="Cancelar"
+              data-testid={`button-cancel-notes-${patientId}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="flex items-start gap-2 p-2 hover:bg-muted/50 rounded cursor-pointer group min-h-[40px]" 
+      onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+      data-testid={`cell-notes-${patientId}`}
+    >
+      <p className="text-xs text-foreground flex-1 whitespace-pre-wrap">
+        {currentNotes || <span className="text-muted-foreground italic">Clique para adicionar notas...</span>}
+      </p>
+      <Edit2 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5" />
+    </div>
+  );
+}
+
 export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const updateNotesMutation = useMutation({
+    mutationFn: async ({ patientId, notes }: { patientId: string; notes: string }) => {
+      const response = await fetch(`/api/patients/${patientId}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ notasPaciente: notes }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao salvar notas");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      toast({ title: "Sucesso", description: "Notas atualizadas com sucesso" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erro", description: error.message });
+    },
+  });
+
+  const handleSaveNotes = (patientId: string, notes: string) => {
+    updateNotesMutation.mutate({ patientId, notes });
+  };
+
   const getRowBackground = (patient: Patient, idx: number) => {
     if (patient.alerta === "critical") {
       return "bg-destructive/10 hover:bg-destructive/20";
@@ -51,6 +158,7 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">APORTE<br/>E SATURAÇÃO</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[140px]">EXAMES<br/>REALIZADOS/<br/>PENDENTES</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[120px]">DATA DA<br/>PROGRAMAÇÃO<br/>CIRÚRGICA</th>
+              <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px] bg-blue-600">NOTAS DO<br/>PACIENTE</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">OBSERVAÇÕES/<br/>INTERCORRÊNCIAS</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">PREVISÃO<br/>DE ALTA</th>
             </tr>
@@ -124,6 +232,14 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.aporteSaturacao || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.exames || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.cirurgia || "-"}</td>
+                <td className="px-2 py-2 text-[10px] border border-border bg-blue-50/50 dark:bg-blue-900/20">
+                  <EditableNotesCell 
+                    patientId={patient.id} 
+                    currentNotes={patient.notasPaciente ?? null} 
+                    onSave={handleSaveNotes} 
+                    isUpdating={updateNotesMutation.isPending} 
+                  />
+                </td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.observacoes || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.previsaoAlta || "-"}</td>
               </tr>
