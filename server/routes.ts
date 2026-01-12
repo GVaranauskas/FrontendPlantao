@@ -17,6 +17,7 @@ import { validateLeitoParam, validateEnfermariaParam, validateUnitIdsBody, valid
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
+import { patientNotesService } from "./services/patient-notes.service";
 
 // Helper to get formatted timestamp
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
@@ -97,6 +98,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete patient" });
+    }
+  });
+
+  // Patient notes endpoints
+  app.patch("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notasPaciente } = req.body;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ 
+          error: "Usuário não autenticado",
+          message: "Você precisa estar logado para atualizar notas" 
+        });
+      }
+
+      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+      const userAgent = req.get("user-agent") || "unknown";
+
+      const updatedPatient = await patientNotesService.updatePatientNotes(
+        id,
+        notasPaciente,
+        userId,
+        ipAddress,
+        userAgent
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Notas atualizadas com sucesso",
+        data: {
+          notasPaciente: updatedPatient.notasPaciente,
+          notasUpdatedAt: updatedPatient.notasUpdatedAt,
+          notasUpdatedBy: updatedPatient.notasUpdatedBy,
+        },
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar notas do paciente:", error);
+      res.status(500).json({ 
+        error: "Erro ao atualizar notas do paciente",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/notes-history", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const history = await patientNotesService.getPatientNotesHistory(id);
+      res.status(200).json({
+        success: true,
+        data: history,
+        count: history.length,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar histórico de notas:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar histórico de notas",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const notes = await patientNotesService.getPatientNotes(id);
+      res.status(200).json({
+        success: true,
+        data: notes,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar notas do paciente:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar notas do paciente",
+        message: error.message 
+      });
     }
   });
 

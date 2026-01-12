@@ -1,0 +1,91 @@
+Agora vou criar os endpoints da API. Esta é a terceira etapa.
+
+EXECUTE ESTAS AÇÕES AUTOMATICAMENTE:
+
+1. Abra o arquivo server/routes.ts
+
+2. No TOPO do arquivo, onde estão os imports, adicione esta linha:
+import { patientNotesService } from "./services/patient-notes.service";
+
+3. Procure onde estão as rotas de pacientes (procure por /api/patients). Depois das rotas existentes de pacientes, ADICIONE estas 3 novas rotas:
+
+  app.patch("/api/patients/:id/notes", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notasPaciente } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ 
+          error: "Usuário não autenticado",
+          message: "Você precisa estar logado para atualizar notas" 
+        });
+      }
+
+      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+      const userAgent = req.get("user-agent") || "unknown";
+
+      const updatedPatient = await patientNotesService.updatePatientNotes(
+        id,
+        notasPaciente,
+        userId,
+        ipAddress,
+        userAgent
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Notas atualizadas com sucesso",
+        data: {
+          notasPaciente: updatedPatient.notasPaciente,
+          notasUpdatedAt: updatedPatient.notasUpdatedAt,
+          notasUpdatedBy: updatedPatient.notasUpdatedBy,
+        },
+      });
+    } catch (error: any) {
+      console.error("❌ Erro ao atualizar notas do paciente:", error);
+      res.status(500).json({ 
+        error: "Erro ao atualizar notas do paciente",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/notes-history", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const history = await patientNotesService.getPatientNotesHistory(id);
+      res.status(200).json({
+        success: true,
+        data: history,
+        count: history.length,
+      });
+    } catch (error: any) {
+      console.error("❌ Erro ao buscar histórico de notas:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar histórico de notas",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/notes", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const notes = await patientNotesService.getPatientNotes(id);
+      res.status(200).json({
+        success: true,
+        data: notes,
+      });
+    } catch (error: any) {
+      console.error("❌ Erro ao buscar notas do paciente:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar notas do paciente",
+        message: error.message 
+      });
+    }
+  });
+
+4. Salve o arquivo e reinicie o servidor backend.
+
+QUANDO TERMINAR, ME RESPONDA: "✅ ETAPA 3 CONCLUÍDA - API criada com sucesso!"
