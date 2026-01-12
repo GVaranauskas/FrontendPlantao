@@ -11,6 +11,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessToken } from "@/lib/auth-token";
 import type { Patient } from "@shared/schema";
 import type { ClinicalInsights } from "./types";
 
@@ -40,7 +41,15 @@ export function PatientDetailsModal({
   const { data: notesHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["patient-notes-history", patient?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/patients/${patient?.id}/notes-history`, { credentials: "include" });
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/patients/${patient?.id}/notes-history`, { 
+        credentials: "include",
+        headers,
+      });
       if (!response.ok) throw new Error("Erro ao buscar histórico");
       const result = await response.json();
       return result.data;
@@ -50,9 +59,14 @@ export function PatientDetailsModal({
 
   const updateNotesMutation = useMutation({
     mutationFn: async (notes: string) => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api/patients/${patient?.id}/notes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({ notasPaciente: notes }),
       });

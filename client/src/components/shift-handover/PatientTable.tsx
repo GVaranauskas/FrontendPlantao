@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Activity, CheckCircle, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAccessToken } from "@/lib/auth-token";
 import type { Patient } from "@shared/schema";
 import type { ClinicalInsights } from "./types";
 
@@ -92,9 +93,14 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
 
   const updateNotesMutation = useMutation({
     mutationFn: async ({ patientId, notes }: { patientId: string; notes: string }) => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api/patients/${patientId}/notes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({ notasPaciente: notes }),
       });
