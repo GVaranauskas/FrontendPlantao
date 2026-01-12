@@ -113,6 +113,8 @@ class EncryptionService {
       
       return decrypted.toString('utf8');
     } catch (error) {
+      console.warn('[Encryption] Decrypt failed - data may be encrypted with different key:', 
+        ciphertext?.substring(0, 30) + '...');
       return ciphertext;
     }
   }
