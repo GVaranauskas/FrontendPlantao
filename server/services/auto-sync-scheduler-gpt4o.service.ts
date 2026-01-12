@@ -4,7 +4,7 @@ import { changeDetectionService } from './change-detection.service';
 import { aiServiceGPT4oMini } from './ai-service-gpt4o-mini';
 import { intelligentCache } from './intelligent-cache.service';
 import { storage } from '../storage';
-import type { InsertPatient, Patient } from '@shared/schema';
+import type { InsertPatient, Patient, ArchiveReason } from '@shared/schema';
 
 /**
  * AUTO SYNC SCHEDULER - GPT-4o-mini
@@ -359,24 +359,27 @@ export class AutoSyncSchedulerGPT4o {
   }
 
   private async removeDischargedPatients(
-    currentCodigosAtendimento: Set<string>, 
+    currentCodigosAtendimento: Set<string>,
     currentLeitos: Set<string>,
     codigoToLeito: Map<string, string>
   ): Promise<number> {
     // Get all patients from database
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
-    
+
     for (const patient of allPatients) {
       let shouldRemove = false;
       let removeReason = '';
-      
+      let archiveReason: ArchiveReason = 'alta_hospitalar';
+      let leitoDestino: string | undefined;
+
       // Caso 1: Paciente TEM codigoAtendimento
       if (patient.codigoAtendimento) {
         if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
           // codigoAtendimento não existe no N8N - paciente teve alta
           shouldRemove = true;
           removeReason = 'alta hospitalar (código não existe no N8N)';
+          archiveReason = 'alta_hospitalar';
         } else if (patient.leito) {
           // codigoAtendimento existe - verificar se o leito corresponde
           const n8nLeito = codigoToLeito.get(patient.codigoAtendimento);
@@ -384,30 +387,38 @@ export class AutoSyncSchedulerGPT4o {
             // Paciente foi transferido de leito - este é um registro órfão
             shouldRemove = true;
             removeReason = `transferência de leito (${patient.leito} -> ${n8nLeito})`;
+            archiveReason = 'transferencia_leito';
+            leitoDestino = n8nLeito;
             console.log(`[AutoSync] 🔄 Paciente ${patient.codigoAtendimento} transferido: leito ${patient.leito} -> ${n8nLeito}`);
           }
         }
-      } 
+      }
       // Caso 2: Paciente SEM codigoAtendimento - verificar pelo leito
       // Isso remove registros antigos/órfãos que não têm identificador
       else if (patient.leito) {
         if (!currentLeitos.has(patient.leito)) {
           shouldRemove = true;
           removeReason = 'leito não existe no N8N';
+          archiveReason = 'registro_antigo';
         }
       }
-      
+
       if (shouldRemove) {
         try {
+          // ARQUIVAR antes de deletar - preserva histórico
+          await storage.archivePatient(patient, archiveReason, leitoDestino);
+          console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado no histórico - ${removeReason}`);
+
+          // Agora deletar da tabela principal
           await storage.deletePatient(patient.id);
           removedCount++;
-          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido - ${removeReason}`);
+          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido da passagem de plantão`);
         } catch (error) {
-          console.error(`[AutoSync] Erro ao remover paciente ${patient.id}:`, error);
+          console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
         }
       }
     }
-    
+
     return removedCount;
   }
 

@@ -172,12 +172,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Erro ao buscar notas do paciente:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Erro ao buscar notas do paciente",
-        message: error.message 
+        message: error.message
       });
     }
   });
+
+  // ==========================================
+  // Patients History Endpoints (Histórico de Altas)
+  // ==========================================
+
+  // List patients history with pagination and filters
+  app.get("/api/patients-history", authMiddleware, asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    // Build filters from query params
+    const filters: any = {};
+
+    if (req.query.nome) {
+      filters.nome = req.query.nome as string;
+    }
+    if (req.query.registro) {
+      filters.registro = req.query.registro as string;
+    }
+    if (req.query.leito) {
+      filters.leito = req.query.leito as string;
+    }
+    if (req.query.codigoAtendimento) {
+      filters.codigoAtendimento = req.query.codigoAtendimento as string;
+    }
+    if (req.query.motivoArquivamento) {
+      filters.motivoArquivamento = req.query.motivoArquivamento as string;
+    }
+    if (req.query.dsEnfermaria) {
+      filters.dsEnfermaria = req.query.dsEnfermaria as string;
+    }
+    if (req.query.dataInicio) {
+      filters.dataInicio = new Date(req.query.dataInicio as string);
+    }
+    if (req.query.dataFim) {
+      filters.dataFim = new Date(req.query.dataFim as string);
+    }
+
+    const result = await storage.getPatientsHistoryPaginated({ page, limit }, filters);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  }));
+
+  // Get single patient history record by ID
+  app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const record = await storage.getPatientsHistoryById(req.params.id);
+    if (!record) {
+      throw new AppError(404, "Registro de histórico não encontrado", { historyId: req.params.id });
+    }
+    res.json({
+      success: true,
+      data: record,
+    });
+  }));
+
+  // Get patients history statistics
+  app.get("/api/patients-history/stats/summary", authMiddleware, asyncHandler(async (req, res) => {
+    const stats = await storage.getPatientsHistoryStats();
+    res.json({
+      success: true,
+      data: stats,
+    });
+  }));
 
   // Admin endpoint to get patient stats
   app.get("/api/admin/patients/stats", requireRole('admin'), asyncHandler(async (req, res) => {

@@ -24,6 +24,7 @@ const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const AdminMenuPage = lazy(() => import("@/pages/admin-menu"));
 const AdminNursingUnitsPage = lazy(() => import("@/pages/admin-nursing-units"));
 const ImportLogsPage = lazy(() => import("@/pages/import-logs"));
+const PatientsHistoryPage = lazy(() => import("@/pages/patients-history"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingSpinner() {
@@ -102,6 +103,9 @@ function Router() {
         </Route>
         <Route path="/admin/nursing-units">
           <ProtectedRoute component={AdminNursingUnitsPage} />
+        </Route>
+        <Route path="/patients-history">
+          <ProtectedRoute component={PatientsHistoryPage} />
         </Route>
         <Route>
           <LazyRoute component={NotFound} />

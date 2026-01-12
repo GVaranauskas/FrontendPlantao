@@ -1,8 +1,8 @@
-import { eq, desc, lt, gte, sql, and, count } from "drizzle-orm";
+import { eq, desc, lt, gte, lte, sql, and, count, ilike, or } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason } from "@shared/schema";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
 export class PostgresStorage implements IStorage {
@@ -408,6 +408,139 @@ export class PostgresStorage implements IStorage {
       .from(nursingUnitChanges)
       .where(eq(nursingUnitChanges.status, "pending"));
     return Number(result[0]?.count || 0);
+  }
+
+  // Patients History Methods (Histórico de altas/transferências)
+
+  async archivePatient(patient: Patient, motivoArquivamento: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory> {
+    // Decripta os dados do paciente antes de arquivar
+    const decryptedPatient = this.decryptPatientData(patient);
+
+    // Cria snapshot completo do paciente (sem campos sensíveis criptografados)
+    const dadosCompletos = { ...decryptedPatient };
+
+    const historyRecord = {
+      codigoAtendimento: decryptedPatient.codigoAtendimento || `LEITO_${decryptedPatient.leito}`,
+      registro: decryptedPatient.registro,
+      nome: decryptedPatient.nome,
+      leito: decryptedPatient.leito,
+      dataInternacao: decryptedPatient.dataInternacao,
+      dsEnfermaria: decryptedPatient.dsEnfermaria,
+      dsEspecialidade: decryptedPatient.dsEspecialidade,
+      motivoArquivamento,
+      leitoDestino,
+      dadosCompletos,
+      clinicalInsights: decryptedPatient.clinicalInsights,
+      notasPaciente: decryptedPatient.notasPaciente,
+    };
+
+    const result = await db.insert(patientsHistory).values(historyRecord).returning();
+    return result[0];
+  }
+
+  async getPatientsHistoryPaginated(params: PaginationParams, filters?: PatientsHistoryFilters): Promise<PaginatedResult<PatientsHistory>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+
+    // Build dynamic where conditions
+    const conditions = [];
+
+    if (filters?.nome) {
+      conditions.push(ilike(patientsHistory.nome, `%${filters.nome}%`));
+    }
+    if (filters?.registro) {
+      conditions.push(ilike(patientsHistory.registro, `%${filters.registro}%`));
+    }
+    if (filters?.leito) {
+      conditions.push(ilike(patientsHistory.leito, `%${filters.leito}%`));
+    }
+    if (filters?.codigoAtendimento) {
+      conditions.push(ilike(patientsHistory.codigoAtendimento, `%${filters.codigoAtendimento}%`));
+    }
+    if (filters?.motivoArquivamento) {
+      conditions.push(eq(patientsHistory.motivoArquivamento, filters.motivoArquivamento));
+    }
+    if (filters?.dsEnfermaria) {
+      conditions.push(ilike(patientsHistory.dsEnfermaria, `%${filters.dsEnfermaria}%`));
+    }
+    if (filters?.dataInicio) {
+      conditions.push(gte(patientsHistory.arquivadoEm, filters.dataInicio));
+    }
+    if (filters?.dataFim) {
+      conditions.push(lte(patientsHistory.arquivadoEm, filters.dataFim));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult, result] = await Promise.all([
+      db.select({ total: count() }).from(patientsHistory).where(whereClause),
+      db.select().from(patientsHistory)
+        .where(whereClause)
+        .orderBy(desc(patientsHistory.arquivadoEm))
+        .limit(limit)
+        .offset(offset)
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return {
+      data: result,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async getPatientsHistoryById(id: string): Promise<PatientsHistory | undefined> {
+    const result = await db.select().from(patientsHistory).where(eq(patientsHistory.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPatientsHistoryStats(): Promise<{
+    total: number;
+    last24h: number;
+    last7d: number;
+    last30d: number;
+    byMotivo: Record<string, number>;
+    byEnfermaria: Record<string, number>;
+  }> {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [totalResult, last24hResult, last7dResult, last30dResult, allHistory] = await Promise.all([
+      db.select({ count: count() }).from(patientsHistory),
+      db.select({ count: count() }).from(patientsHistory).where(gte(patientsHistory.arquivadoEm, dayAgo)),
+      db.select({ count: count() }).from(patientsHistory).where(gte(patientsHistory.arquivadoEm, weekAgo)),
+      db.select({ count: count() }).from(patientsHistory).where(gte(patientsHistory.arquivadoEm, monthAgo)),
+      db.select({
+        motivoArquivamento: patientsHistory.motivoArquivamento,
+        dsEnfermaria: patientsHistory.dsEnfermaria,
+      }).from(patientsHistory)
+    ]);
+
+    const byMotivo: Record<string, number> = {};
+    const byEnfermaria: Record<string, number> = {};
+
+    for (const record of allHistory) {
+      const motivo = record.motivoArquivamento || 'desconhecido';
+      byMotivo[motivo] = (byMotivo[motivo] || 0) + 1;
+
+      const enfermaria = record.dsEnfermaria || 'desconhecida';
+      byEnfermaria[enfermaria] = (byEnfermaria[enfermaria] || 0) + 1;
+    }
+
+    return {
+      total: totalResult[0]?.count || 0,
+      last24h: last24hResult[0]?.count || 0,
+      last7d: last7dResult[0]?.count || 0,
+      last30d: last30dResult[0]?.count || 0,
+      byMotivo,
+      byEnfermaria,
+    };
   }
 }
 

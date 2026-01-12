@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { 
+import {
   Menu, Home, RefreshCcw, Filter, Bell, Printer,
   Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
   AlertTriangle, CheckCircle, Activity, Shield, Bug, Wind, Utensils, Heart,
-  Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight
+  Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight, History
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
@@ -259,8 +259,8 @@ export default function ShiftHandoverPage() {
         <div className="container mx-auto px-5 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-5">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={() => setLocation("/modules")}
                 data-testid="button-home"
@@ -268,8 +268,17 @@ export default function ShiftHandoverPage() {
               >
                 <Home className="w-5 h-5 text-primary" />
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation("/patients-history")}
+                data-testid="button-patients-history"
+                title="Histórico de Pacientes (Altas e Transferências)"
+              >
+                <History className="w-5 h-5 text-primary" />
+              </Button>
+              <Button
+                variant="ghost"
                 size="icon"
                 data-testid="button-menu-toggle"
               >

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange } from "@shared/schema";
+import { type User, type InsertUser, type UpdateUser, type Patient, type InsertPatient, type Alert, type InsertAlert, type ImportHistory, type InsertImportHistory, type NursingUnitTemplate, type InsertNursingUnitTemplate, type NursingUnit, type InsertNursingUnit, type UpdateNursingUnit, type NursingUnitChange, type InsertNursingUnitChange, type PatientsHistory, type InsertPatientsHistory, type ArchiveReason } from "@shared/schema";
 import { MemStorage } from "./repositories/memory-storage";
 import { postgresStorage } from "./repositories/postgres-storage";
 import { env } from "./config/env";
@@ -14,6 +14,17 @@ export interface PaginatedResult<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface PatientsHistoryFilters {
+  nome?: string;
+  registro?: string;
+  leito?: string;
+  codigoAtendimento?: string;
+  motivoArquivamento?: ArchiveReason;
+  dsEnfermaria?: string;
+  dataInicio?: Date;
+  dataFim?: Date;
 }
 
 export interface IStorage {
@@ -83,6 +94,19 @@ export interface IStorage {
   rejectNursingUnitChange(id: string, reviewedBy: string): Promise<NursingUnitChange | undefined>;
   deleteNursingUnitChange(id: string): Promise<boolean>;
   getPendingChangesCount(): Promise<number>;
+
+  // Patients History (Histórico de altas/transferências)
+  archivePatient(patient: Patient, motivoArquivamento: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory>;
+  getPatientsHistoryPaginated(params: PaginationParams, filters?: PatientsHistoryFilters): Promise<PaginatedResult<PatientsHistory>>;
+  getPatientsHistoryById(id: string): Promise<PatientsHistory | undefined>;
+  getPatientsHistoryStats(): Promise<{
+    total: number;
+    last24h: number;
+    last7d: number;
+    last30d: number;
+    byMotivo: Record<string, number>;
+    byEnfermaria: Record<string, number>;
+  }>;
 }
 
 // Initialize storage based on environment

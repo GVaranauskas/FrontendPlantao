@@ -247,6 +247,51 @@ export const patientNotesHistory = pgTable("patient_notes_history", {
 
 export type PatientNotesHistory = typeof patientNotesHistory.$inferSelect;
 export type InsertPatientNotesHistory = typeof patientNotesHistory.$inferInsert;
+
+// Motivos de arquivamento de pacientes
+export const archiveReasons = ["alta_hospitalar", "transferencia_leito", "obito", "registro_antigo"] as const;
+export type ArchiveReason = typeof archiveReasons[number];
+
+// Histórico de pacientes (alta/transferência)
+// Tabela append-only para armazenar snapshot dos pacientes que saíram da passagem de plantão
+export const patientsHistory = pgTable("patients_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Identificadores - podem repetir em internações diferentes do mesmo paciente
+  codigoAtendimento: text("codigo_atendimento").notNull(), // único por internação
+  registro: text("registro"),        // PT do paciente - repete entre internações
+  nome: text("nome").notNull(),
+  leito: text("leito").notNull(),
+
+  // Contexto da internação
+  dataInternacao: text("data_internacao"),
+  dsEnfermaria: text("ds_enfermaria"),
+  dsEspecialidade: text("ds_especialidade"),
+
+  // Motivo do arquivamento
+  motivoArquivamento: text("motivo_arquivamento").notNull(),
+  leitoDestino: text("leito_destino"), // preenchido em caso de transferência
+
+  // Snapshot completo do paciente no momento da alta (JSONB)
+  dadosCompletos: jsonb("dados_completos").notNull(),
+
+  // Insights de IA (preservados)
+  clinicalInsights: jsonb("clinical_insights"),
+
+  // Notas de enfermagem (preservadas)
+  notasPaciente: text("notas_paciente"),
+
+  // Metadados de arquivamento
+  arquivadoEm: timestamp("arquivado_em").notNull().defaultNow(),
+});
+
+export const insertPatientsHistorySchema = createInsertSchema(patientsHistory).omit({
+  id: true,
+  arquivadoEm: true,
+});
+
+export type PatientsHistory = typeof patientsHistory.$inferSelect;
+export type InsertPatientsHistory = z.infer<typeof insertPatientsHistorySchema>;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
 export type InsertImportHistory = z.infer<typeof insertImportHistorySchema>;
