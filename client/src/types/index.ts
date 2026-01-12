@@ -187,3 +187,12 @@ export interface PatientStats {
   alert: number;
   critical: number;
 }
+
+// Extensão do tipo Patient para incluir campos de notas
+export interface PatientNotesFields {
+  notasPaciente?: string | null;
+  notasUpdatedAt?: string | null;
+  notasUpdatedBy?: string | null;
+  notasCreatedAt?: string | null;
+  notasCreatedBy?: string | null;
+}

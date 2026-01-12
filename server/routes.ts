@@ -9,6 +9,7 @@ import { syncPatientFromExternalAPI, syncMultiplePatientsFromExternalAPI, syncEv
 import { n8nIntegrationService } from "./services/n8n-integration-service";
 import { unidadesInternacaoService } from "./services/unidades-internacao.service";
 import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
+import { patientNotesService } from "./services/patient-notes.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
@@ -99,6 +100,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete patient" });
     }
   });
+
+  // ==========================================
+  // ENDPOINTS DE NOTAS DOS PACIENTES
+  // ==========================================
+
+  /**
+   * ENDPOINT 1: Atualizar notas de um paciente
+   * Método: PATCH
+   * Rota: /api/patients/:id/notes
+   * Body: { notasPaciente: string }
+   */
+  app.patch("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { notasPaciente } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado", { message: "Você precisa estar logado para atualizar notas" });
+    }
+
+    // Capturar informações do request para auditoria
+    const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+    const userAgent = req.get("user-agent") || "unknown";
+
+    // Chamar o service para atualizar as notas
+    const updatedPatient = await patientNotesService.updatePatientNotes(
+      id,
+      notasPaciente,
+      userId,
+      ipAddress,
+      userAgent
+    );
+
+    // Retornar sucesso
+    res.status(200).json({
+      success: true,
+      message: "Notas atualizadas com sucesso",
+      data: {
+        notasPaciente: updatedPatient.notasPaciente,
+        notasUpdatedAt: updatedPatient.notasUpdatedAt,
+        notasUpdatedBy: updatedPatient.notasUpdatedBy,
+      },
+    });
+  }));
+
+  /**
+   * ENDPOINT 2: Buscar histórico de alterações das notas
+   * Método: GET
+   * Rota: /api/patients/:id/notes-history
+   */
+  app.get("/api/patients/:id/notes-history", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // Buscar histórico
+    const history = await patientNotesService.getPatientNotesHistory(id);
+
+    res.status(200).json({
+      success: true,
+      data: history,
+      count: history.length,
+    });
+  }));
+
+  /**
+   * ENDPOINT 3: Buscar notas atuais de um paciente
+   * Método: GET
+   * Rota: /api/patients/:id/notes
+   */
+  app.get("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // Buscar notas atuais
+    const notes = await patientNotesService.getPatientNotes(id);
+
+    res.status(200).json({
+      success: true,
+      data: notes,
+    });
+  }));
 
   // Admin endpoint to get patient stats
   app.get("/api/admin/patients/stats", requireRole('admin'), asyncHandler(async (req, res) => {

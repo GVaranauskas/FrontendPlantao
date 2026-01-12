@@ -60,6 +60,13 @@ export const patients = pgTable("patients", {
   // Análise clínica de IA para passagem de plantão
   clinicalInsights: jsonb("clinical_insights"),
   clinicalInsightsUpdatedAt: timestamp("clinical_insights_updated_at"),
+
+  // Campos de Notas do Paciente
+  notasPaciente: text("notas_paciente"),
+  notasUpdatedAt: timestamp("notas_updated_at"),
+  notasUpdatedBy: varchar("notas_updated_by").references(() => users.id),
+  notasCreatedAt: timestamp("notas_created_at"),
+  notasCreatedBy: varchar("notas_created_by").references(() => users.id),
 });
 
 export const alerts = pgTable("alerts", {
@@ -153,6 +160,19 @@ export const auditLog = pgTable("audit_log", {
   duration: integer("duration"),
 });
 
+// Tabela de histórico de notas dos pacientes
+export const patientNotesHistory = pgTable("patient_notes_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  patientId: varchar("patient_id").notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  notaAnterior: text("nota_anterior"),
+  notaNova: text("nota_nova"),
+  alteradoPorId: varchar("alterado_por_id").notNull().references(() => users.id),
+  alteradoPorNome: text("alterado_por_nome").notNull(),
+  alteradoEm: timestamp("alterado_em").notNull().defaultNow(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -238,3 +258,5 @@ export type UpdateNursingUnit = z.infer<typeof updateNursingUnitSchema>;
 export type NursingUnit = typeof nursingUnits.$inferSelect;
 export type InsertNursingUnitChange = z.infer<typeof insertNursingUnitChangeSchema>;
 export type NursingUnitChange = typeof nursingUnitChanges.$inferSelect;
+export type PatientNotesHistory = typeof patientNotesHistory.$inferSelect;
+export type InsertPatientNotesHistory = typeof patientNotesHistory.$inferInsert;
