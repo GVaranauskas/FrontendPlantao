@@ -40,3 +40,4 @@ Preferred communication style: Simple, everyday language.
 - **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://dev-n8n.7care.com.br/webhook/unidades-internacao`).
 - **AI Integration**: Claude Haiku 3.5 (primary) with OpenAI GPT-4o-mini (fallback) for on-demand AI analysis, and GPT-4o-mini for automatic synchronization.
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
+- **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.

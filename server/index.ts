@@ -17,6 +17,7 @@ import { costMonitorService } from "./services/cost-monitor.service";
 import { changeDetectionService } from "./services/change-detection.service";
 import { intelligentCache } from "./services/intelligent-cache.service";
 import { aiServiceGPT4oMini } from "./services/ai-service-gpt4o-mini";
+import { verifySchemaOrFail } from "./lib/schema-check";
 
 const app = express();
 
@@ -93,6 +94,10 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    console.log('[Startup] Verificando schema do banco de dados...');
+    await verifySchemaOrFail();
+    console.log('[Startup] Schema verificado com sucesso');
+
     console.log('[Startup] Registering routes...');
     const server = await registerRoutes(app);
     console.log('[Startup] Routes registered');
