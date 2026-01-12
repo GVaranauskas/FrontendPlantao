@@ -93,7 +93,9 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    console.log('[Startup] Registering routes...');
     const server = await registerRoutes(app);
+    console.log('[Startup] Routes registered');
 
     // CSRF error handler
     app.use(csrfErrorHandler);
@@ -104,26 +106,33 @@ app.use((req, res, next) => {
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
+    console.log('[Startup] Setting up static/vite...');
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
-
-    // Start daily nursing units sync (runs at 6:00 AM)
-    await nursingUnitsScheduler.startDailySync("0 6 * * *");
+    console.log('[Startup] Static/vite setup complete');
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
     // Other ports are firewalled. Default to 5000 if not specified.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
     const port = env.PORT;
+    console.log(`[Startup] Starting server on port ${port}...`);
     server.listen({
       port,
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
       logger.info(`Server is listening on port ${port}`);
+
+      // Start schedulers AFTER server is listening (non-blocking)
+      setImmediate(() => {
+        nursingUnitsScheduler.startDailySync("0 6 * * *").catch(err => {
+          logger.error('[Startup] Failed to start nursing units scheduler', err);
+        });
+      });
 
       // 🚀 Iniciando sistema de otimização GPT-4o-mini com 4 camadas
       console.log('');
