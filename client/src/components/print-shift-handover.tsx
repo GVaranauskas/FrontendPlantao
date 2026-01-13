@@ -64,6 +64,7 @@ function generatePatientRow(patient: Patient): string {
       <td>${escapeHtml(patient.exames)}</td>
       <td>${escapeHtml(patient.cirurgia)}</td>
       <td>${escapeHtml(patient.observacoes)}</td>
+      <td>${escapeHtml(patient.notasPaciente)}</td>
       <td>${escapeHtml(patient.previsaoAlta)}</td>
     </tr>
   `;
@@ -93,6 +94,7 @@ const tableHeader = `
       <th>EXAMES<br/>REALIZ./<br/>PEND.</th>
       <th>PROG.<br/>CIRÚRG.</th>
       <th>OBS./<br/>INTERCORR.</th>
+      <th>NOTAS DO<br/>PACIENTE</th>
       <th>PREV.<br/>ALTA</th>
     </tr>
   </thead>
@@ -254,28 +256,29 @@ export function printShiftHandover(patients: Patient[]) {
           text-align: center;
         }
         
-        /* Column widths */
-        th:nth-child(1), td:nth-child(1) { width: 2.5%; }
-        th:nth-child(2), td:nth-child(2) { width: 3%; }
-        th:nth-child(3), td:nth-child(3) { width: 4%; }
-        th:nth-child(4), td:nth-child(4) { width: 5%; }
-        th:nth-child(5), td:nth-child(5) { width: 8%; }
-        th:nth-child(6), td:nth-child(6) { width: 4%; }
-        th:nth-child(7), td:nth-child(7) { width: 4%; }
-        th:nth-child(8), td:nth-child(8) { width: 3%; }
-        th:nth-child(9), td:nth-child(9) { width: 8%; }
-        th:nth-child(10), td:nth-child(10) { width: 5%; }
-        th:nth-child(11), td:nth-child(11) { width: 4%; }
-        th:nth-child(12), td:nth-child(12) { width: 6%; }
-        th:nth-child(13), td:nth-child(13) { width: 5%; }
-        th:nth-child(14), td:nth-child(14) { width: 6%; }
-        th:nth-child(15), td:nth-child(15) { width: 5%; }
-        th:nth-child(16), td:nth-child(16) { width: 5%; }
-        th:nth-child(17), td:nth-child(17) { width: 5%; }
-        th:nth-child(18), td:nth-child(18) { width: 5%; }
-        th:nth-child(19), td:nth-child(19) { width: 4%; }
-        th:nth-child(20), td:nth-child(20) { width: 6%; }
-        th:nth-child(21), td:nth-child(21) { width: 4%; }
+        /* Column widths - 22 columns optimized for A4 landscape */
+        th:nth-child(1), td:nth-child(1) { width: 2.2%; }   /* LEITO */
+        th:nth-child(2), td:nth-child(2) { width: 2.8%; }   /* ALERTA IA */
+        th:nth-child(3), td:nth-child(3) { width: 3.5%; }   /* ENFERMARIA */
+        th:nth-child(4), td:nth-child(4) { width: 4.5%; }   /* ESPEC/RAMAL */
+        th:nth-child(5), td:nth-child(5) { width: 7%; }     /* NOME/REG/IDADE */
+        th:nth-child(6), td:nth-child(6) { width: 3.5%; }   /* DATA NASC */
+        th:nth-child(7), td:nth-child(7) { width: 3.5%; }   /* DATA INTERN */
+        th:nth-child(8), td:nth-child(8) { width: 2.8%; }   /* BRADEN */
+        th:nth-child(9), td:nth-child(9) { width: 7%; }     /* DIAGNÓSTICO */
+        th:nth-child(10), td:nth-child(10) { width: 4.5%; } /* ALERGIAS */
+        th:nth-child(11), td:nth-child(11) { width: 3.5%; } /* MOBILIDADE */
+        th:nth-child(12), td:nth-child(12) { width: 5%; }   /* DIETA */
+        th:nth-child(13), td:nth-child(13) { width: 4.5%; } /* ELIMINAÇÕES */
+        th:nth-child(14), td:nth-child(14) { width: 5%; }   /* DISPOSITIVOS */
+        th:nth-child(15), td:nth-child(15) { width: 4.5%; } /* ATB */
+        th:nth-child(16), td:nth-child(16) { width: 4.5%; } /* CURATIVOS */
+        th:nth-child(17), td:nth-child(17) { width: 4.5%; } /* APORTE/SATUR */
+        th:nth-child(18), td:nth-child(18) { width: 4.5%; } /* EXAMES */
+        th:nth-child(19), td:nth-child(19) { width: 3.5%; } /* PROG CIRÚRG */
+        th:nth-child(20), td:nth-child(20) { width: 5.5%; } /* OBS/INTERCORR */
+        th:nth-child(21), td:nth-child(21) { width: 5.5%; } /* NOTAS DO PACIENTE */
+        th:nth-child(22), td:nth-child(22) { width: 3.7%; } /* PREV ALTA */
         
         .print-button {
           position: fixed;
