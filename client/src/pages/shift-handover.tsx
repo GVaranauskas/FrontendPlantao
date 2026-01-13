@@ -546,6 +546,89 @@ export default function ShiftHandoverPage() {
                       </div>
                     )}
 
+                    {aiAnalysis && !clinicalBatchResult && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-semibold text-sm flex items-center gap-2">
+                            <Brain className="w-4 h-4 text-primary" />
+                            Resumo Geral da Enfermaria
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAiAnalysis(null)}
+                          >
+                            Nova Análise
+                          </Button>
+                        </div>
+
+                        <Card className="p-4">
+                          <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-primary" />
+                            Estatísticas
+                          </h4>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-primary/10 rounded-lg p-2">
+                              <div className="text-xl font-bold">{aiAnalysis.estatisticas.total}</div>
+                              <div className="text-[10px] text-muted-foreground">Total Pacientes</div>
+                            </div>
+                            <div className="bg-red-500/10 rounded-lg p-2">
+                              <div className="text-xl font-bold text-red-500">{aiAnalysis.estatisticas.altaComplexidade}</div>
+                              <div className="text-[10px] text-muted-foreground">Alta Complexidade</div>
+                            </div>
+                            <div className="bg-blue-500/10 rounded-lg p-2">
+                              <div className="text-xl font-bold text-blue-500">{aiAnalysis.estatisticas.mediaBraden}</div>
+                              <div className="text-[10px] text-muted-foreground">Média Braden</div>
+                            </div>
+                          </div>
+                        </Card>
+
+                        <Card className="p-4">
+                          <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-primary" />
+                            Resumo Geral
+                          </h4>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {aiAnalysis.resumoGeral}
+                          </p>
+                        </Card>
+
+                        {aiAnalysis.pacientesCriticos && aiAnalysis.pacientesCriticos.length > 0 && (
+                          <Card className="p-4 border-red-500/30 bg-red-500/5">
+                            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-500">
+                              <AlertTriangle className="w-4 h-4" />
+                              Pacientes Críticos
+                            </h4>
+                            <ul className="space-y-2">
+                              {aiAnalysis.pacientesCriticos.map((paciente, idx) => (
+                                <li key={idx} className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
+                                  <span className="text-red-500 mt-0.5">•</span>
+                                  <span>{paciente}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        )}
+
+                        {aiAnalysis.alertasGerais && aiAnalysis.alertasGerais.length > 0 && (
+                          <Card className="p-4 border-yellow-500/30 bg-yellow-500/5">
+                            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-yellow-600">
+                              <Bell className="w-4 h-4" />
+                              Alertas Gerais
+                            </h4>
+                            <ul className="space-y-2">
+                              {aiAnalysis.alertasGerais.map((alerta, idx) => (
+                                <li key={idx} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                                  <span className="text-yellow-500 mt-0.5">•</span>
+                                  <span>{alerta}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        )}
+                      </div>
+                    )}
+
                     {clinicalBatchResult && (
                       <div className="space-y-4">
                         {clinicalBatchResult.analiseGeral?.indicadores && (
