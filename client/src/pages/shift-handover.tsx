@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/lib/auth-context";
 import {
   Menu, Home, RefreshCcw, Filter, Bell, Printer,
   Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
