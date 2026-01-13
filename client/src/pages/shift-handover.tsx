@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Menu, Home, RefreshCcw, Filter, Bell, Printer,
   Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
@@ -36,6 +37,7 @@ import {
 } from "@/components/shift-handover";
 
 export default function ShiftHandoverPage() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -339,20 +341,22 @@ export default function ShiftHandoverPage() {
                   </span>
                 )}
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  if (patients?.length) {
-                    void exportPatientsToExcel(patients);
-                  }
-                }}
-                disabled={!patients?.length}
-                data-testid="button-export-excel"
-                title="Exportar para Excel"
-              >
-                <FileSpreadsheet className="w-5 h-5" />
-              </Button>
+              {user?.role === 'admin' && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => {
+                    if (patients?.length) {
+                      void exportPatientsToExcel(patients);
+                    }
+                  }}
+                  disabled={!patients?.length}
+                  data-testid="button-export-excel"
+                  title="Exportar para Excel"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                </Button>
+              )}
               
               
               
