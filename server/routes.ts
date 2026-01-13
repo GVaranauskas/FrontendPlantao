@@ -1545,6 +1545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
+    const { forceRefresh = false } = req.body || {};
     const patients = await storage.getAllPatients();
     
     if (patients.length === 0) {
@@ -1555,11 +1556,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, errors: 0, cached: 0 };
     const failedPatients: string[] = [];
     const patientInsightsMap = new Map<string, any>();
+    const patientsNeedingAnalysis: typeof patients = [];
 
-    // Process patients in sequence to avoid rate limiting
+    // First pass: use existing database cache for patients that already have insights
     for (const patient of patients) {
+      if (!forceRefresh && patient.clinicalInsights && typeof patient.clinicalInsights === 'object') {
+        const insights = patient.clinicalInsights as any;
+        if (insights.nivel_alerta) {
+          results.push({ id: patient.id, leito: patient.leito, nome: patient.nome, insights, cached: true, error: undefined });
+          patientInsightsMap.set(patient.id, insights);
+          summaryStats.cached++;
+          if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
+          else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
+          else summaryStats.verde++;
+          continue;
+        }
+      }
+      patientsNeedingAnalysis.push(patient);
+    }
+
+    logger.info(`[${getTimestamp()}] [AI] Clinical batch: ${summaryStats.cached} from DB cache, ${patientsNeedingAnalysis.length} need analysis`);
+
+    // Process single patient analysis (only for those without cached insights)
+    const processPatient = async (patient: typeof patients[0]) => {
       try {
-        // Detect if patient data has changed
         const changeDetection = changeDetectionService.detectChanges(patient.id, {
           diagnostico: patient.diagnostico,
           alergias: patient.alergias,
@@ -1589,16 +1609,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (cachedInsights && !changeDetection.hasChanged) {
           insights = cachedInsights;
           usedCache = true;
-          summaryStats.cached++;
           logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using intelligent cache`);
-        } else if (!changeDetection.hasChanged && patient.clinicalInsights) {
-          // Use database cache if no changes
-          insights = patient.clinicalInsights as any;
-          usedCache = true;
-          summaryStats.cached++;
-          logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} using database cache (no changes)`);
         } else {
-          // Call AI for new or changed data
           const analysis = await aiService.performClinicalAnalysis(patient);
           insights = aiService.extractClinicalInsights(analysis);
           
@@ -1607,7 +1619,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clinicalInsightsUpdatedAt: new Date(),
           });
           
-          // Store in intelligent cache with criticality based on alert level
           const criticality = insights.nivel_alerta === "VERMELHO" ? "critical" : 
                              insights.nivel_alerta === "AMARELO" ? "high" : "medium";
           intelligentCache.set(cacheKey, insights, {
@@ -1619,30 +1630,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logger.debug(`[${getTimestamp()}] [AI] Patient ${patient.leito} analyzed: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
         }
         
-        // Ensure insights has required fields
         if (!insights || !insights.nivel_alerta) {
           throw new Error("Análise retornou dados incompletos");
         }
         
-        results.push({ id: patient.id, leito: patient.leito, nome: patient.nome, insights, cached: usedCache });
-        patientInsightsMap.set(patient.id, insights);
-        
-        if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
-        else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
-        else summaryStats.verde++;
-        
+        return { id: patient.id, leito: patient.leito, nome: patient.nome, insights, cached: usedCache, error: undefined };
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
-        summaryStats.errors++;
-        failedPatients.push(patient.leito);
-        results.push({ 
-          id: patient.id, 
-          leito: patient.leito, 
-          nome: patient.nome,
-          insights: null, 
-          error: errorMsg 
-        });
         logger.warn(`[${getTimestamp()}] [AI] Failed to analyze patient ${patient.leito}: ${errorMsg}`);
+        return { id: patient.id, leito: patient.leito, nome: patient.nome, insights: null, cached: false, error: errorMsg };
+      }
+    };
+
+    // Process only patients needing analysis in parallel batches (5 at a time)
+    const BATCH_SIZE = 5;
+    if (patientsNeedingAnalysis.length > 0) {
+      logger.info(`[${getTimestamp()}] [AI] Starting batch clinical analysis for ${patientsNeedingAnalysis.length} patients (${BATCH_SIZE} concurrent)`);
+      
+      for (let i = 0; i < patientsNeedingAnalysis.length; i += BATCH_SIZE) {
+        const batch = patientsNeedingAnalysis.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(batch.map(processPatient));
+        
+        for (const result of batchResults) {
+          results.push(result);
+          if (result.insights) {
+            patientInsightsMap.set(result.id, result.insights);
+            if (result.cached) summaryStats.cached++;
+            if (result.insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
+            else if (result.insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
+            else summaryStats.verde++;
+          } else {
+            summaryStats.errors++;
+            failedPatients.push(result.leito);
+          }
+        }
+        
+        logger.debug(`[${getTimestamp()}] [AI] Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(patientsNeedingAnalysis.length / BATCH_SIZE)} completed`);
       }
     }
     
