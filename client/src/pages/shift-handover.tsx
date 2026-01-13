@@ -28,6 +28,7 @@ import {
   SearchFilterBar,
   PatientTable,
   PatientDetailsModal,
+  PatientHistorySheet,
   type AIAnalysisResult,
   type ClinicalBatchResult,
   type ClinicalInsights,
@@ -928,6 +929,9 @@ export default function ShiftHandoverPage() {
                   </div>
                 </SheetContent>
               </Sheet>
+              
+              {/* Patient History Sheet */}
+              <PatientHistorySheet />
               
               <Button 
                 className="hidden sm:flex" 
