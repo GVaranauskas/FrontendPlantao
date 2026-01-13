@@ -290,9 +290,22 @@ function PatientDetailsSheet({ record }: { record: PatientsHistoryRecord }) {
                     <div>
                       <span className="text-muted-foreground block mb-1">Principais Alertas:</span>
                       <ul className="list-disc list-inside space-y-1">
-                        {insights.principais_alertas.map((alerta: string, i: number) => (
-                          <li key={i} className="text-red-600">{alerta}</li>
-                        ))}
+                        {insights.principais_alertas.map((alerta: any, i: number) => {
+                          const texto = typeof alerta === 'string' 
+                            ? alerta 
+                            : alerta?.titulo || alerta?.tipo || JSON.stringify(alerta);
+                          const nivel = typeof alerta === 'object' ? alerta?.nivel : null;
+                          const corTexto = nivel === 'VERMELHO' 
+                            ? 'text-red-600' 
+                            : nivel === 'AMARELO' 
+                              ? 'text-yellow-600' 
+                              : nivel === 'VERDE' 
+                                ? 'text-green-600' 
+                                : 'text-red-600';
+                          return (
+                            <li key={i} className={corTexto}>{texto}</li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
