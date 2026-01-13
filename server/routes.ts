@@ -179,6 +179,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/patients/:id/notes", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ 
+          error: "Usuário não autenticado",
+          message: "Você precisa estar logado para excluir notas" 
+        });
+      }
+
+      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+      const userAgent = req.get("user-agent") || "unknown";
+
+      const result = await patientNotesService.deletePatientNotes(
+        id,
+        userId,
+        reason || null,
+        ipAddress,
+        userAgent
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Nota excluída com sucesso",
+        notifiedUser: result.notifiedUserId ? true : false,
+        eventId: result.event.id,
+      });
+    } catch (error: any) {
+      console.error("Erro ao excluir nota do paciente:", error);
+      
+      if (error.message === "Apenas administradores podem excluir notas de pacientes") {
+        return res.status(403).json({ 
+          error: "Acesso negado",
+          message: error.message 
+        });
+      }
+      
+      if (error.message === "Este paciente não possui notas para excluir") {
+        return res.status(404).json({ 
+          error: "Nota não encontrada",
+          message: error.message 
+        });
+      }
+
+      res.status(500).json({ 
+        error: "Erro ao excluir nota do paciente",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/note-events", authMiddleware, roleMiddleware('admin'), validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const events = await patientNotesService.getNoteEvents(id);
+      res.status(200).json({
+        success: true,
+        data: events,
+        count: events.length,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar eventos de notas:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar eventos de notas",
+        message: error.message 
+      });
+    }
+  });
+
+  // ==========================================
+  // User Notifications Endpoints
+  // ==========================================
+
+  app.get("/api/notifications", authMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      const unreadOnly = req.query.unreadOnly === "true";
+      const notifications = await patientNotesService.getUserNotifications(userId, unreadOnly);
+      const unreadCount = await patientNotesService.getUnreadNotificationsCount(userId);
+
+      res.status(200).json({
+        success: true,
+        data: notifications,
+        unreadCount,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar notificações:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar notificações",
+        message: error.message 
+      });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      const notification = await patientNotesService.markNotificationAsRead(id, userId);
+      if (!notification) {
+        return res.status(404).json({ error: "Notificação não encontrada" });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: notification,
+      });
+    } catch (error: any) {
+      console.error("Erro ao marcar notificação como lida:", error);
+      res.status(500).json({ 
+        error: "Erro ao marcar notificação como lida",
+        message: error.message 
+      });
+    }
+  });
+
+  app.post("/api/notifications/mark-all-read", authMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      await patientNotesService.markAllNotificationsAsRead(userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Todas as notificações foram marcadas como lidas",
+      });
+    } catch (error: any) {
+      console.error("Erro ao marcar todas notificações como lidas:", error);
+      res.status(500).json({ 
+        error: "Erro ao marcar notificações como lidas",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
+      }
+
+      const count = await patientNotesService.getUnreadNotificationsCount(userId);
+
+      res.status(200).json({
+        success: true,
+        count,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar contagem de notificações:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar contagem de notificações",
+        message: error.message 
+      });
+    }
+  });
+
   // ==========================================
   // Patients History Endpoints (Histórico de Altas)
   // ==========================================

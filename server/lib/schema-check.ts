@@ -9,7 +9,9 @@ const REQUIRED_TABLES = [
   "nursing_unit_templates",
   "nursing_units",
   "nursing_unit_changes",
-  "patients_history"
+  "patients_history",
+  "patient_note_events",
+  "user_notifications"
 ];
 
 interface SchemaCheckResult {

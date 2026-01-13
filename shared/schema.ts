@@ -248,6 +248,85 @@ export const patientNotesHistory = pgTable("patient_notes_history", {
 export type PatientNotesHistory = typeof patientNotesHistory.$inferSelect;
 export type InsertPatientNotesHistory = typeof patientNotesHistory.$inferInsert;
 
+// Tipos de ação para eventos de notas
+export const noteEventActions = ["create", "update", "delete"] as const;
+export type NoteEventAction = typeof noteEventActions[number];
+
+// Eventos de notas de pacientes (auditoria completa incluindo deleções)
+export const patientNoteEvents = pgTable("patient_note_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  patientId: varchar("patient_id").notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  patientName: text("patient_name").notNull(), // Nome do paciente para referência
+  patientLeito: text("patient_leito").notNull(), // Leito para referência
+  
+  // Ação realizada
+  action: text("action").notNull(), // 'create', 'update', 'delete'
+  
+  // Conteúdo da nota (criptografado)
+  previousValue: text("previous_value"), // Valor anterior (null para create)
+  newValue: text("new_value"), // Novo valor (null para delete)
+  
+  // Quem realizou a ação
+  performedById: varchar("performed_by_id").notNull().references(() => users.id),
+  performedByName: text("performed_by_name").notNull(),
+  performedByRole: text("performed_by_role").notNull(),
+  
+  // Quem era o dono/editor da nota (para notificação em caso de delete)
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  targetUserName: text("target_user_name"),
+  
+  // Motivo (opcional, principalmente para deleções)
+  reason: text("reason"),
+  
+  // Metadados
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPatientNoteEventSchema = createInsertSchema(patientNoteEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PatientNoteEvent = typeof patientNoteEvents.$inferSelect;
+export type InsertPatientNoteEvent = z.infer<typeof insertPatientNoteEventSchema>;
+
+// Notificações para usuários (alertas de sistema)
+export const userNotifications = pgTable("user_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // Tipo e conteúdo
+  type: text("type").notNull(), // 'note_deleted', 'note_edited', etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  
+  // Referência ao evento relacionado
+  relatedEventId: varchar("related_event_id").references(() => patientNoteEvents.id),
+  relatedPatientId: varchar("related_patient_id"),
+  
+  // Status
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  
+  // Metadados
+  metadata: jsonb("metadata"),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertUserNotificationSchema = createInsertSchema(userNotifications).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+});
+
+export type UserNotification = typeof userNotifications.$inferSelect;
+export type InsertUserNotification = z.infer<typeof insertUserNotificationSchema>;
+
 // Motivos de arquivamento de pacientes
 export const archiveReasons = ["alta_hospitalar", "transferencia_leito", "obito", "registro_antigo"] as const;
 export type ArchiveReason = typeof archiveReasons[number];

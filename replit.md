@@ -22,7 +22,8 @@ Preferred communication style: Simple, everyday language.
 - **Server**: Express.js with TypeScript on Node.js (ESM).
 - **API Design**: RESTful API supporting JSON and TOON formats with custom middleware for logging and parsing.
 - **Storage**: PostgreSQL with Drizzle ORM, with automatic fallback to MemStorage.
-- **Data Models**: User, Patient (with 14 normalized N8N fields), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange.
+- **Data Models**: User, Patient (with 14 normalized N8N fields), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange, PatientNoteEvent (audit trail), UserNotification.
+- **Patient Notes Audit System**: Full audit trail for patient note actions (create, update, delete) with encrypted previous values, performer/target user tracking, IP address logging, and optional deletion reasons. Admin-only note deletion with automatic notification to original author.
 - **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, and WebSocket for import.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.
 - **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system: change detection, intelligent cache, GPT-4o-mini, and hourly auto-sync. Includes validation to block patients from non-approved wards.

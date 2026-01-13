@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { 
-  Brain, AlertTriangle, Activity, CheckCircle, Loader2, Edit2, Save, X, Clock, User, History
+  Brain, AlertTriangle, Activity, CheckCircle, Loader2, Edit2, Save, X, Clock, User, History, Trash2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import { getAccessToken } from "@/lib/auth-token";
 import type { Patient } from "@shared/schema";
 import type { ClinicalInsights } from "./types";
@@ -33,10 +36,14 @@ export function PatientDetailsModal({
   isAnalyzing,
 }: PatientDetailsModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(patient?.notasPaciente || "");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
   const maxLength = 200;
+  const isAdmin = user?.role === "admin";
 
   const { data: notesHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["patient-notes-history", patient?.id],
@@ -55,6 +62,25 @@ export function PatientDetailsModal({
       return result.data;
     },
     enabled: open && !!patient?.id,
+  });
+
+  const { data: noteEvents } = useQuery({
+    queryKey: ["patient-note-events", patient?.id],
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/patients/${patient?.id}/note-events`, { 
+        credentials: "include",
+        headers,
+      });
+      if (!response.ok) throw new Error("Erro ao buscar eventos");
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: open && !!patient?.id && isAdmin,
   });
 
   const updateNotesMutation = useMutation({
@@ -87,6 +113,47 @@ export function PatientDetailsModal({
     },
   });
 
+  const deleteNotesMutation = useMutation({
+    mutationFn: async (reason: string | null) => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/patients/${patient?.id}/notes`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao excluir nota");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-notes-history", patient?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-note-events", patient?.id] });
+      setShowDeleteConfirm(false);
+      setDeleteReason("");
+      toast({ 
+        title: "Nota excluída", 
+        description: data.notifiedUser 
+          ? "A nota foi excluída e o autor foi notificado." 
+          : "A nota foi excluída com sucesso."
+      });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erro", description: error.message });
+    },
+  });
+
+  const handleDeleteNotes = () => {
+    deleteNotesMutation.mutate(deleteReason.trim() || null);
+  };
+
   const handleSaveNotes = () => {
     if (notesValue.length > maxLength) {
       toast({ variant: "destructive", title: "Erro", description: `As notas não podem exceder ${maxLength} caracteres` });
@@ -103,6 +170,7 @@ export function PatientDetailsModal({
   if (!patient) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
@@ -333,15 +401,28 @@ export function PatientDetailsModal({
                         </div>
                       )}
                     </div>
-                    <Button 
-                      onClick={() => { setNotesValue(patient.notasPaciente || ""); setIsEditingNotes(true); }} 
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
-                      data-testid="button-modal-edit-notes"
-                    >
-                      <Edit2 className="h-4 w-4 mr-1" />
-                      Editar
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => { setNotesValue(patient.notasPaciente || ""); setIsEditingNotes(true); }} 
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                        data-testid="button-modal-edit-notes"
+                      >
+                        <Edit2 className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                      {isAdmin && patient.notasPaciente && (
+                        <Button 
+                          onClick={() => setShowDeleteConfirm(true)} 
+                          size="sm"
+                          variant="destructive"
+                          data-testid="button-modal-delete-notes"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {patient.notasUpdatedAt && (
                     <div className="mt-3 pt-3 border-t border-border flex items-center gap-4 text-xs text-muted-foreground">
@@ -397,6 +478,90 @@ export function PatientDetailsModal({
                   </div>
                 </div>
               )}
+
+              {isAdmin && noteEvents && noteEvents.length > 0 && (
+                <div className="mt-4 bg-background rounded-lg border border-border">
+                  <div className="bg-muted px-4 py-3 border-b border-border rounded-t-lg">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Trilha de Auditoria ({noteEvents.length})
+                    </h4>
+                  </div>
+                  <div className="p-4">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                      {noteEvents.map((event: { 
+                        id: string; 
+                        action: string; 
+                        performedByName: string; 
+                        performedByRole: string;
+                        targetUserName: string | null;
+                        reason: string | null;
+                        previousValue: string | null;
+                        newValue: string | null;
+                        createdAt: string;
+                        ipAddress: string | null;
+                      }) => (
+                        <div 
+                          key={event.id} 
+                          className={`rounded-lg p-4 border ${
+                            event.action === "delete" 
+                              ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" 
+                              : event.action === "create"
+                              ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                              : "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                className={`text-xs ${
+                                  event.action === "delete" 
+                                    ? "bg-red-500 text-white" 
+                                    : event.action === "create"
+                                    ? "bg-green-500 text-white"
+                                    : "bg-blue-500 text-white"
+                                }`}
+                              >
+                                {event.action === "delete" ? "EXCLUÍDO" : event.action === "create" ? "CRIADO" : "ATUALIZADO"}
+                              </Badge>
+                              <span className="text-sm font-medium text-foreground">{event.performedByName}</span>
+                              <span className="text-xs text-muted-foreground">({event.performedByRole})</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(event.createdAt).toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+                          
+                          {event.action === "delete" && event.targetUserName && (
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Nota do usuário <strong>{event.targetUserName}</strong> foi excluída
+                            </p>
+                          )}
+                          
+                          {event.reason && (
+                            <p className="text-xs text-muted-foreground mb-2">
+                              <span className="font-medium">Motivo:</span> {event.reason}
+                            </p>
+                          )}
+                          
+                          {event.previousValue && (
+                            <div className="text-xs bg-background/50 rounded p-2 mt-2">
+                              <span className="font-medium text-muted-foreground">Conteúdo anterior:</span>
+                              <p className="text-foreground mt-1">{event.previousValue}</p>
+                            </div>
+                          )}
+                          
+                          {event.ipAddress && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              IP: {event.ipAddress}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card className="p-4">
@@ -446,5 +611,69 @@ export function PatientDetailsModal({
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="h-5 w-5" />
+            Excluir Nota do Paciente
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                Você está prestes a excluir a nota do paciente <strong>{patient.nome}</strong> (Leito {patient.leito}).
+              </p>
+              <p className="text-sm">
+                Esta ação irá:
+              </p>
+              <ul className="text-sm list-disc list-inside space-y-1">
+                <li>Remover a nota atual do paciente</li>
+                <li>Registrar a exclusão na trilha de auditoria</li>
+                <li>Notificar o autor original da nota (se diferente de você)</li>
+              </ul>
+              <div className="pt-2">
+                <label className="text-sm font-medium text-foreground">Motivo da exclusão (opcional):</label>
+                <Textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Ex: Informação desatualizada, nota duplicada..."
+                  className="mt-2"
+                  rows={2}
+                  data-testid="textarea-delete-reason"
+                />
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel 
+            onClick={() => { setShowDeleteConfirm(false); setDeleteReason(""); }}
+            data-testid="button-cancel-delete"
+          >
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteNotes}
+            disabled={deleteNotesMutation.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            data-testid="button-confirm-delete"
+          >
+            {deleteNotesMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Excluindo...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Confirmar Exclusão
+              </>
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
