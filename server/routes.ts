@@ -252,6 +252,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==========================================
+  // Patients History Endpoints (Histórico de altas/transferências)
+  // ==========================================
+
+  app.get("/api/patients-history", authMiddleware, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const filters: any = {};
+      if (req.query.nome) filters.nome = req.query.nome as string;
+      if (req.query.registro) filters.registro = req.query.registro as string;
+      if (req.query.leito) filters.leito = req.query.leito as string;
+      if (req.query.codigoAtendimento) filters.codigoAtendimento = req.query.codigoAtendimento as string;
+      if (req.query.motivoArquivamento) filters.motivoArquivamento = req.query.motivoArquivamento as string;
+      if (req.query.dsEnfermaria) filters.dsEnfermaria = req.query.dsEnfermaria as string;
+      if (req.query.dataInicio) filters.dataInicio = new Date(req.query.dataInicio as string);
+      if (req.query.dataFim) filters.dataFim = new Date(req.query.dataFim as string);
+
+      const result = await storage.getPatientsHistoryPaginated({ page, limit }, filters);
+      res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar histórico de pacientes:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar histórico de pacientes",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients-history/stats", authMiddleware, async (req, res) => {
+    try {
+      const stats = await storage.getPatientsHistoryStats();
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar estatísticas do histórico:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar estatísticas do histórico",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const record = await storage.getPatientsHistoryById(id);
+      if (!record) {
+        return res.status(404).json({ error: "Registro de histórico não encontrado" });
+      }
+      res.status(200).json({
+        success: true,
+        data: record,
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar registro de histórico:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar registro de histórico",
+        message: error.message 
+      });
+    }
+  });
+
+  // ==========================================
   // User Notifications Endpoints
   // ==========================================
 
