@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult } from "../storage";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason } from "@shared/schema";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters } from "../storage";
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
@@ -10,6 +10,7 @@ export class MemStorage implements IStorage {
   private templates: Map<string, NursingUnitTemplate>;
   private nursingUnits: Map<string, NursingUnit>;
   private nursingUnitChanges: Map<string, NursingUnitChange>;
+  private patientsHistory: Map<string, PatientsHistory>;
 
   constructor() {
     this.users = new Map();
@@ -19,6 +20,7 @@ export class MemStorage implements IStorage {
     this.templates = new Map();
     this.nursingUnits = new Map();
     this.nursingUnitChanges = new Map();
+    this.patientsHistory = new Map();
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -426,5 +428,92 @@ export class MemStorage implements IStorage {
 
   async getPendingChangesCount(): Promise<number> {
     return Array.from(this.nursingUnitChanges.values()).filter(c => c.status === "pending").length;
+  }
+
+  // Patients History Methods
+  async archivePatient(patient: Patient, motivoArquivamento: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory> {
+    const id = randomUUID();
+    const record: PatientsHistory = {
+      id,
+      codigoAtendimento: patient.codigoAtendimento || `LEITO_${patient.leito}`,
+      registro: patient.registro,
+      nome: patient.nome,
+      leito: patient.leito,
+      dataInternacao: patient.dataInternacao,
+      dsEnfermaria: patient.dsEnfermaria,
+      dsEspecialidade: patient.dsEspecialidade,
+      motivoArquivamento,
+      leitoDestino: leitoDestino || null,
+      dadosCompletos: patient,
+      clinicalInsights: patient.clinicalInsights,
+      notasPaciente: patient.notasPaciente,
+      arquivadoEm: new Date(),
+    };
+    this.patientsHistory.set(id, record);
+    return record;
+  }
+
+  async getPatientsHistoryPaginated(params: PaginationParams, filters?: PatientsHistoryFilters): Promise<PaginatedResult<PatientsHistory>> {
+    let records = Array.from(this.patientsHistory.values());
+    
+    if (filters?.nome) {
+      records = records.filter(r => r.nome.toLowerCase().includes(filters.nome!.toLowerCase()));
+    }
+    if (filters?.motivoArquivamento) {
+      records = records.filter(r => r.motivoArquivamento === filters.motivoArquivamento);
+    }
+    
+    records.sort((a, b) => (b.arquivadoEm?.getTime() || 0) - (a.arquivadoEm?.getTime() || 0));
+    
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+    const total = records.length;
+    
+    return {
+      data: records.slice(offset, offset + limit),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getPatientsHistoryById(id: string): Promise<PatientsHistory | undefined> {
+    return this.patientsHistory.get(id);
+  }
+
+  async getPatientsHistoryStats(): Promise<{
+    total: number;
+    last24h: number;
+    last7d: number;
+    last30d: number;
+    byMotivo: Record<string, number>;
+    byEnfermaria: Record<string, number>;
+  }> {
+    const records = Array.from(this.patientsHistory.values());
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const byMotivo: Record<string, number> = {};
+    const byEnfermaria: Record<string, number> = {};
+    let last24h = 0, last7d = 0, last30d = 0;
+
+    for (const record of records) {
+      const time = record.arquivadoEm?.getTime() || 0;
+      if (time >= dayAgo.getTime()) last24h++;
+      if (time >= weekAgo.getTime()) last7d++;
+      if (time >= monthAgo.getTime()) last30d++;
+
+      const motivo = record.motivoArquivamento || 'desconhecido';
+      byMotivo[motivo] = (byMotivo[motivo] || 0) + 1;
+      
+      const enfermaria = record.dsEnfermaria || 'desconhecida';
+      byEnfermaria[enfermaria] = (byEnfermaria[enfermaria] || 0) + 1;
+    }
+
+    return { total: records.length, last24h, last7d, last30d, byMotivo, byEnfermaria };
   }
 }
