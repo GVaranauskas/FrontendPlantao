@@ -233,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients/:id/note-events", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients/:id/note-events", authMiddleware, roleMiddleware('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const events = await patientNotesService.getNoteEvents(id);
