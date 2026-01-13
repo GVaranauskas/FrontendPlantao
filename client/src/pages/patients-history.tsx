@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { getAccessToken } from "@/lib/auth-token";
 import {
   Home,
   Search,
@@ -342,8 +343,14 @@ export default function PatientsHistoryPage() {
   const { data: historyData, isLoading, refetch } = useQuery<PatientsHistoryResponse>({
     queryKey: ["/api/patients-history", queryParams],
     queryFn: async () => {
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const res = await fetch(`/api/patients-history?${queryParams}`, {
         credentials: "include",
+        headers,
       });
       if (!res.ok) throw new Error("Failed to fetch history");
       return res.json();
@@ -352,10 +359,16 @@ export default function PatientsHistoryPage() {
 
   // Fetch stats
   const { data: statsData } = useQuery<HistoryStats>({
-    queryKey: ["/api/patients-history/stats/summary"],
+    queryKey: ["/api/patients-history/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/patients-history/stats/summary", {
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch("/api/patients-history/stats", {
         credentials: "include",
+        headers,
       });
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();

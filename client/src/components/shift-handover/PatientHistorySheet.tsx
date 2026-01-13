@@ -16,6 +16,7 @@ import {
   ChevronLeft, ChevronRight, FileText
 } from "lucide-react";
 import type { PatientsHistory } from "@shared/schema";
+import { getAccessToken } from "@/lib/auth-token";
 
 interface PatientsHistoryResponse {
   success: boolean;
@@ -66,8 +67,15 @@ export function PatientHistorySheet() {
       if (searchTerm) params.set("nome", searchTerm);
       if (motivoFilter && motivoFilter !== "all") params.set("motivoArquivamento", motivoFilter);
       
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`/api/patients-history?${params}`, {
         credentials: "include",
+        headers,
       });
       if (!response.ok) throw new Error("Erro ao buscar histórico");
       return response.json();
