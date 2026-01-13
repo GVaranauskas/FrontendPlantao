@@ -16,7 +16,7 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack Query for server state, React Hook Form with Zod for form handling.
 - **Services Layer**: Centralized API abstraction using `ApiService` with generic CRUD methods and specific services for patients, users, templates, and nursing units.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
-- **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, and a centralized admin menu for nursing unit management with approval workflows.
+- **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, and patient history viewing for archived patients (alta, transfers, deaths).
 
 ### Backend Architecture
 - **Server**: Express.js with TypeScript on Node.js (ESM).
