@@ -35,9 +35,9 @@ function LoadingSpinner() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component, allowedRoles }: { component: React.ComponentType, allowedRoles?: string[] }) {
   return (
-    <RequireAuth>
+    <RequireAuth allowedRoles={allowedRoles}>
       <Suspense fallback={<LoadingSpinner />}>
         <Component />
       </Suspense>
@@ -69,19 +69,19 @@ function Router() {
           <ProtectedRoute component={ShiftHandoverPage} />
         </Route>
         <Route path="/import">
-          <ProtectedRoute component={ImportPage} />
+          <ProtectedRoute component={ImportPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/dashboard">
           <ProtectedRoute component={DashboardPage} />
         </Route>
         <Route path="/import-panel">
-          <ProtectedRoute component={ImportPanelPage} />
+          <ProtectedRoute component={ImportPanelPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/import-logs">
-          <ProtectedRoute component={ImportLogsPage} />
+          <ProtectedRoute component={ImportLogsPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/debug">
-          <ProtectedRoute component={DebugPage} />
+          <ProtectedRoute component={DebugPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/analytics">
           <ProtectedRoute component={AnalyticsPage} />
@@ -90,19 +90,19 @@ function Router() {
           <ProtectedRoute component={TextViewerPage} />
         </Route>
         <Route path="/tools">
-          <ProtectedRoute component={ToolsPage} />
+          <ProtectedRoute component={ToolsPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/admin">
-          <ProtectedRoute component={AdminMenuPage} />
+          <ProtectedRoute component={AdminMenuPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/admin/templates">
-          <ProtectedRoute component={AdminTemplatesPage} />
+          <ProtectedRoute component={AdminTemplatesPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/admin/users">
-          <ProtectedRoute component={AdminUsersPage} />
+          <ProtectedRoute component={AdminUsersPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/admin/nursing-units">
-          <ProtectedRoute component={AdminNursingUnitsPage} />
+          <ProtectedRoute component={AdminNursingUnitsPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/patients-history">
           <ProtectedRoute component={PatientsHistoryPage} />

@@ -153,28 +153,30 @@ export default function ModulesPage() {
           })}
         </div>
 
-        <Card className="p-6 border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <Shield className="w-6 h-6 text-primary" />
+        {user?.role === "admin" && (
+          <Card className="p-6 border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <Shield className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-primary">Painel de Administração</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Gerenciar usuários, templates, importações e logs do sistema
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-primary">Painel de Administração</h3>
-                <p className="text-sm text-muted-foreground">
-                  Gerenciar usuários, templates, importações e logs do sistema
-                </p>
-              </div>
+              <Button
+                onClick={() => setLocation("/admin")}
+                data-testid="button-admin-panel"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Acessar Administração
+              </Button>
             </div>
-            <Button
-              onClick={() => setLocation("/admin")}
-              data-testid="button-admin-panel"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Acessar Administração
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <div className="flex items-center justify-center gap-4 flex-wrap mt-6">
           <Button variant="outline" data-testid="button-reports">

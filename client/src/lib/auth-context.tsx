@@ -95,18 +95,23 @@ export function useAuth() {
   return context;
 }
 
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+export function RequireAuth({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     console.log("RequireAuth - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", user);
     
-    if (!isLoading && !isAuthenticated) {
-      console.log("RequireAuth - Redirecting to login");
-      setLocation("/");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        console.log("RequireAuth - Redirecting to login");
+        setLocation("/");
+      } else if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+        console.log("RequireAuth - Access denied for role:", user.role);
+        setLocation("/modules");
+      }
     }
-  }, [isLoading, isAuthenticated, setLocation, user]);
+  }, [isLoading, isAuthenticated, setLocation, user, allowedRoles]);
 
   // Block rendering completely until auth check completes
   if (isLoading) {
