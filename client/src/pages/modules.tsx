@@ -19,34 +19,6 @@ const modules = [
     icon: ClipboardList,
     status: "active",
     route: "/shift-handover"
-  },
-  {
-    id: "escala-trabalho",
-    title: "Escala de Trabalho",
-    description: "Gestão completa de escalas de trabalho com otimização automática de recursos.",
-    features: [
-      "Criação automática de escalas",
-      "Gestão de folgas e férias",
-      "Controle de horas extras",
-      "Notificações de escalas"
-    ],
-    icon: Calendar,
-    status: "coming",
-    route: null
-  },
-  {
-    id: "gestao-leitos",
-    title: "Gestão de Leitos",
-    description: "Controle em tempo real da ocupação e disponibilidade de leitos hospitalares.",
-    features: [
-      "Dashboard de ocupação em tempo real",
-      "Gestão de altas e transferências",
-      "Previsão de disponibilidade",
-      "Relatórios de taxa de ocupação"
-    ],
-    icon: Bed,
-    status: "coming",
-    route: null
   }
 ];
 
