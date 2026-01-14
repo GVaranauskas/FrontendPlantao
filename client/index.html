@@ -5,19 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Plataforma de Enfermagem - 11Care</title>
     <script>
-      window.addEventListener('error', function(e) {
-        if (e.message && e.message.includes('WebSocket') && e.message.includes('undefined')) {
-          e.preventDefault();
-          e.stopPropagation();
-          return true;
-        }
-      }, true);
-      window.addEventListener('unhandledrejection', function(e) {
-        if (e.reason && e.reason.message && e.reason.message.includes('undefined')) {
-          e.preventDefault();
-          return true;
-        }
-      });
+      (function() {
+        var OriginalWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+          if (typeof url === 'string' && (url.includes('localhost:undefined') || url.includes(':undefined'))) {
+            console.log('[Safari Fix] Correcting invalid WebSocket URL');
+            var fixedUrl = url.replace(/localhost:undefined/g, location.host).replace(/:undefined/g, '');
+            return protocols ? new OriginalWebSocket(fixedUrl, protocols) : new OriginalWebSocket(fixedUrl);
+          }
+          return protocols ? new OriginalWebSocket(url, protocols) : new OriginalWebSocket(url);
+        };
+        window.WebSocket.prototype = OriginalWebSocket.prototype;
+        window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+        window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+        window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+        window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
