@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Plataforma de Enfermagem - 11Care</title>
+    <script>
+      (function() {
+        var OriginalWebSocket = window.WebSocket;
+        function PatchedWebSocket(url, protocols) {
+          var finalUrl = url;
+          if (typeof url === 'string' && (url.includes('localhost:undefined') || url.includes(':undefined'))) {
+            finalUrl = url.replace(/localhost:undefined/g, location.host).replace(/:undefined/g, '');
+            console.log('[Fix] Patching WebSocket URL:', url, '->', finalUrl);
+          }
+          return protocols ? new OriginalWebSocket(finalUrl, protocols) : new OriginalWebSocket(finalUrl);
+        }
+        PatchedWebSocket.prototype = OriginalWebSocket.prototype;
+        for (var key in OriginalWebSocket) {
+          if (OriginalWebSocket.hasOwnProperty(key)) PatchedWebSocket[key] = OriginalWebSocket[key];
+        }
+        window.WebSocket = PatchedWebSocket;
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
