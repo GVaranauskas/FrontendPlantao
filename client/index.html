@@ -1,6 +1,40 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
+    <script>
+      (function() {
+        var OriginalWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+          try {
+            if (typeof url === 'string' && url.includes('localhost:undefined')) {
+              url = url.replace('localhost:undefined', location.host);
+            }
+            return protocols !== undefined 
+              ? new OriginalWebSocket(url, protocols) 
+              : new OriginalWebSocket(url);
+          } catch (e) {
+            console.warn('[WebSocket Fix] Suppressed error:', e.message);
+            return { 
+              readyState: 3, 
+              send: function(){}, 
+              close: function(){},
+              addEventListener: function(){},
+              removeEventListener: function(){}
+            };
+          }
+        };
+        window.WebSocket.prototype = OriginalWebSocket.prototype;
+        window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+        window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+        window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+        window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e.reason && e.reason.message && e.reason.message.includes('localhost:undefined')) {
+            e.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Plataforma de Enfermagem - 11Care</title>

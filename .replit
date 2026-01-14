@@ -50,3 +50,7 @@ ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
 AUTO_SYNC_ENABLED = "true"
 ENABLE_AI_ANALYSIS = "true"
 MONTHLY_BUDGET = "1000"
+
+[userenv.development]
+VITE_HMR_PORT = "443"
+VITE_HMR_PROTOCOL = "wss"
