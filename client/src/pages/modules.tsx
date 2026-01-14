@@ -150,12 +150,6 @@ export default function ModulesPage() {
           </Card>
         )}
 
-        <div className="flex items-center justify-center gap-4 flex-wrap mt-6">
-          <Button variant="outline" data-testid="button-reports">
-            <FileText className="w-4 h-4 mr-2" />
-            Relatórios Diários
-          </Button>
-        </div>
       </div>
     </div>
   );
