@@ -118,8 +118,8 @@ export function printShiftHandover(patients: Patient[]) {
   });
 
   // PAGINATION: Split patients into chunks to avoid Chromium's page-break-inside bug
-  // Using 5 patients per page to be safe (some rows may be taller)
-  const ROWS_PER_PAGE = 5;
+  // Using 8 patients per page as requested by user
+  const ROWS_PER_PAGE = 8;
   const chunks: Patient[][] = [];
   for (let i = 0; i < patients.length; i += ROWS_PER_PAGE) {
     chunks.push(patients.slice(i, i + ROWS_PER_PAGE));
