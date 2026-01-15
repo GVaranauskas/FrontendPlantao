@@ -156,5 +156,5 @@ npm-debug.log
 
 # Private docs
 INTERNAL.md
-SECURITY.md
 TODO_PRIVATE.md
+# SECURITY.md is now public (LGPD compliance documentation)
