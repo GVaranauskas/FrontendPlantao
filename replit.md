@@ -27,6 +27,7 @@ Preferred communication style: Simple, everyday language.
 - **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, and WebSocket for import.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.
 - **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system: change detection, intelligent cache, GPT-4o-mini, and hourly auto-sync. Includes validation to block patients from non-approved wards.
+- **Automatic Patient Reactivation**: During N8N sync, patients that appear in the N8N data but are archived in history are automatically reactivated. Uses dual lookup strategy (primary by codigoAtendimento, fallback by leito) with deduplication to prevent repeated reactivations. Core rule: "If patient is in N8N, they must be active in the system."
 - **Global Error Handling**: Structured JSON logging for production and human-readable logs for development, with middleware for error catching.
 - **Security**: JWT authentication and Role-Based Access Control (admin, enfermagem, visualizador) applied to all API endpoints. Input validation includes SQL injection detection, UUID, format, and query parameter validation. CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption are implemented.
 
