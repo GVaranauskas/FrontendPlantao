@@ -516,4 +516,52 @@ export class MemStorage implements IStorage {
 
     return { total: records.length, last24h, last7d, last30d, byMotivo, byEnfermaria };
   }
+
+  async reactivatePatient(historyId: string): Promise<Patient> {
+    const historyRecord = this.patientsHistory.get(historyId);
+    if (!historyRecord) {
+      throw new Error('Registro de histórico não encontrado');
+    }
+
+    const dadosCompletos = historyRecord.dadosCompletos as Record<string, any> || {};
+
+    const patientData: InsertPatient = {
+      leito: historyRecord.leito,
+      nome: historyRecord.nome,
+      registro: historyRecord.registro ?? undefined,
+      codigoAtendimento: historyRecord.codigoAtendimento,
+      dataInternacao: historyRecord.dataInternacao ?? undefined,
+      dsEnfermaria: historyRecord.dsEnfermaria ?? undefined,
+      dsEspecialidade: historyRecord.dsEspecialidade ?? undefined,
+      notasPaciente: historyRecord.notasPaciente ?? undefined,
+      clinicalInsights: historyRecord.clinicalInsights as Record<string, unknown> | undefined,
+      especialidadeRamal: dadosCompletos.especialidadeRamal,
+      dataNascimento: dadosCompletos.dataNascimento,
+      braden: dadosCompletos.braden,
+      diagnostico: dadosCompletos.diagnostico,
+      alergias: dadosCompletos.alergias,
+      mobilidade: dadosCompletos.mobilidade,
+      dieta: dadosCompletos.dieta,
+      eliminacoes: dadosCompletos.eliminacoes,
+      dispositivos: dadosCompletos.dispositivos,
+      atb: dadosCompletos.atb,
+      curativos: dadosCompletos.curativos,
+      aporteSaturacao: dadosCompletos.aporteSaturacao,
+      exames: dadosCompletos.exames,
+      cirurgia: dadosCompletos.cirurgia,
+      observacoes: dadosCompletos.observacoes,
+      previsaoAlta: dadosCompletos.previsaoAlta,
+      alerta: dadosCompletos.alerta,
+      status: 'ativo',
+      fonteDados: 'reativacao_manual',
+    };
+
+    const createdPatient = await this.upsertPatientByCodigoAtendimento(patientData);
+    this.patientsHistory.delete(historyId);
+    return createdPatient;
+  }
+
+  async deletePatientHistory(id: string): Promise<boolean> {
+    return this.patientsHistory.delete(id);
+  }
 }

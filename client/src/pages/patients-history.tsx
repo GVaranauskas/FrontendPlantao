@@ -1,7 +1,10 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { getAccessToken } from "@/lib/auth-token";
+import { useAuth } from "@/lib/auth-context";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Home,
   Search,
@@ -18,6 +21,7 @@ import {
   ArrowUpRight,
   LogOut,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -320,6 +324,10 @@ function PatientDetailsSheet({ record }: { record: PatientsHistoryRecord }) {
 }
 
 export default function PatientsHistoryPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const isAdmin = user?.role === "admin";
+  
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
   const [motivoFilter, setMotivoFilter] = useState<string>("all");
@@ -327,6 +335,7 @@ export default function PatientsHistoryPage() {
   const [dataFim, setDataFim] = useState("");
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const limit = 20;
 
   // Build query params
@@ -392,6 +401,41 @@ export default function PatientsHistoryPage() {
   const records = historyData?.data || [];
   const totalPages = historyData?.totalPages || 1;
   const total = historyData?.total || 0;
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (historyId: string) => {
+      const response = await apiRequest("POST", `/api/patients-history/${historyId}/reactivate`);
+      return response.json();
+    },
+    onMutate: (historyId) => {
+      setReactivatingId(historyId);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Paciente Reativado",
+        description: data.message || "Paciente foi reativado e voltou para a passagem de plantão.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients-history/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao Reativar",
+        description: error.message || "Não foi possível reativar o paciente.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setReactivatingId(null);
+    },
+  });
+
+  const handleReactivate = (record: PatientsHistoryRecord) => {
+    if (confirm(`Deseja reativar o paciente ${record.nome}? Ele voltará para a passagem de plantão.`)) {
+      reactivateMutation.mutate(record.id);
+    }
+  };
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -649,7 +693,26 @@ export default function PatientsHistoryPage() {
                             {formatDate(record.arquivadoEm)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <PatientDetailsSheet record={record} />
+                            <div className="flex items-center justify-end gap-1">
+                              <PatientDetailsSheet record={record} />
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleReactivate(record)}
+                                  disabled={reactivatingId === record.id}
+                                  title="Reativar paciente"
+                                  data-testid={`button-reactivate-${record.id}`}
+                                >
+                                  {reactivatingId === record.id ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4" />
+                                  )}
+                                  <span className="ml-1 hidden sm:inline">Reativar</span>
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

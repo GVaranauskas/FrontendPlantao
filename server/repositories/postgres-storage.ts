@@ -542,6 +542,63 @@ export class PostgresStorage implements IStorage {
       byEnfermaria,
     };
   }
+
+  async reactivatePatient(historyId: string): Promise<Patient> {
+    const historyRecord = await this.getPatientsHistoryById(historyId);
+    if (!historyRecord) {
+      throw new Error('Registro de histórico não encontrado');
+    }
+
+    const dadosCompletos = historyRecord.dadosCompletos as Record<string, any> || {};
+
+    const patientData: any = {
+      leito: historyRecord.leito,
+      nome: historyRecord.nome,
+      registro: historyRecord.registro,
+      codigoAtendimento: historyRecord.codigoAtendimento,
+      dataInternacao: historyRecord.dataInternacao,
+      dsEnfermaria: historyRecord.dsEnfermaria,
+      dsEspecialidade: historyRecord.dsEspecialidade,
+      notasPaciente: historyRecord.notasPaciente,
+      clinicalInsights: historyRecord.clinicalInsights,
+      especialidadeRamal: dadosCompletos.especialidadeRamal || dadosCompletos.especialidade_ramal,
+      dataNascimento: dadosCompletos.dataNascimento || dadosCompletos.data_nascimento,
+      braden: dadosCompletos.braden,
+      diagnostico: dadosCompletos.diagnostico,
+      alergias: dadosCompletos.alergias,
+      mobilidade: dadosCompletos.mobilidade,
+      dieta: dadosCompletos.dieta,
+      eliminacoes: dadosCompletos.eliminacoes,
+      dispositivos: dadosCompletos.dispositivos,
+      atb: dadosCompletos.atb,
+      curativos: dadosCompletos.curativos,
+      aporteSaturacao: dadosCompletos.aporteSaturacao || dadosCompletos.aporte_saturacao,
+      exames: dadosCompletos.exames,
+      cirurgia: dadosCompletos.cirurgia,
+      observacoes: dadosCompletos.observacoes,
+      previsaoAlta: dadosCompletos.previsaoAlta || dadosCompletos.previsao_alta,
+      alerta: dadosCompletos.alerta,
+      status: 'ativo',
+      idEvolucao: dadosCompletos.idEvolucao || dadosCompletos.id_evolucao,
+      dsLeitoCompleto: dadosCompletos.dsLeitoCompleto || dadosCompletos.ds_leito_completo,
+      dsEvolucaoCompleta: dadosCompletos.dsEvolucaoCompleta || dadosCompletos.ds_evolucao_completa,
+      fonteDados: 'reativacao_manual',
+      dadosBrutosJson: dadosCompletos.dadosBrutosJson || dadosCompletos.dados_brutos_json,
+      sexo: dadosCompletos.sexo,
+      idade: dadosCompletos.idade,
+    };
+
+    const createdPatient = await this.upsertPatientByCodigoAtendimento(patientData);
+
+    await this.deletePatientHistory(historyId);
+
+    return createdPatient;
+  }
+
+  async deletePatientHistory(id: string): Promise<boolean> {
+    const result = await db.delete(patientsHistory).where(eq(patientsHistory.id, id));
+    return (result.rowCount || 0) > 0;
+  }
 }
 
 export const postgresStorage = new PostgresStorage();

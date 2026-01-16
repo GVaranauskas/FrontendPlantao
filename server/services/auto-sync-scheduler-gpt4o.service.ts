@@ -57,6 +57,13 @@ export class AutoSyncSchedulerGPT4o {
   private lastRun: Date | null = null;
   private syncHistory: SyncResult[] = [];
   
+  // Rastreador de falhas consecutivas para proteção contra arquivamento acidental
+  // Chave: codigoAtendimento ou leito, Valor: número de falhas consecutivas
+  private missingSyncTracker: Map<string, { count: number; firstMissing: Date; patientName: string }> = new Map();
+  
+  // Número mínimo de falhas consecutivas antes de arquivar (proteção)
+  private static readonly MIN_FAILURES_BEFORE_ARCHIVE = 2;
+  
   // Configurações via variáveis de ambiente
   private static readonly DEFAULT_UNITS = process.env.N8N_UNIT_IDS || '22,23';
   private static readonly DEFAULT_CRON = process.env.AUTO_SYNC_CRON || '0 * * * *'; // A cada hora (padrão)
@@ -367,54 +374,88 @@ export class AutoSyncSchedulerGPT4o {
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
 
+    // PROTEÇÃO: Limpar tracker de pacientes que foram encontrados no N8N
+    for (const [key, _] of this.missingSyncTracker) {
+      if (currentCodigosAtendimento.has(key) || currentLeitos.has(key)) {
+        console.log(`[AutoSync] ✅ Paciente ${key} encontrado no N8N - resetando contador de falhas`);
+        this.missingSyncTracker.delete(key);
+      }
+    }
+
     for (const patient of allPatients) {
-      let shouldRemove = false;
+      let isMissing = false;
       let removeReason = '';
       let archiveReason: ArchiveReason = 'alta_hospitalar';
       let leitoDestino: string | undefined;
+      let trackingKey = '';
 
       // Caso 1: Paciente TEM codigoAtendimento
       if (patient.codigoAtendimento) {
+        trackingKey = patient.codigoAtendimento;
         if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
-          // codigoAtendimento não existe no N8N - paciente teve alta
-          shouldRemove = true;
+          // codigoAtendimento não existe no N8N - possível alta
+          isMissing = true;
           removeReason = 'alta hospitalar (código não existe no N8N)';
           archiveReason = 'alta_hospitalar';
         } else if (patient.leito) {
           // codigoAtendimento existe - verificar se o leito corresponde
           const n8nLeito = codigoToLeito.get(patient.codigoAtendimento);
           if (n8nLeito && n8nLeito !== patient.leito) {
-            // Paciente foi transferido de leito - este é um registro órfão
-            shouldRemove = true;
-            removeReason = `transferência de leito (${patient.leito} -> ${n8nLeito})`;
-            archiveReason = 'transferencia_leito';
-            leitoDestino = n8nLeito;
-            console.log(`[AutoSync] 🔄 Paciente ${patient.codigoAtendimento} transferido: leito ${patient.leito} -> ${n8nLeito}`);
+            // Paciente foi transferido de leito - arquivar imediatamente (não é erro de sync)
+            try {
+              await storage.archivePatient(patient, 'transferencia_leito', n8nLeito);
+              console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado - transferência de leito (${patient.leito} -> ${n8nLeito})`);
+              await storage.deletePatient(patient.id);
+              removedCount++;
+              this.missingSyncTracker.delete(trackingKey);
+            } catch (error) {
+              console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
+            }
+            continue;
           }
         }
       }
       // Caso 2: Paciente SEM codigoAtendimento - verificar pelo leito
-      // Isso remove registros antigos/órfãos que não têm identificador
       else if (patient.leito) {
+        trackingKey = patient.leito;
         if (!currentLeitos.has(patient.leito)) {
-          shouldRemove = true;
+          isMissing = true;
           removeReason = 'leito não existe no N8N';
           archiveReason = 'registro_antigo';
         }
       }
 
-      if (shouldRemove) {
-        try {
-          // ARQUIVAR antes de deletar - preserva histórico
-          await storage.archivePatient(patient, archiveReason, leitoDestino);
-          console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado no histórico - ${removeReason}`);
-
-          // Agora deletar da tabela principal
-          await storage.deletePatient(patient.id);
-          removedCount++;
-          console.log(`[AutoSync] 🚪 Paciente ${patient.leito} (${patient.nome}) removido da passagem de plantão`);
-        } catch (error) {
-          console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
+      if (isMissing && trackingKey) {
+        // PROTEÇÃO: Verificar se já teve falhas suficientes antes de arquivar
+        const tracking = this.missingSyncTracker.get(trackingKey);
+        
+        if (!tracking) {
+          // Primeira falha - registrar mas NÃO arquivar ainda
+          this.missingSyncTracker.set(trackingKey, {
+            count: 1,
+            firstMissing: new Date(),
+            patientName: patient.nome
+          });
+          console.log(`[AutoSync] ⚠️ Paciente ${patient.leito} (${patient.nome}) não encontrado no N8N - 1ª falha (proteção ativada, aguardando confirmação)`);
+        } else {
+          // Incrementar contador de falhas
+          tracking.count++;
+          console.log(`[AutoSync] ⚠️ Paciente ${patient.leito} (${patient.nome}) não encontrado no N8N - ${tracking.count}ª falha consecutiva`);
+          
+          // Verificar se atingiu o limite de falhas para arquivar
+          if (tracking.count >= AutoSyncSchedulerGPT4o.MIN_FAILURES_BEFORE_ARCHIVE) {
+            try {
+              await storage.archivePatient(patient, archiveReason, leitoDestino);
+              console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado após ${tracking.count} falhas consecutivas - ${removeReason}`);
+              await storage.deletePatient(patient.id);
+              removedCount++;
+              this.missingSyncTracker.delete(trackingKey);
+            } catch (error) {
+              console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
+            }
+          } else {
+            console.log(`[AutoSync] 🛡️ Proteção ativa - aguardando ${AutoSyncSchedulerGPT4o.MIN_FAILURES_BEFORE_ARCHIVE - tracking.count} falha(s) adicional(is) antes de arquivar`);
+          }
         }
       }
     }

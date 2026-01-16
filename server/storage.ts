@@ -107,6 +107,8 @@ export interface IStorage {
     byMotivo: Record<string, number>;
     byEnfermaria: Record<string, number>;
   }>;
+  reactivatePatient(historyId: string): Promise<Patient>;
+  deletePatientHistory(id: string): Promise<boolean>;
 }
 
 // Initialize storage based on environment

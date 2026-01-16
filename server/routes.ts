@@ -320,6 +320,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/patients-history/:id/reactivate", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const historyRecord = await storage.getPatientsHistoryById(id);
+      if (!historyRecord) {
+        return res.status(404).json({ error: "Registro de histórico não encontrado" });
+      }
+
+      const reactivatedPatient = await storage.reactivatePatient(id);
+      console.log(`[Reativação] Paciente ${historyRecord.nome} (${historyRecord.codigoAtendimento}) reativado por ${req.user?.username}`);
+
+      res.status(200).json({
+        success: true,
+        message: `Paciente ${historyRecord.nome} reativado com sucesso`,
+        data: reactivatedPatient,
+      });
+    } catch (error: any) {
+      console.error("Erro ao reativar paciente:", error);
+      res.status(500).json({ 
+        error: "Erro ao reativar paciente",
+        message: error.message 
+      });
+    }
+  });
+
   // ==========================================
   // User Notifications Endpoints
   // ==========================================
