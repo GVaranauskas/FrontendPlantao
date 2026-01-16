@@ -599,6 +599,22 @@ export class PostgresStorage implements IStorage {
     const result = await db.delete(patientsHistory).where(eq(patientsHistory.id, id));
     return (result.rowCount || 0) > 0;
   }
+
+  async getPatientHistoryByCodigoAtendimento(codigoAtendimento: string): Promise<PatientsHistory | undefined> {
+    const result = await db.select().from(patientsHistory)
+      .where(eq(patientsHistory.codigoAtendimento, codigoAtendimento))
+      .orderBy(desc(patientsHistory.arquivadoEm))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined> {
+    const result = await db.select().from(patientsHistory)
+      .where(eq(patientsHistory.leito, leito))
+      .orderBy(desc(patientsHistory.arquivadoEm))
+      .limit(1);
+    return result[0];
+  }
 }
 
 export const postgresStorage = new PostgresStorage();

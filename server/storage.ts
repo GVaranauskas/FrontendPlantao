@@ -109,6 +109,8 @@ export interface IStorage {
   }>;
   reactivatePatient(historyId: string): Promise<Patient>;
   deletePatientHistory(id: string): Promise<boolean>;
+  getPatientHistoryByCodigoAtendimento(codigoAtendimento: string): Promise<PatientsHistory | undefined>;
+  getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined>;
 }
 
 // Initialize storage based on environment

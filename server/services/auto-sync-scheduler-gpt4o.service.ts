@@ -32,6 +32,7 @@ interface SyncResult {
     unchangedRecords: number;
     newRecords: number;
     removedRecords: number;
+    reactivatedRecords: number;
     aiCallsMade: number;
     aiCallsAvoided: number;
     errors: number;
@@ -134,6 +135,7 @@ export class AutoSyncSchedulerGPT4o {
         changedRecords: 0,
         unchangedRecords: 0,
         removedRecords: 0,
+        reactivatedRecords: 0,
         newRecords: 0,
         aiCallsMade: 0,
         aiCallsAvoided: 0,
@@ -291,7 +293,8 @@ export class AutoSyncSchedulerGPT4o {
       // 4. SALVAR NO BANCO
       if (patientsToProcess.length > 0) {
         console.log(`[AutoSync] 💾 Salvando ${patientsToProcess.length} registros...`);
-        await this.saveToDatabase(patientsToProcess);
+        const saveResult = await this.saveToDatabase(patientsToProcess);
+        result.stats.reactivatedRecords = saveResult.reactivated;
       }
 
       // 5. REMOVER PACIENTES QUE NÃO VIERAM NA RESPOSTA DO N8N (alta hospitalar)
@@ -463,16 +466,46 @@ export class AutoSyncSchedulerGPT4o {
     return removedCount;
   }
 
-  private async saveToDatabase(patients: InsertPatient[]): Promise<void> {
+  private async saveToDatabase(patients: InsertPatient[]): Promise<{ saved: number; reactivated: number }> {
     // SOLUÇÃO DEFINITIVA: Usar UPSERT com ON CONFLICT para garantir atomicidade
     // - codigoAtendimento tem constraint UNIQUE no banco
     // - leito tem constraint UNIQUE no banco
     // - Isso impede duplicatas mesmo em race conditions
     
+    let reactivatedCount = 0;
+    // Set para evitar reativações duplicadas no mesmo ciclo de sync
+    const reactivatedHistoryIds = new Set<string>();
+    
     for (const patient of patients) {
       const patientCodigo = patient.codigoAtendimento?.toString().trim() || '';
+      const patientLeito = patient.leito?.toString().trim() || '';
       
       try {
+        // REGRA AUTOMÁTICA: Se paciente está no N8N, DEVE estar ativo
+        // Verificar se existe paciente arquivado - primeiro por código, depois por leito
+        let archivedPatient = null;
+        
+        if (patientCodigo) {
+          archivedPatient = await storage.getPatientHistoryByCodigoAtendimento(patientCodigo);
+        }
+        
+        // Fallback: buscar por leito se não encontrou por código
+        if (!archivedPatient && patientLeito) {
+          archivedPatient = await storage.getPatientHistoryByLeito(patientLeito);
+        }
+        
+        if (archivedPatient && !reactivatedHistoryIds.has(archivedPatient.id)) {
+          // Paciente estava arquivado mas apareceu no N8N - reativar automaticamente!
+          console.log(`[AutoSync] 🔄 REATIVAÇÃO AUTOMÁTICA: Paciente ${patient.leito} (${patient.nome}) encontrado no N8N mas estava arquivado - reativando...`);
+          await storage.reactivatePatient(archivedPatient.id);
+          reactivatedHistoryIds.add(archivedPatient.id);
+          reactivatedCount++;
+          console.log(`[AutoSync] ✅ Paciente ${patient.nome} reativado automaticamente do histórico`);
+        }
+        
+        // Fazer o upsert com os dados atualizados do N8N
+        // Sempre atualizar com os dados mais recentes do N8N, mesmo após reativação
+        // O upsert é idempotente e garante que os dados estejam sempre atualizados
         if (patientCodigo) {
           // Prioridade 1: Upsert por codigoAtendimento (mais confiável)
           await storage.upsertPatientByCodigoAtendimento(patient);
@@ -485,7 +518,13 @@ export class AutoSyncSchedulerGPT4o {
         console.error(`[AutoSync] Erro ao salvar paciente ${patient.leito}:`, error);
       }
     }
+    
+    if (reactivatedCount > 0) {
+      console.log(`[AutoSync] 🔄 ${reactivatedCount} paciente(s) reativado(s) automaticamente`);
+    }
     console.log(`[AutoSync] ✅ ${patients.length} registros salvos via UPSERT`);
+    
+    return { saved: patients.length, reactivated: reactivatedCount };
   }
 
   private logSyncResult(result: SyncResult): void {
@@ -496,6 +535,9 @@ export class AutoSyncSchedulerGPT4o {
     console.log(`   ➕ Novos: ${result.stats.newRecords}`);
     console.log(`   🔄 Alterados: ${result.stats.changedRecords}`);
     console.log(`   🚪 Removidos (alta): ${result.stats.removedRecords}`);
+    if (result.stats.reactivatedRecords > 0) {
+      console.log(`   ♻️  Reativados: ${result.stats.reactivatedRecords}`);
+    }
     console.log(`   🤖 IA processada: ${result.stats.aiCallsMade}`);
     console.log(`   💰 IA evitada: ${result.stats.aiCallsAvoided}`);
     console.log(`   💸 Economia: R$ ${result.savings.costSaved.toFixed(2)}`);

@@ -564,4 +564,22 @@ export class MemStorage implements IStorage {
   async deletePatientHistory(id: string): Promise<boolean> {
     return this.patientsHistory.delete(id);
   }
+
+  async getPatientHistoryByCodigoAtendimento(codigoAtendimento: string): Promise<PatientsHistory | undefined> {
+    for (const record of this.patientsHistory.values()) {
+      if (record.codigoAtendimento === codigoAtendimento) {
+        return record;
+      }
+    }
+    return undefined;
+  }
+
+  async getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined> {
+    for (const record of this.patientsHistory.values()) {
+      if (record.leito === leito) {
+        return record;
+      }
+    }
+    return undefined;
+  }
 }
