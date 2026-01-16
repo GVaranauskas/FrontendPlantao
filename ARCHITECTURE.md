@@ -581,6 +581,42 @@ Admin aprova → Sincroniza
 - **IP whitelist** configurável via `N8N_ALLOWED_IPS`
 - **Retry logic** com exponential backoff no N8N
 
+### Reativação Automática de Pacientes
+
+Durante a sincronização com N8N, o sistema verifica automaticamente se pacientes que aparecem nos dados do N8N estão arquivados no histórico. Se estiverem, são reativados automaticamente.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Dados N8N chegam durante Auto Sync                 │
+└──────────────────┬──────────────────────────────────┘
+                   │
+                   ↓
+┌──────────────────────────────────────────────────────┐
+│  Para cada paciente:                                 │
+│  1. Busca no histórico por codigoAtendimento         │
+│  2. Se não encontrar, busca por leito (fallback)     │
+│  3. Se encontrar paciente arquivado → REATIVA        │
+│  4. Faz UPSERT com dados atualizados do N8N          │
+└──────────────────────────────────────────────────────┘
+```
+
+**Regra Core**: Se um paciente aparece nos dados do N8N, ele **DEVE** estar ativo no sistema.
+
+**Estratégia de Busca Dual**:
+- **Primária**: Busca por `codigoAtendimento` (identificador único do atendimento)
+- **Fallback**: Busca por `leito` (quando código ausente ou alterado)
+
+**Deduplicação**: Usa `Set` de IDs já reativados para evitar reativações repetidas no mesmo ciclo de sync.
+
+**Métodos de Storage**:
+```typescript
+// Busca paciente arquivado por código de atendimento
+getPatientHistoryByCodigoAtendimento(codigo: string): Promise<PatientsHistory | undefined>
+
+// Busca paciente arquivado por leito (fallback)
+getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined>
+```
+
 ## 🤖 Sistema de IA
 
 ### Arquitetura Multi-Camada

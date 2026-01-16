@@ -17,6 +17,26 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.3.0] - 2026-01-16
+
+### Adicionado
+
+- **Reativação Automática de Pacientes**
+  - Pacientes arquivados que aparecem nos dados do N8N são automaticamente reativados
+  - Estratégia de busca dual: primário por `codigoAtendimento`, fallback por `leito`
+  - Deduplicação para evitar reativações repetidas no mesmo ciclo de sync
+  - Regra core: "Se paciente está no N8N, DEVE estar ativo no sistema"
+  - Novos métodos de storage: `getPatientHistoryByCodigoAtendimento`, `getPatientHistoryByLeito`
+
+- **Métricas de Reativação (Interno)**
+  - Novo campo `reactivatedRecords` nas estatísticas internas do sync
+  - Log detalhado de pacientes reativados automaticamente no console
+
+### Melhorado
+
+- Auto Sync Scheduler agora preserva dados de pacientes que retornam após arquivamento
+- Lógica de UPSERT atualiza dados do paciente reativado com informações mais recentes do N8N
+
 ## [1.2.0] - 2026-01-15
 
 ### Adicionado
@@ -231,4 +251,4 @@ Versões anteriores a 1.0.0 foram desenvolvidas internamente e não possuem chan
 
 **Versionamento**: [Semantic Versioning](https://semver.org/lang/pt-BR/)
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-01-16
