@@ -592,15 +592,23 @@ Durante a sincronização com N8N, o sistema verifica automaticamente se pacient
                    │
                    ↓
 ┌──────────────────────────────────────────────────────┐
-│  Para cada paciente:                                 │
-│  1. Busca no histórico por codigoAtendimento         │
-│  2. Se não encontrar, busca por leito (fallback)     │
-│  3. Se encontrar paciente arquivado → REATIVA        │
-│  4. Faz UPSERT com dados atualizados do N8N          │
+│  Para cada paciente (saveToDatabase):                │
+│  1. CONFLITO: Verifica se leito está ocupado por     │
+│     paciente com código diferente → Arquiva antigo   │
+│  2. Busca no histórico por codigoAtendimento         │
+│  3. Se não encontrar, busca por leito (fallback)     │
+│  4. Se encontrar paciente arquivado → REATIVA        │
+│  5. Faz UPSERT com dados atualizados do N8N          │
 └──────────────────────────────────────────────────────┘
 ```
 
 **Regra Core**: Se um paciente aparece nos dados do N8N, ele **DEVE** estar ativo no sistema.
+
+### Resolução de Conflito de Leito
+
+Antes de inserir ou reativar um paciente, o sistema verifica se o leito alvo está ocupado por outro paciente com código de atendimento diferente. Se estiver, o paciente antigo é automaticamente arquivado como "registro_antigo".
+
+**Problema Resolvido**: Em ambientes DEV, dados manuais/testes acumulam pacientes com leitos que são posteriormente reutilizados por novos pacientes com códigos diferentes, causando erro de "duplicate key constraint" no leito.
 
 **Estratégia de Busca Dual**:
 - **Primária**: Busca por `codigoAtendimento` (identificador único do atendimento)
@@ -610,6 +618,12 @@ Durante a sincronização com N8N, o sistema verifica automaticamente se pacient
 
 **Métodos de Storage**:
 ```typescript
+// Verifica se leito está ocupado por paciente com código diferente
+getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigo: string): Promise<Patient | undefined>
+
+// Arquiva e remove paciente (para liberar leito)
+archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean>
+
 // Busca paciente arquivado por código de atendimento
 getPatientHistoryByCodigoAtendimento(codigo: string): Promise<PatientsHistory | undefined>
 
