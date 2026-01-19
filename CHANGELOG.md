@@ -17,6 +17,30 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.3.2] - 2026-01-19
+
+### Corrigido
+
+- **Bug de Reativação de Pacientes Duplicado**
+  - Corrigido erro "duplicate key constraint" nos leitos durante sincronização com N8N
+  - Causa raiz: `reactivatePatient()` inseria paciente do histórico, depois `saveToDatabase()` tentava inserir novamente via UPSERT
+  - Solução: agora `reactivatePatient()` apenas remove o registro do histórico, deixando o UPSERT (PASSO 3) ser o único ponto de inserção
+  - Todos os 35 pacientes agora sincronizam corretamente sem erros de constraint
+
+### Alterado
+
+- **Fluxo de Sincronização Simplificado (3 Passos)**
+  1. **PASSO 1** - Resolver conflito de leito: arquivar paciente antigo se leito ocupado por outro código de atendimento
+  2. **PASSO 2** - Limpar histórico: apenas deletar registro do histórico (sem reinserir)
+  3. **PASSO 3** - UPSERT: única operação de inserção/atualização com dados frescos do N8N
+
+### Regras de Sincronização
+
+- **Regra Core**: "Se paciente está no N8N, DEVE estar ativo no sistema"
+- **Conflito de Leito**: Paciente antigo com código diferente é arquivado como "registro_antigo"
+- **Reativação**: Paciente no histórico é apenas removido do histórico - dados do N8N são usados na inserção
+- **Ponto Único de Inserção**: Somente `upsertPatientByCodigoAtendimento()` insere/atualiza pacientes
+
 ## [1.3.1] - 2026-01-19
 
 ### Corrigido
