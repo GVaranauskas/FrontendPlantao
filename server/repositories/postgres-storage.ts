@@ -1,4 +1,4 @@
-import { eq, desc, lt, gte, lte, sql, and, count, ilike, or } from "drizzle-orm";
+import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne } from "drizzle-orm";
 import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason } from "@shared/schema";
@@ -614,6 +614,35 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(patientsHistory.arquivadoEm))
       .limit(1);
     return result[0];
+  }
+
+  /**
+   * Verifica se um leito está ocupado por um paciente com código de atendimento diferente.
+   * Retorna o paciente ocupando o leito, ou undefined se o leito está livre ou ocupado pelo mesmo código.
+   */
+  async getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigoAtendimento: string): Promise<Patient | undefined> {
+    const result = await db.select().from(patients)
+      .where(
+        and(
+          eq(patients.leito, leito),
+          ne(patients.codigoAtendimento, codigoAtendimento)
+        )
+      )
+      .limit(1);
+    return result[0] ? this.decryptPatientData(result[0]) : undefined;
+  }
+
+  /**
+   * Arquiva um paciente e remove da tabela principal (usado para liberar leito).
+   * Retorna true se o paciente foi arquivado com sucesso.
+   */
+  async archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean> {
+    const patient = await this.getPatient(patientId);
+    if (!patient) return false;
+    
+    await this.archivePatient(patient, motivo, leitoDestino);
+    await this.deletePatient(patientId);
+    return true;
   }
 }
 
