@@ -503,6 +503,7 @@ export class AutoSyncSchedulerGPT4o {
         
         // PASSO 2: Verificar se existe paciente arquivado que precisa ser reativado
         // REGRA AUTOMÁTICA: Se paciente está no N8N, DEVE estar ativo
+        // IMPORTANTE: Apenas remover do histórico, NÃO inserir novamente - o PASSO 3 fará isso
         let archivedPatient = null;
         
         if (patientCodigo) {
@@ -515,17 +516,19 @@ export class AutoSyncSchedulerGPT4o {
         }
         
         if (archivedPatient && !reactivatedHistoryIds.has(archivedPatient.id)) {
-          // Paciente estava arquivado mas apareceu no N8N - reativar automaticamente!
-          console.log(`[AutoSync] 🔄 REATIVAÇÃO AUTOMÁTICA: Paciente ${patient.leito} (${patient.nome}) encontrado no N8N mas estava arquivado - reativando...`);
-          await storage.reactivatePatient(archivedPatient.id);
+          // Paciente estava arquivado mas apareceu no N8N - remover do histórico
+          // NÃO usamos reactivatePatient() aqui porque ele faz insert internamente
+          // O PASSO 3 (upsert) é quem vai inserir o paciente com os dados atualizados do N8N
+          console.log(`[AutoSync] 🔄 REATIVAÇÃO: Paciente ${patient.leito} (${patient.nome}) encontrado no N8N mas estava arquivado - removendo do histórico...`);
+          await storage.deletePatientHistory(archivedPatient.id);
           reactivatedHistoryIds.add(archivedPatient.id);
           reactivatedCount++;
-          console.log(`[AutoSync] ✅ Paciente ${patient.nome} reativado automaticamente do histórico`);
+          console.log(`[AutoSync] ✅ Histórico do paciente ${patient.nome} removido - será inserido com dados do N8N`);
         }
         
         // PASSO 3: Fazer o upsert com os dados atualizados do N8N
-        // Sempre atualizar com os dados mais recentes do N8N, mesmo após reativação
-        // O upsert é idempotente e garante que os dados estejam sempre atualizados
+        // Este é o ÚNICO ponto de inserção/atualização de pacientes
+        // Após resolver conflitos e limpar histórico, o upsert garante dados atualizados
         if (patientCodigo) {
           // Prioridade 1: Upsert por codigoAtendimento (mais confiável)
           await storage.upsertPatientByCodigoAtendimento(patient);
