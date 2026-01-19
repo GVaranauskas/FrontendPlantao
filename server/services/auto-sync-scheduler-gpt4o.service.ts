@@ -471,8 +471,10 @@ export class AutoSyncSchedulerGPT4o {
     // - codigoAtendimento tem constraint UNIQUE no banco
     // - leito tem constraint UNIQUE no banco
     // - Isso impede duplicatas mesmo em race conditions
+    // - NOVO: Antes de inserir, verificar se leito está ocupado por paciente com código diferente
     
     let reactivatedCount = 0;
+    let archivedForConflictCount = 0;
     // Set para evitar reativações duplicadas no mesmo ciclo de sync
     const reactivatedHistoryIds = new Set<string>();
     
@@ -481,8 +483,26 @@ export class AutoSyncSchedulerGPT4o {
       const patientLeito = patient.leito?.toString().trim() || '';
       
       try {
+        // PASSO 1: Verificar conflito de leito ANTES de qualquer operação
+        // Se leito está ocupado por paciente com código diferente, arquivar o antigo primeiro
+        // Isso previne erro de UNIQUE constraint no leito quando fazemos INSERT de novo paciente
+        if (patientLeito && patientCodigo) {
+          const occupyingPatient = await storage.getPatientOccupyingLeitoWithDifferentCodigo(patientLeito, patientCodigo);
+          if (occupyingPatient) {
+            console.log(`[AutoSync] ⚠️ CONFLITO DE LEITO: ${patientLeito} ocupado por ${occupyingPatient.nome} (código: ${occupyingPatient.codigoAtendimento})`);
+            console.log(`[AutoSync] 📦 Arquivando paciente antigo para liberar leito para ${patient.nome} (código: ${patientCodigo})`);
+            
+            // Arquivar o paciente antigo como "registro_antigo" (dado obsoleto no DEV)
+            await storage.archiveAndRemovePatient(occupyingPatient.id, 'registro_antigo');
+            archivedForConflictCount++;
+            console.log(`[AutoSync] ✅ Paciente ${occupyingPatient.nome} arquivado - leito ${patientLeito} liberado`);
+          }
+        }
+        // Nota: Quando patientCodigo está vazio, usamos upsertPatientByLeito que faz ON CONFLICT
+        // no leito e atualiza o registro existente - não há risco de constraint violation
+        
+        // PASSO 2: Verificar se existe paciente arquivado que precisa ser reativado
         // REGRA AUTOMÁTICA: Se paciente está no N8N, DEVE estar ativo
-        // Verificar se existe paciente arquivado - primeiro por código, depois por leito
         let archivedPatient = null;
         
         if (patientCodigo) {
@@ -503,7 +523,7 @@ export class AutoSyncSchedulerGPT4o {
           console.log(`[AutoSync] ✅ Paciente ${patient.nome} reativado automaticamente do histórico`);
         }
         
-        // Fazer o upsert com os dados atualizados do N8N
+        // PASSO 3: Fazer o upsert com os dados atualizados do N8N
         // Sempre atualizar com os dados mais recentes do N8N, mesmo após reativação
         // O upsert é idempotente e garante que os dados estejam sempre atualizados
         if (patientCodigo) {
@@ -514,11 +534,14 @@ export class AutoSyncSchedulerGPT4o {
           await storage.upsertPatientByLeito(patient);
         }
       } catch (error) {
-        // Em caso de erro de constraint, tentar atualização direta
+        // Em caso de erro de constraint, logar para análise
         console.error(`[AutoSync] Erro ao salvar paciente ${patient.leito}:`, error);
       }
     }
     
+    if (archivedForConflictCount > 0) {
+      console.log(`[AutoSync] 📦 ${archivedForConflictCount} paciente(s) arquivado(s) por conflito de leito`);
+    }
     if (reactivatedCount > 0) {
       console.log(`[AutoSync] 🔄 ${reactivatedCount} paciente(s) reativado(s) automaticamente`);
     }

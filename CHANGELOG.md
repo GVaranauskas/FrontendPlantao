@@ -17,6 +17,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.3.1] - 2026-01-19
+
+### Corrigido
+
+- **Resolução de Conflito de Leito na Sincronização**
+  - Novo sistema de detecção de conflito: antes de inserir/reativar um paciente, verifica se o leito está ocupado por outro paciente com código de atendimento diferente
+  - Arquivamento automático do paciente antigo (registro obsoleto) quando há conflito de leito
+  - Previne erros de "duplicate key constraint" no leito durante sincronização N8N
+  - Problema afetava principalmente ambiente DEV onde dados manuais/testes acumulavam registros desatualizados
+  - Novos métodos de storage: `getPatientOccupyingLeitoWithDifferentCodigo`, `archiveAndRemovePatient`
+
+### Melhorado
+
+- Lógica do `saveToDatabase` agora opera em 3 passos ordenados:
+  1. Verificar e resolver conflito de leito (arquivar paciente antigo se necessário)
+  2. Verificar e reativar paciente arquivado se existir no histórico
+  3. Fazer UPSERT com dados atualizados do N8N
+- Logs detalhados para conflitos de leito detectados e resolvidos
+
 ## [1.3.0] - 2026-01-16
 
 ### Adicionado

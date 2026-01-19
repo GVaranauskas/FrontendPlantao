@@ -530,7 +530,7 @@ export class MemStorage implements IStorage {
       nome: historyRecord.nome,
       registro: historyRecord.registro ?? undefined,
       codigoAtendimento: historyRecord.codigoAtendimento,
-      dataInternacao: historyRecord.dataInternacao ?? undefined,
+      dataInternacao: historyRecord.dataInternacao || '',
       dsEnfermaria: historyRecord.dsEnfermaria ?? undefined,
       dsEspecialidade: historyRecord.dsEspecialidade ?? undefined,
       notasPaciente: historyRecord.notasPaciente ?? undefined,
@@ -581,5 +581,23 @@ export class MemStorage implements IStorage {
       }
     }
     return undefined;
+  }
+
+  async getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigoAtendimento: string): Promise<Patient | undefined> {
+    for (const patient of this.patients.values()) {
+      if (patient.leito === leito && patient.codigoAtendimento !== codigoAtendimento) {
+        return patient;
+      }
+    }
+    return undefined;
+  }
+
+  async archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean> {
+    const patient = await this.getPatient(patientId);
+    if (!patient) return false;
+    
+    await this.archivePatient(patient, motivo, leitoDestino);
+    this.patients.delete(patientId);
+    return true;
   }
 }

@@ -111,6 +111,8 @@ export interface IStorage {
   deletePatientHistory(id: string): Promise<boolean>;
   getPatientHistoryByCodigoAtendimento(codigoAtendimento: string): Promise<PatientsHistory | undefined>;
   getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined>;
+  getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigoAtendimento: string): Promise<Patient | undefined>;
+  archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean>;
 }
 
 // Initialize storage based on environment
