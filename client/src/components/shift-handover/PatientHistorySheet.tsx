@@ -52,6 +52,32 @@ export function PatientHistorySheet() {
   const [searchTerm, setSearchTerm] = useState("");
   const [motivoFilter, setMotivoFilter] = useState<string>("all");
   const [selectedRecord, setSelectedRecord] = useState<PatientsHistory | null>(null);
+  const [periodFilter, setPeriodFilter] = useState<"24h" | "7d" | "30d" | null>(null);
+  const [dataInicio, setDataInicio] = useState("");
+
+  const applyPeriodFilter = (period: "24h" | "7d" | "30d") => {
+    if (periodFilter === period) {
+      setPeriodFilter(null);
+      setDataInicio("");
+      setPage(1);
+      return;
+    }
+    
+    const now = new Date();
+    let startDate: Date;
+    
+    if (period === "24h") {
+      startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    } else if (period === "7d") {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    
+    setDataInicio(startDate.toISOString());
+    setPeriodFilter(period);
+    setPage(1);
+  };
 
   const { data: statsData, isLoading: statsLoading } = useQuery<StatsResponse>({
     queryKey: ["/api/patients-history/stats"],
@@ -59,13 +85,14 @@ export function PatientHistorySheet() {
   });
 
   const { data: historyData, isLoading: historyLoading } = useQuery<PatientsHistoryResponse>({
-    queryKey: ["/api/patients-history", page, searchTerm, motivoFilter],
+    queryKey: ["/api/patients-history", page, searchTerm, motivoFilter, dataInicio],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", page.toString());
       params.set("limit", "20");
       if (searchTerm) params.set("nome", searchTerm);
       if (motivoFilter && motivoFilter !== "all") params.set("motivoArquivamento", motivoFilter);
+      if (dataInicio) params.set("dataInicio", dataInicio);
       
       const headers: Record<string, string> = {};
       const token = getAccessToken();
@@ -125,16 +152,28 @@ export function PatientHistorySheet() {
                 <div className="text-2xl font-bold">{stats.total}</div>
                 <div className="text-xs text-muted-foreground">Total</div>
               </Card>
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.last24h}</div>
+              <Card 
+                className={`p-3 text-center cursor-pointer hover-elevate ${periodFilter === "24h" ? "ring-2 ring-primary" : ""}`}
+                onClick={() => applyPeriodFilter("24h")}
+                data-testid="card-filter-24h"
+              >
+                <div className={`text-2xl font-bold ${periodFilter === "24h" ? "text-primary" : "text-green-600"}`}>{stats.last24h}</div>
                 <div className="text-xs text-muted-foreground">Últimas 24h</div>
               </Card>
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.last7d}</div>
+              <Card 
+                className={`p-3 text-center cursor-pointer hover-elevate ${periodFilter === "7d" ? "ring-2 ring-primary" : ""}`}
+                onClick={() => applyPeriodFilter("7d")}
+                data-testid="card-filter-7d"
+              >
+                <div className={`text-2xl font-bold ${periodFilter === "7d" ? "text-primary" : "text-blue-600"}`}>{stats.last7d}</div>
                 <div className="text-xs text-muted-foreground">Últimos 7 dias</div>
               </Card>
-              <Card className="p-3 text-center">
-                <div className="text-2xl font-bold text-purple-600">{stats.last30d}</div>
+              <Card 
+                className={`p-3 text-center cursor-pointer hover-elevate ${periodFilter === "30d" ? "ring-2 ring-primary" : ""}`}
+                onClick={() => applyPeriodFilter("30d")}
+                data-testid="card-filter-30d"
+              >
+                <div className={`text-2xl font-bold ${periodFilter === "30d" ? "text-primary" : "text-purple-600"}`}>{stats.last30d}</div>
                 <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
               </Card>
             </div>
