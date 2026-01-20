@@ -336,7 +336,34 @@ export default function PatientsHistoryPage() {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+  const [periodFilter, setPeriodFilter] = useState<"24h" | "7d" | "30d" | null>(null);
   const limit = 20;
+
+  const applyPeriodFilter = (period: "24h" | "7d" | "30d") => {
+    if (periodFilter === period) {
+      setPeriodFilter(null);
+      setDataInicio("");
+      setDataFim("");
+      setPage(1);
+      return;
+    }
+    
+    const now = new Date();
+    let startDate: Date;
+    
+    if (period === "24h") {
+      startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    } else if (period === "7d") {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    
+    setDataInicio(startDate.toISOString().split("T")[0]);
+    setDataFim("");
+    setPeriodFilter(period);
+    setPage(1);
+  };
 
   // Build query params
   const queryParams = useMemo(() => {
@@ -442,10 +469,11 @@ export default function PatientsHistoryPage() {
     setMotivoFilter("all");
     setDataInicio("");
     setDataFim("");
+    setPeriodFilter(null);
     setPage(1);
   };
 
-  const hasActiveFilters = searchTerm || motivoFilter !== "all" || dataInicio || dataFim;
+  const hasActiveFilters = searchTerm || motivoFilter !== "all" || dataInicio || dataFim || periodFilter;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -506,36 +534,48 @@ export default function PatientsHistoryPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className={`cursor-pointer hover-elevate ${periodFilter === "24h" ? "ring-2 ring-primary" : ""}`}
+              onClick={() => applyPeriodFilter("24h")}
+              data-testid="card-filter-24h"
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Últimas 24h</p>
                     <p className="text-2xl font-bold">{stats.last24h}</p>
                   </div>
-                  <Clock className="h-8 w-8 text-muted-foreground/50" />
+                  <Clock className={`h-8 w-8 ${periodFilter === "24h" ? "text-primary" : "text-muted-foreground/50"}`} />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className={`cursor-pointer hover-elevate ${periodFilter === "7d" ? "ring-2 ring-primary" : ""}`}
+              onClick={() => applyPeriodFilter("7d")}
+              data-testid="card-filter-7d"
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Últimos 7 dias</p>
                     <p className="text-2xl font-bold">{stats.last7d}</p>
                   </div>
-                  <Calendar className="h-8 w-8 text-muted-foreground/50" />
+                  <Calendar className={`h-8 w-8 ${periodFilter === "7d" ? "text-primary" : "text-muted-foreground/50"}`} />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className={`cursor-pointer hover-elevate ${periodFilter === "30d" ? "ring-2 ring-primary" : ""}`}
+              onClick={() => applyPeriodFilter("30d")}
+              data-testid="card-filter-30d"
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
                     <p className="text-2xl font-bold">{stats.last30d}</p>
                   </div>
-                  <Building className="h-8 w-8 text-muted-foreground/50" />
+                  <Building className={`h-8 w-8 ${periodFilter === "30d" ? "text-primary" : "text-muted-foreground/50"}`} />
                 </div>
               </CardContent>
             </Card>
@@ -594,6 +634,7 @@ export default function PatientsHistoryPage() {
                     value={dataInicio}
                     onChange={(e) => {
                       setDataInicio(e.target.value);
+                      setPeriodFilter(null);
                       setPage(1);
                     }}
                   />
@@ -607,6 +648,7 @@ export default function PatientsHistoryPage() {
                     value={dataFim}
                     onChange={(e) => {
                       setDataFim(e.target.value);
+                      setPeriodFilter(null);
                       setPage(1);
                     }}
                   />
