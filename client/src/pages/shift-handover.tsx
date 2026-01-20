@@ -280,13 +280,6 @@ export default function ShiftHandoverPage() {
               >
                 <History className="w-5 h-5 text-primary" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                data-testid="button-menu-toggle"
-              >
-                <Menu className="w-6 h-6 text-primary" />
-              </Button>
               <img 
                 src="https://11care.com.br/wp-content/uploads/2024/05/logo-11Care-azul-1024x249.png.webp"
                 alt="11Care"
