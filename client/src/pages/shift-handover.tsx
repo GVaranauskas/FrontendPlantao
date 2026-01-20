@@ -904,31 +904,6 @@ export default function ShiftHandoverPage() {
         </div>
       </header>
 
-      <div className="bg-card border-b py-4">
-        <div className="container mx-auto px-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <button 
-              onClick={() => setLocation("/modules")}
-              className="hover:text-primary transition-colors"
-              data-testid="link-home"
-            >
-              <Home className="w-4 h-4 inline mr-1" />
-              Início
-            </button>
-            <span>/</span>
-            <button 
-              onClick={() => setLocation("/modules")}
-              className="hover:text-primary transition-colors"
-              data-testid="link-modules"
-            >
-              Módulos
-            </button>
-            <span>/</span>
-            <span>Passagem de Plantão</span>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto px-5 py-6 flex-1">
         <StatsCards 
           stats={stats}
