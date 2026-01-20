@@ -47,23 +47,6 @@ export function SearchFilterBar({
           </Button>
         )}
       </div>
-      <Card className="p-3 bg-muted/30">
-        <div className="flex items-center gap-6 text-xs flex-wrap">
-          <div className="font-semibold text-muted-foreground">Legenda - Mobilidade:</div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono">A</Badge>
-            <span className="text-muted-foreground">Acamado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono">D</Badge>
-            <span className="text-muted-foreground">Deambula</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono">DA</Badge>
-            <span className="text-muted-foreground">Deambula Com Auxílio</span>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
