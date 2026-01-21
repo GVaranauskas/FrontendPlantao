@@ -30,7 +30,6 @@ import {
   PatientTable,
   PatientDetailsModal,
   PatientHistorySheet,
-  ClinicalInsightsStatsSheet,
   type AIAnalysisResult,
   type ClinicalBatchResult,
   type ClinicalInsights,
@@ -891,9 +890,6 @@ export default function ShiftHandoverPage() {
               
               {/* Patient History Sheet */}
               <PatientHistorySheet />
-              
-              {/* Clinical Insights Stats Sheet */}
-              <ClinicalInsightsStatsSheet />
               
               <Button 
                 className="hidden sm:flex" 
