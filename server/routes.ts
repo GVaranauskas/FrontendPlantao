@@ -23,14 +23,36 @@ import { patientNotesService } from "./services/patient-notes.service";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", authMiddleware, asyncHandler(async (req, res, next) => {
-    const patients = await storage.getAllPatients();
+  // Listagem de pacientes com paginação opcional
+  // ?page=1&limit=50 para paginação, sem parâmetros retorna todos
+  app.get("/api/patients", authMiddleware, asyncHandler(async (req, res) => {
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string), 100) : undefined;
+
     const acceptToon = isToonFormat(req.get("accept"));
-    if (acceptToon) {
-      const toonData = stringifyToToon(patients);
-      res.type("application/toon").send(toonData);
+
+    // Se page ou limit especificados, usa paginação
+    if (page !== undefined || limit !== undefined) {
+      const result = await storage.getPatientsPaginated({
+        page: page || 1,
+        limit: limit || 50
+      });
+
+      if (acceptToon) {
+        const toonData = stringifyToToon(result);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(result);
+      }
     } else {
-      res.json(patients);
+      // Comportamento legado: retorna todos os pacientes
+      const patients = await storage.getAllPatients();
+      if (acceptToon) {
+        const toonData = stringifyToToon(patients);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(patients);
+      }
     }
   }));
 
@@ -67,382 +89,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.patch("/api/patients/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const validatedData = insertPatientSchema.partial().parse(req.body);
-      const patient = await storage.updatePatient(req.params.id, validatedData);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
-        const toonData = stringifyToToon(patient);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patient);
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return res.status(400).json({ message: "Invalid patient data" });
-      }
-      res.status(500).json({ message: "Failed to update patient" });
+  app.patch("/api/patients/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const validatedData = insertPatientSchema.partial().parse(req.body);
+    const patient = await storage.updatePatient(req.params.id, validatedData);
+    if (!patient) {
+      throw new AppError(404, "Patient not found", { patientId: req.params.id });
     }
-  });
+    const contentType = req.get("content-type");
+    if (isToonFormat(contentType)) {
+      const toonData = stringifyToToon(patient);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patient);
+    }
+  }));
 
-  app.delete("/api/patients/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
-    try {
-      const success = await storage.deletePatient(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete patient" });
+  app.delete("/api/patients/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const success = await storage.deletePatient(req.params.id);
+    if (!success) {
+      throw new AppError(404, "Patient not found", { patientId: req.params.id });
     }
-  });
+    res.status(204).send();
+  }));
 
   // Patient notes endpoints
-  app.patch("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { notasPaciente } = req.body;
-      const userId = req.user?.userId;
+  app.patch("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { notasPaciente } = req.body;
+    const userId = req.user?.userId;
 
-      if (!userId) {
-        return res.status(401).json({ 
-          error: "Usuário não autenticado",
-          message: "Você precisa estar logado para atualizar notas" 
-        });
-      }
-
-      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-      const userAgent = req.get("user-agent") || "unknown";
-
-      const updatedPatient = await patientNotesService.updatePatientNotes(
-        id,
-        notasPaciente,
-        userId,
-        ipAddress,
-        userAgent
-      );
-
-      res.status(200).json({
-        success: true,
-        message: "Notas atualizadas com sucesso",
-        data: {
-          notasPaciente: updatedPatient.notasPaciente,
-          notasUpdatedAt: updatedPatient.notasUpdatedAt,
-          notasUpdatedBy: updatedPatient.notasUpdatedBy,
-        },
-      });
-    } catch (error: any) {
-      console.error("Erro ao atualizar notas do paciente:", error);
-      res.status(500).json({ 
-        error: "Erro ao atualizar notas do paciente",
-        message: error.message 
-      });
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado", { message: "Você precisa estar logado para atualizar notas" });
     }
-  });
 
-  app.get("/api/patients/:id/notes-history", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const history = await patientNotesService.getPatientNotesHistory(id);
-      res.status(200).json({
-        success: true,
-        data: history,
-        count: history.length,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar histórico de notas:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar histórico de notas",
-        message: error.message 
-      });
+    const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+    const userAgent = req.get("user-agent") || "unknown";
+
+    const updatedPatient = await patientNotesService.updatePatientNotes(
+      id,
+      notasPaciente,
+      userId,
+      ipAddress,
+      userAgent
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Notas atualizadas com sucesso",
+      data: {
+        notasPaciente: updatedPatient.notasPaciente,
+        notasUpdatedAt: updatedPatient.notasUpdatedAt,
+        notasUpdatedBy: updatedPatient.notasUpdatedBy,
+      },
+    });
+  }));
+
+  app.get("/api/patients/:id/notes-history", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const history = await patientNotesService.getPatientNotesHistory(id);
+    res.status(200).json({
+      success: true,
+      data: history,
+      count: history.length,
+    });
+  }));
+
+  app.get("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const notes = await patientNotesService.getPatientNotes(id);
+    res.status(200).json({
+      success: true,
+      data: notes,
+    });
+  }));
+
+  app.delete("/api/patients/:id/notes", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado", { message: "Você precisa estar logado para excluir notas" });
     }
-  });
 
-  app.get("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const notes = await patientNotesService.getPatientNotes(id);
-      res.status(200).json({
-        success: true,
-        data: notes,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar notas do paciente:", error);
-      res.status(500).json({
-        error: "Erro ao buscar notas do paciente",
-        message: error.message
-      });
-    }
-  });
+    const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+    const userAgent = req.get("user-agent") || "unknown";
 
-  app.delete("/api/patients/:id/notes", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { reason } = req.body || {};
-      const userId = req.user?.userId;
+    const result = await patientNotesService.deletePatientNotes(
+      id,
+      userId,
+      reason || null,
+      ipAddress,
+      userAgent
+    );
 
-      if (!userId) {
-        return res.status(401).json({ 
-          error: "Usuário não autenticado",
-          message: "Você precisa estar logado para excluir notas" 
-        });
-      }
+    res.status(200).json({
+      success: true,
+      message: "Nota excluída com sucesso",
+      notifiedUser: result.notifiedUserId ? true : false,
+      eventId: result.event.id,
+    });
+  }));
 
-      const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-      const userAgent = req.get("user-agent") || "unknown";
-
-      const result = await patientNotesService.deletePatientNotes(
-        id,
-        userId,
-        reason || null,
-        ipAddress,
-        userAgent
-      );
-
-      res.status(200).json({
-        success: true,
-        message: "Nota excluída com sucesso",
-        notifiedUser: result.notifiedUserId ? true : false,
-        eventId: result.event.id,
-      });
-    } catch (error: any) {
-      console.error("Erro ao excluir nota do paciente:", error);
-      
-      if (error.message === "Apenas administradores podem excluir notas de pacientes") {
-        return res.status(403).json({ 
-          error: "Acesso negado",
-          message: error.message 
-        });
-      }
-      
-      if (error.message === "Este paciente não possui notas para excluir") {
-        return res.status(404).json({ 
-          error: "Nota não encontrada",
-          message: error.message 
-        });
-      }
-
-      res.status(500).json({ 
-        error: "Erro ao excluir nota do paciente",
-        message: error.message 
-      });
-    }
-  });
-
-  app.get("/api/patients/:id/note-events", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const events = await patientNotesService.getNoteEvents(id);
-      res.status(200).json({
-        success: true,
-        data: events,
-        count: events.length,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar eventos de notas:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar eventos de notas",
-        message: error.message 
-      });
-    }
-  });
+  app.get("/api/patients/:id/note-events", authMiddleware, requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const events = await patientNotesService.getNoteEvents(id);
+    res.status(200).json({
+      success: true,
+      data: events,
+      count: events.length,
+    });
+  }));
 
   // ==========================================
   // Patients History Endpoints (Histórico de altas/transferências)
   // ==========================================
 
-  app.get("/api/patients-history", authMiddleware, async (req, res) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      
-      const filters: any = {};
-      if (req.query.nome) filters.nome = req.query.nome as string;
-      if (req.query.registro) filters.registro = req.query.registro as string;
-      if (req.query.leito) filters.leito = req.query.leito as string;
-      if (req.query.codigoAtendimento) filters.codigoAtendimento = req.query.codigoAtendimento as string;
-      if (req.query.motivoArquivamento) filters.motivoArquivamento = req.query.motivoArquivamento as string;
-      if (req.query.dsEnfermaria) filters.dsEnfermaria = req.query.dsEnfermaria as string;
-      if (req.query.dataInicio) filters.dataInicio = new Date(req.query.dataInicio as string);
-      if (req.query.dataFim) filters.dataFim = new Date(req.query.dataFim as string);
+  app.get("/api/patients-history", authMiddleware, asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
 
-      const result = await storage.getPatientsHistoryPaginated({ page, limit }, filters);
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar histórico de pacientes:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar histórico de pacientes",
-        message: error.message 
-      });
+    const filters: {
+      nome?: string;
+      registro?: string;
+      leito?: string;
+      codigoAtendimento?: string;
+      motivoArquivamento?: string;
+      dsEnfermaria?: string;
+      dataInicio?: Date;
+      dataFim?: Date;
+    } = {};
+    if (req.query.nome) filters.nome = req.query.nome as string;
+    if (req.query.registro) filters.registro = req.query.registro as string;
+    if (req.query.leito) filters.leito = req.query.leito as string;
+    if (req.query.codigoAtendimento) filters.codigoAtendimento = req.query.codigoAtendimento as string;
+    if (req.query.motivoArquivamento) filters.motivoArquivamento = req.query.motivoArquivamento as string;
+    if (req.query.dsEnfermaria) filters.dsEnfermaria = req.query.dsEnfermaria as string;
+    if (req.query.dataInicio) filters.dataInicio = new Date(req.query.dataInicio as string);
+    if (req.query.dataFim) filters.dataFim = new Date(req.query.dataFim as string);
+
+    const result = await storage.getPatientsHistoryPaginated({ page, limit }, filters);
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  }));
+
+  app.get("/api/patients-history/stats", authMiddleware, asyncHandler(async (req, res) => {
+    const stats = await storage.getPatientsHistoryStats();
+    res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  }));
+
+  app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const record = await storage.getPatientsHistoryById(id);
+    if (!record) {
+      throw new AppError(404, "Registro de histórico não encontrado", { historyId: id });
     }
-  });
+    res.status(200).json({
+      success: true,
+      data: record,
+    });
+  }));
 
-  app.get("/api/patients-history/stats", authMiddleware, async (req, res) => {
-    try {
-      const stats = await storage.getPatientsHistoryStats();
-      res.status(200).json({
-        success: true,
-        data: stats,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar estatísticas do histórico:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar estatísticas do histórico",
-        message: error.message 
-      });
+  app.post("/api/patients-history/:id/reactivate", authMiddleware, requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const historyRecord = await storage.getPatientsHistoryById(id);
+    if (!historyRecord) {
+      throw new AppError(404, "Registro de histórico não encontrado", { historyId: id });
     }
-  });
 
-  app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const record = await storage.getPatientsHistoryById(id);
-      if (!record) {
-        return res.status(404).json({ error: "Registro de histórico não encontrado" });
-      }
-      res.status(200).json({
-        success: true,
-        data: record,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar registro de histórico:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar registro de histórico",
-        message: error.message 
-      });
-    }
-  });
+    const reactivatedPatient = await storage.reactivatePatient(id);
+    logger.info(`Paciente reativado`, {
+      patientName: historyRecord.nome,
+      codigoAtendimento: historyRecord.codigoAtendimento,
+      reactivatedBy: req.user?.username
+    });
 
-  app.post("/api/patients-history/:id/reactivate", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const historyRecord = await storage.getPatientsHistoryById(id);
-      if (!historyRecord) {
-        return res.status(404).json({ error: "Registro de histórico não encontrado" });
-      }
-
-      const reactivatedPatient = await storage.reactivatePatient(id);
-      console.log(`[Reativação] Paciente ${historyRecord.nome} (${historyRecord.codigoAtendimento}) reativado por ${req.user?.username}`);
-
-      res.status(200).json({
-        success: true,
-        message: `Paciente ${historyRecord.nome} reativado com sucesso`,
-        data: reactivatedPatient,
-      });
-    } catch (error: any) {
-      console.error("Erro ao reativar paciente:", error);
-      res.status(500).json({ 
-        error: "Erro ao reativar paciente",
-        message: error.message 
-      });
-    }
-  });
+    res.status(200).json({
+      success: true,
+      message: `Paciente ${historyRecord.nome} reativado com sucesso`,
+      data: reactivatedPatient,
+    });
+  }));
 
   // ==========================================
   // User Notifications Endpoints
   // ==========================================
 
-  app.get("/api/notifications", authMiddleware, async (req, res) => {
-    try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Usuário não autenticado" });
-      }
-
-      const unreadOnly = req.query.unreadOnly === "true";
-      const notifications = await patientNotesService.getUserNotifications(userId, unreadOnly);
-      const unreadCount = await patientNotesService.getUnreadNotificationsCount(userId);
-
-      res.status(200).json({
-        success: true,
-        data: notifications,
-        unreadCount,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar notificações:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar notificações",
-        message: error.message 
-      });
+  app.get("/api/notifications", authMiddleware, asyncHandler(async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado");
     }
-  });
 
-  app.patch("/api/notifications/:id/read", authMiddleware, validateUUIDParam('id'), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Usuário não autenticado" });
-      }
+    const unreadOnly = req.query.unreadOnly === "true";
+    const notifications = await patientNotesService.getUserNotifications(userId, unreadOnly);
+    const unreadCount = await patientNotesService.getUnreadNotificationsCount(userId);
 
-      const notification = await patientNotesService.markNotificationAsRead(id, userId);
-      if (!notification) {
-        return res.status(404).json({ error: "Notificação não encontrada" });
-      }
+    res.status(200).json({
+      success: true,
+      data: notifications,
+      unreadCount,
+    });
+  }));
 
-      res.status(200).json({
-        success: true,
-        data: notification,
-      });
-    } catch (error: any) {
-      console.error("Erro ao marcar notificação como lida:", error);
-      res.status(500).json({ 
-        error: "Erro ao marcar notificação como lida",
-        message: error.message 
-      });
+  app.patch("/api/notifications/:id/read", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado");
     }
-  });
 
-  app.post("/api/notifications/mark-all-read", authMiddleware, async (req, res) => {
-    try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Usuário não autenticado" });
-      }
-
-      await patientNotesService.markAllNotificationsAsRead(userId);
-
-      res.status(200).json({
-        success: true,
-        message: "Todas as notificações foram marcadas como lidas",
-      });
-    } catch (error: any) {
-      console.error("Erro ao marcar todas notificações como lidas:", error);
-      res.status(500).json({ 
-        error: "Erro ao marcar notificações como lidas",
-        message: error.message 
-      });
+    const notification = await patientNotesService.markNotificationAsRead(id, userId);
+    if (!notification) {
+      throw new AppError(404, "Notificação não encontrada", { notificationId: id });
     }
-  });
 
-  app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
-    try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Usuário não autenticado" });
-      }
+    res.status(200).json({
+      success: true,
+      data: notification,
+    });
+  }));
 
-      const count = await patientNotesService.getUnreadNotificationsCount(userId);
-
-      res.status(200).json({
-        success: true,
-        count,
-      });
-    } catch (error: any) {
-      console.error("Erro ao buscar contagem de notificações:", error);
-      res.status(500).json({ 
-        error: "Erro ao buscar contagem de notificações",
-        message: error.message 
-      });
+  app.post("/api/notifications/mark-all-read", authMiddleware, asyncHandler(async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado");
     }
-  });
+
+    await patientNotesService.markAllNotificationsAsRead(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Todas as notificações foram marcadas como lidas",
+    });
+  }));
+
+  app.get("/api/notifications/unread-count", authMiddleware, asyncHandler(async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError(401, "Usuário não autenticado");
+    }
+
+    const count = await patientNotesService.getUnreadNotificationsCount(userId);
+
+    res.status(200).json({
+      success: true,
+      count,
+    });
+  }));
 
   // Admin endpoint to get patient stats
   app.get("/api/admin/patients/stats", requireRole('admin'), asyncHandler(async (req, res) => {
@@ -496,428 +395,359 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
-  app.get("/api/alerts", authMiddleware, async (req, res) => {
-    try {
-      const alerts = await storage.getAllAlerts();
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(alerts);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(alerts);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch alerts" });
+  app.get("/api/alerts", authMiddleware, asyncHandler(async (req, res) => {
+    const alerts = await storage.getAllAlerts();
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(alerts);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(alerts);
     }
-  });
+  }));
 
-  app.post("/api/alerts", authMiddleware, async (req, res) => {
-    try {
-      const validatedData = insertAlertSchema.parse(req.body);
-      const alert = await storage.createAlert(validatedData);
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
-        const toonData = stringifyToToon(alert);
-        res.status(201).type("application/toon").send(toonData);
-      } else {
-        res.status(201).json(alert);
-      }
-    } catch (error) {
-      res.status(400).json({ message: "Invalid alert data" });
+  app.post("/api/alerts", authMiddleware, asyncHandler(async (req, res) => {
+    const validatedData = insertAlertSchema.parse(req.body);
+    const alert = await storage.createAlert(validatedData);
+    const contentType = req.get("content-type");
+    if (isToonFormat(contentType)) {
+      const toonData = stringifyToToon(alert);
+      res.status(201).type("application/toon").send(toonData);
+    } else {
+      res.status(201).json(alert);
     }
-  });
+  }));
 
-  app.delete("/api/alerts/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
-    try {
-      const success = await storage.deleteAlert(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Alert not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete alert" });
+  app.delete("/api/alerts/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const success = await storage.deleteAlert(req.params.id);
+    if (!success) {
+      throw new AppError(404, "Alert not found", { alertId: req.params.id });
     }
-  });
+    res.status(204).send();
+  }));
 
   // Sync endpoints for external API integration - PROTECTED with validation
-  app.post("/api/sync/patient/:leito", authMiddleware, validateLeitoParam, async (req, res) => {
-    try {
-      const leito = req.params.leito;
-      const patient = await syncPatientFromExternalAPI(leito);
-      
-      if (!patient) {
-        return res.status(404).json({ message: "Failed to sync patient data from external API" });
-      }
+  app.post("/api/sync/patient/:leito", authMiddleware, validateLeitoParam, asyncHandler(async (req, res) => {
+    const leito = req.params.leito;
+    const patient = await syncPatientFromExternalAPI(leito);
 
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
-        const toonData = stringifyToToon(patient);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patient);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync patient" });
+    if (!patient) {
+      throw new AppError(404, "Failed to sync patient data from external API", { leito });
     }
-  });
 
-  app.post("/api/sync/patients", authMiddleware, async (req, res) => {
-    try {
-      const { leitos } = req.body;
-      
-      if (!Array.isArray(leitos) || leitos.length === 0) {
-        return res.status(400).json({ message: "leitos array is required" });
-      }
-      
-      // Validate each leito format
-      for (const leito of leitos) {
-        if (typeof leito !== 'string' || !/^[0-9]{1,3}$/.test(leito)) {
-          return res.status(400).json({ message: "Invalid leito format in array" });
-        }
-      }
-
-      const patients = await syncMultiplePatientsFromExternalAPI(leitos);
-      
-      const contentType = req.get("content-type");
-      if (isToonFormat(contentType)) {
-        const toonData = stringifyToToon(patients);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patients);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync patients" });
+    const contentType = req.get("content-type");
+    if (isToonFormat(contentType)) {
+      const toonData = stringifyToToon(patient);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patient);
     }
-  });
+  }));
+
+  app.post("/api/sync/patients", authMiddleware, asyncHandler(async (req, res) => {
+    const { leitos } = req.body;
+
+    if (!Array.isArray(leitos) || leitos.length === 0) {
+      throw new AppError(400, "leitos array is required");
+    }
+
+    // Validate each leito format
+    for (const leito of leitos) {
+      if (typeof leito !== 'string' || !/^[0-9]{1,3}$/.test(leito)) {
+        throw new AppError(400, "Invalid leito format in array", { invalidLeito: leito });
+      }
+    }
+
+    const patients = await syncMultiplePatientsFromExternalAPI(leitos);
+
+    const contentType = req.get("content-type");
+    if (isToonFormat(contentType)) {
+      const toonData = stringifyToToon(patients);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patients);
+    }
+  }));
 
   // PRODUÇÃO: Unidades fixas 22,23
   const PRODUCTION_UNIT_IDS = "22,23";
   
   // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
-  app.post("/api/sync/evolucoes", authMiddleware, validateUnitIdsBody, async (req, res) => {
-    try {
-      logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
-      
-      const { unitIds, forceUpdate } = req.body || {};
-      // PRODUÇÃO: Sempre usar 22,23 como padrão, ignorar string vazia
-      const params = (unitIds && unitIds.trim() !== "") ? unitIds : PRODUCTION_UNIT_IDS;
-      const force = forceUpdate === true;
-      
-      logger.info(`[${getTimestamp()}] [Sync] Syncing evolucoes with params: ["${params}"], forceUpdate: ${force}`);
-      const patients = await syncEvolucoesByUnitIds(params, force);
-      
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(patients);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patients);
-      }
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Sync] Failed to sync evolucoes:`, error instanceof Error ? error : undefined);
-      res.status(500).json({ message: "Failed to sync evolucoes" });
+  app.post("/api/sync/evolucoes", authMiddleware, validateUnitIdsBody, asyncHandler(async (req, res) => {
+    logger.info(`Sync request received`, { body: req.body });
+
+    const { unitIds, forceUpdate } = req.body || {};
+    // PRODUÇÃO: Sempre usar 22,23 como padrão, ignorar string vazia
+    const params = (unitIds && unitIds.trim() !== "") ? unitIds : PRODUCTION_UNIT_IDS;
+    const force = forceUpdate === true;
+
+    logger.info(`Syncing evolucoes`, { params, forceUpdate: force });
+    const patients = await syncEvolucoesByUnitIds(params, force);
+
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patients);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patients);
     }
-  });
+  }));
 
   // N8N Evolucoes sync endpoint - specific unit (legacy)
-  app.post("/api/sync/evolucoes/:enfermaria", authMiddleware, validateEnfermariaParam, async (req, res) => {
-    try {
-      const enfermaria = req.params.enfermaria;
-      
-      if (!enfermaria || enfermaria.trim() === "") {
-        return res.status(400).json({ message: "enfermaria parameter is required" });
-      }
+  app.post("/api/sync/evolucoes/:enfermaria", authMiddleware, validateEnfermariaParam, asyncHandler(async (req, res) => {
+    const enfermaria = req.params.enfermaria;
 
-      const patients = await syncEvolucoesByEnfermaria(enfermaria);
-      
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(patients);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(patients);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to sync evolucoes" });
+    if (!enfermaria || enfermaria.trim() === "") {
+      throw new AppError(400, "enfermaria parameter is required");
     }
-  });
+
+    const patients = await syncEvolucoesByEnfermaria(enfermaria);
+
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(patients);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(patients);
+    }
+  }));
 
   // Import endpoints - PROTECTED with authentication
-  app.post("/api/import/evolucoes", authMiddleware, async (req, res) => {
-    try {
-      const { enfermaria, templateId } = req.body;
-      
-      // Validate enfermaria format to prevent injection
-      if (!enfermaria || typeof enfermaria !== 'string' || enfermaria.trim() === "") {
-        return res.status(400).json({ message: "enfermaria is required" });
-      }
-      
-      // Validate enfermaria format (should be alphanumeric with optional A/B suffix)
-      if (!/^[0-9]{1,3}[A-Za-z]?$/.test(enfermaria.trim())) {
-        return res.status(400).json({ message: "Invalid enfermaria format" });
-      }
+  app.post("/api/import/evolucoes", authMiddleware, asyncHandler(async (req, res) => {
+    const { enfermaria, templateId } = req.body;
 
-      // Load template if provided
-      let template = null;
-      if (templateId) {
-        template = await storage.getTemplate(templateId);
-        if (!template) {
-          throw new AppError(404, "Template not found", { templateId });
-        }
-        logger.info(`[${getTimestamp()}] [Import] Using template: ${template.name} (${templateId})`);
-      }
+    // Validate enfermaria format to prevent injection
+    if (!enfermaria || typeof enfermaria !== 'string' || enfermaria.trim() === "") {
+      throw new AppError(400, "enfermaria is required");
+    }
 
-      logger.info(`[${getTimestamp()}] [Import] Starting import for enfermaria: ${enfermaria}`);
-      
-      const stats = {
+    // Validate enfermaria format (should be alphanumeric with optional A/B suffix)
+    if (!/^[0-9]{1,3}[A-Za-z]?$/.test(enfermaria.trim())) {
+      throw new AppError(400, "Invalid enfermaria format");
+    }
+
+    // Load template if provided
+    let template = null;
+    if (templateId) {
+      template = await storage.getTemplate(templateId);
+      if (!template) {
+        throw new AppError(404, "Template not found", { templateId });
+      }
+      logger.info(`Using template for import`, { templateName: template.name, templateId });
+    }
+
+    logger.info(`Starting import`, { enfermaria });
+
+    const stats = {
+      total: 0,
+      importados: 0,
+      erros: 0,
+      detalhes: [] as Array<{ leito: string; status: string; mensagem?: string }>
+    };
+
+    // Fetch evolucoes from N8N
+    const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
+
+    if (!evolucoes || evolucoes.length === 0) {
+      logger.info(`No evolucoes found`, { enfermaria });
+
+      // Save history even with no evolucoes
+      await storage.createImportHistory({
+        enfermaria,
         total: 0,
         importados: 0,
         erros: 0,
-        detalhes: [] as Array<{ leito: string; status: string; mensagem?: string }>
-      };
-
-      // Fetch evolucoes from N8N
-      const evolucoes = await n8nIntegrationService.fetchEvolucoes(enfermaria);
-      
-      if (!evolucoes || evolucoes.length === 0) {
-        logger.info(`[${getTimestamp()}] [Import] No evolucoes found for enfermaria: ${enfermaria}`);
-        
-        // Save history even with no evolucoes
-        await storage.createImportHistory({
-          enfermaria,
-          total: 0,
-          importados: 0,
-          erros: 0,
-          detalhes: [],
-          duracao: 0
-        });
-        
-        return res.json({
-          success: true,
-          enfermaria,
-          stats: { ...stats, total: 0 },
-          mensagem: "Nenhuma evolução encontrada para esta enfermaria"
-        });
-      }
-
-      stats.total = evolucoes.length;
-
-      // Process each evolução
-      for (const evolucao of evolucoes) {
-        try {
-          const leito = evolucao.leito || evolucao.ds_leito_completo || "";
-          
-          if (!leito) {
-            stats.erros++;
-            stats.detalhes.push({ 
-              leito: "DESCONHECIDO", 
-              status: "erro", 
-              mensagem: "Leito não encontrado na evolução" 
-            });
-            logger.warn(`[${getTimestamp()}] [Import] Leito not found, skipping`);
-            continue;
-          }
-
-          // Process and validate
-          const processada = await n8nIntegrationService.processEvolucao(leito, evolucao);
-          const validacao = n8nIntegrationService.validateProcessedData(processada);
-
-          if (!validacao.valid) {
-            stats.erros++;
-            stats.detalhes.push({ 
-              leito, 
-              status: "erro", 
-              mensagem: validacao.errors.join("; ") 
-            });
-            logger.warn(`[${getTimestamp()}] [Import] Validation failed for leito ${leito}: ${validacao.errors.join(', ')}`);
-            continue;
-          }
-
-          // UPSERT atômico: usa codigoAtendimento ou leito como chave única
-          const codigoAtendimento = processada.dadosProcessados.codigoAtendimento?.toString().trim() || '';
-          
-          try {
-            let patient;
-            if (codigoAtendimento) {
-              patient = await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);
-            } else {
-              patient = await storage.upsertPatientByLeito(processada.dadosProcessados);
-            }
-            
-            stats.importados++;
-            stats.detalhes.push({ 
-              leito, 
-              status: "importado", 
-              mensagem: processada.pacienteName 
-            });
-            logger.info(`[${getTimestamp()}] [Import] Upserted patient for leito: ${leito} (${processada.pacienteName})`);
-          } catch (upsertError) {
-            stats.erros++;
-            stats.detalhes.push({ 
-              leito, 
-              status: "erro", 
-              mensagem: upsertError instanceof Error ? upsertError.message : "Falha no UPSERT" 
-            });
-            logger.error(`[${getTimestamp()}] [Import] UPSERT failed for leito: ${leito}: ${upsertError}`);
-          }
-        } catch (error) {
-          const leito = evolucao.leito || "DESCONHECIDO";
-          stats.erros++;
-          stats.detalhes.push({ 
-            leito, 
-            status: "erro", 
-            mensagem: error instanceof Error ? error.message : "Erro desconhecido" 
-          });
-          logger.error(`[${getTimestamp()}] [Import] Error processing leito ${leito}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-
-      logger.info(`[${getTimestamp()}] [Import] Completed import for enfermaria ${enfermaria}. Total: ${stats.total}, Importados: ${stats.importados}, Erros: ${stats.erros}`);
-
-      // Save import history
-      await storage.createImportHistory({
-        enfermaria,
-        total: stats.total,
-        importados: stats.importados,
-        erros: stats.erros,
-        detalhes: stats.detalhes,
+        detalhes: [],
         duracao: 0
       });
 
-      return res.json({
+      res.json({
         success: true,
         enfermaria,
-        templateId: template?.id,
-        stats,
-        mensagem: `Import concluído: ${stats.importados} importados, ${stats.erros} erros`
+        stats: { ...stats, total: 0 },
+        mensagem: "Nenhuma evolução encontrada para esta enfermaria"
       });
-    } catch (error) {
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json({ success: false, error: error.message });
-      }
-      logger.error(`[${getTimestamp()}] [Import] Fatal error: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ 
-        success: false, 
-        message: "Erro fatal ao importar evolucoes",
-        erro: error instanceof Error ? error.message : String(error)
-      });
+      return;
     }
-  });
+
+    stats.total = evolucoes.length;
+
+    // Process each evolução
+    for (const evolucao of evolucoes) {
+      try {
+        const leito = evolucao.leito || evolucao.ds_leito_completo || "";
+
+        if (!leito) {
+          stats.erros++;
+          stats.detalhes.push({
+            leito: "DESCONHECIDO",
+            status: "erro",
+            mensagem: "Leito não encontrado na evolução"
+          });
+          logger.warn(`Leito not found, skipping`);
+          continue;
+        }
+
+        // Process and validate
+        const processada = await n8nIntegrationService.processEvolucao(leito, evolucao);
+        const validacao = n8nIntegrationService.validateProcessedData(processada);
+
+        if (!validacao.valid) {
+          stats.erros++;
+          stats.detalhes.push({
+            leito,
+            status: "erro",
+            mensagem: validacao.errors.join("; ")
+          });
+          logger.warn(`Validation failed for leito`, { leito, errors: validacao.errors });
+          continue;
+        }
+
+        // UPSERT atômico: usa codigoAtendimento ou leito como chave única
+        const codigoAtendimento = processada.dadosProcessados.codigoAtendimento?.toString().trim() || '';
+
+        try {
+          if (codigoAtendimento) {
+            await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);
+          } else {
+            await storage.upsertPatientByLeito(processada.dadosProcessados);
+          }
+
+          stats.importados++;
+          stats.detalhes.push({
+            leito,
+            status: "importado",
+            mensagem: processada.pacienteName
+          });
+          logger.info(`Upserted patient`, { leito, patientName: processada.pacienteName });
+        } catch (upsertError) {
+          stats.erros++;
+          stats.detalhes.push({
+            leito,
+            status: "erro",
+            mensagem: upsertError instanceof Error ? upsertError.message : "Falha no UPSERT"
+          });
+          logger.error(`UPSERT failed`, { leito, error: upsertError instanceof Error ? upsertError.message : String(upsertError) });
+        }
+      } catch (error) {
+        const leito = evolucao.leito || "DESCONHECIDO";
+        stats.erros++;
+        stats.detalhes.push({
+          leito,
+          status: "erro",
+          mensagem: error instanceof Error ? error.message : "Erro desconhecido"
+        });
+        logger.error(`Error processing leito`, { leito, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    logger.info(`Import completed`, {
+      enfermaria,
+      total: stats.total,
+      importados: stats.importados,
+      erros: stats.erros
+    });
+
+    // Save import history
+    await storage.createImportHistory({
+      enfermaria,
+      total: stats.total,
+      importados: stats.importados,
+      erros: stats.erros,
+      detalhes: stats.detalhes,
+      duracao: 0
+    });
+
+    res.json({
+      success: true,
+      enfermaria,
+      templateId: template?.id,
+      stats,
+      mensagem: `Import concluído: ${stats.importados} importados, ${stats.erros} erros`
+    });
+  }));
 
   // List enfermarias endpoint - PROTECTED
-  app.get("/api/enfermarias", authMiddleware, async (req, res) => {
-    try {
-      // Fetch enfermarias from external API
-      const enfermarias = await unidadesInternacaoService.fetchUnidades();
+  app.get("/api/enfermarias", authMiddleware, asyncHandler(async (req, res) => {
+    // Fetch enfermarias from external API
+    const enfermarias = await unidadesInternacaoService.fetchUnidades();
 
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(enfermarias);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(enfermarias);
-      }
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Enfermarias] Failed to fetch: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ message: "Failed to fetch enfermarias" });
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(enfermarias);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(enfermarias);
     }
-  });
+  }));
 
   // Import status endpoint - test N8N connectivity - PROTECTED
-  app.get("/api/import/status", authMiddleware, async (req, res) => {
-    try {
-      const startTime = Date.now();
-      
-      logger.info(`[${getTimestamp()}] [Status] Testing N8N API connectivity...`);
-      
-      // Try to fetch evolucoes for a test enfermaria
-      const testEnfermaria = "10A";
-      const result = await n8nIntegrationService.fetchEvolucoes(testEnfermaria);
-      
-      const endTime = Date.now();
-      const latency = endTime - startTime;
+  app.get("/api/import/status", authMiddleware, asyncHandler(async (req, res) => {
+    const startTime = Date.now();
 
-      const apiUrl = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
-      
-      if (result !== null) {
-        logger.info(`[${getTimestamp()}] [Status] N8N API is online (latency: ${latency}ms)`);
-        return res.json({
-          status: "online",
-          latency: `${latency}ms`,
-          timestamp: new Date().toISOString(),
-          api_url: apiUrl
-        });
-      } else {
-        logger.info(`[${getTimestamp()}] [Status] N8N API returned null (latency: ${latency}ms)`);
-        return res.json({
-          status: "offline",
-          latency: `${latency}ms`,
-          timestamp: new Date().toISOString(),
-          api_url: apiUrl
-        });
-      }
-    } catch (error) {
-      const latency = 0;
-      const apiUrl = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
-      logger.error(`[${getTimestamp()}] [Status] N8N API test failed: ${error instanceof Error ? error.message : String(error)}`);
-      
-      return res.json({
+    logger.info(`Testing N8N API connectivity`);
+
+    // Try to fetch evolucoes for a test enfermaria
+    const testEnfermaria = "10A";
+    const result = await n8nIntegrationService.fetchEvolucoes(testEnfermaria);
+
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    const apiUrl = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
+
+    if (result !== null) {
+      logger.info(`N8N API is online`, { latency: `${latency}ms` });
+      res.json({
+        status: "online",
+        latency: `${latency}ms`,
+        timestamp: new Date().toISOString(),
+        api_url: apiUrl
+      });
+    } else {
+      logger.info(`N8N API returned null`, { latency: `${latency}ms` });
+      res.json({
         status: "offline",
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
-        api_url: apiUrl,
-        erro: error instanceof Error ? error.message : "Connection timeout"
+        api_url: apiUrl
       });
     }
-  });
+  }));
 
   // Import history endpoint - PROTECTED
-  app.get("/api/import/history", authMiddleware, async (req, res) => {
-    try {
-      const history = await storage.getAllImportHistory();
-      
-      const acceptToon = isToonFormat(req.get("accept"));
-      if (acceptToon) {
-        const toonData = stringifyToToon(history);
-        res.type("application/toon").send(toonData);
-      } else {
-        res.json(history);
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch import history" });
+  app.get("/api/import/history", authMiddleware, asyncHandler(async (req, res) => {
+    const history = await storage.getAllImportHistory();
+
+    const acceptToon = isToonFormat(req.get("accept"));
+    if (acceptToon) {
+      const toonData = stringifyToToon(history);
+      res.type("application/toon").send(toonData);
+    } else {
+      res.json(history);
     }
-  });
+  }));
 
   // Import stats endpoint - estatísticas consolidadas - PROTECTED
-  app.get("/api/import/stats", authMiddleware, async (req, res) => {
-    try {
-      const stats = await storage.getImportStats();
-      res.json(stats);
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Stats] Failed to get import stats: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ message: "Failed to fetch import stats" });
-    }
-  });
+  app.get("/api/import/stats", authMiddleware, asyncHandler(async (req, res) => {
+    const stats = await storage.getImportStats();
+    res.json(stats);
+  }));
 
   // Cleanup old logs endpoint - retenção de 30 dias por padrão - ADMIN ONLY
-  app.delete("/api/import/cleanup", requireRole('admin'), validateQueryNumber('days', 7, 365), async (req, res) => {
-    try {
-      const rawDays = parseInt(req.query.days as string);
-      const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
-      
-      const deleted = await storage.deleteOldImportHistory(daysToKeep);
-      logger.info(`[${getTimestamp()}] [Cleanup] Deleted ${deleted} old import logs (retention: ${daysToKeep} days)`);
-      res.json({ 
-        success: true, 
-        deleted, 
-        retentionDays: daysToKeep,
-        message: `Removed ${deleted} logs older than ${daysToKeep} days`
-      });
-    } catch (error) {
-      logger.error(`[${getTimestamp()}] [Cleanup] Failed to cleanup old logs: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ message: "Failed to cleanup old logs" });
-    }
-  });
+  app.delete("/api/import/cleanup", requireRole('admin'), validateQueryNumber('days', 7, 365), asyncHandler(async (req, res) => {
+    const rawDays = parseInt(req.query.days as string);
+    const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
+
+    const deleted = await storage.deleteOldImportHistory(daysToKeep);
+    logger.info(`Deleted old import logs`, { deleted, retentionDays: daysToKeep });
+    res.json({
+      success: true,
+      deleted,
+      retentionDays: daysToKeep,
+      message: `Removed ${deleted} logs older than ${daysToKeep} days`
+    });
+  }));
 
   // ==========================================
   // Dedupe Patients Endpoint - ADMIN ONLY

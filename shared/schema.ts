@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -44,7 +44,7 @@ export const patients = pgTable("patients", {
   alerta: text("alerta"),
   idade: integer("idade"),
   status: text("status").notNull().default("pending"),
-  
+
   // Campos da API N8N de Evolução
   idEvolucao: text("id_evolucao"),
   dsEnfermaria: text("ds_enfermaria"),
@@ -56,18 +56,25 @@ export const patients = pgTable("patients", {
   fonteDados: text("fonte_dados").default("N8N_IAMSPE"),
   dadosBrutosJson: jsonb("dados_brutos_json"),
   importedAt: timestamp("imported_at").defaultNow(),
-  
+
   // Análise clínica de IA para passagem de plantão
   clinicalInsights: jsonb("clinical_insights"),
   clinicalInsightsUpdatedAt: timestamp("clinical_insights_updated_at"),
-  
+
   // Notas do paciente (não clínicas)
   notasPaciente: text("notas_paciente"),
   notasUpdatedAt: timestamp("notas_updated_at"),
   notasUpdatedBy: varchar("notas_updated_by").references(() => users.id),
   notasCreatedAt: timestamp("notas_created_at"),
   notasCreatedBy: varchar("notas_created_by").references(() => users.id),
-});
+}, (table) => ({
+  // Índices para queries frequentes
+  enfermariaIdx: index("patients_enfermaria_idx").on(table.dsEnfermaria),
+  statusIdx: index("patients_status_idx").on(table.status),
+  importedAtIdx: index("patients_imported_at_idx").on(table.importedAt),
+  registroIdx: index("patients_registro_idx").on(table.registro),
+  nomeIdx: index("patients_nome_idx").on(table.nome),
+}));
 
 export const alerts = pgTable("alerts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -139,26 +146,33 @@ export const nursingUnitChanges = pgTable("nursing_unit_changes", {
 export const auditLog = pgTable("audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-  
+
   userId: varchar("user_id").references(() => users.id),
   userName: text("user_name").notNull(),
   userRole: text("user_role").notNull(),
-  
+
   action: text("action").notNull(),
   resource: text("resource").notNull(),
   resourceId: varchar("resource_id"),
-  
+
   changes: jsonb("changes"),
   metadata: jsonb("metadata"),
-  
+
   ipAddress: text("ip_address").notNull(),
   userAgent: text("user_agent"),
   endpoint: text("endpoint").notNull(),
-  
+
   statusCode: integer("status_code").notNull(),
   errorMessage: text("error_message"),
   duration: integer("duration"),
-});
+}, (table) => ({
+  // Índices para queries de auditoria
+  timestampIdx: index("audit_log_timestamp_idx").on(table.timestamp),
+  userIdIdx: index("audit_log_user_id_idx").on(table.userId),
+  actionIdx: index("audit_log_action_idx").on(table.action),
+  resourceIdx: index("audit_log_resource_idx").on(table.resource),
+  statusCodeIdx: index("audit_log_status_code_idx").on(table.statusCode),
+}));
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -176,7 +190,14 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 
 export const updateUserSchema = insertUserSchema.partial().extend({
-  password: z.string().min(6).optional(),
+  // Mesmas regras de senha do insert, mas opcional para updates
+  password: z.string()
+    .min(8, 'Senha deve ter no mínimo 8 caracteres')
+    .regex(/[A-Z]/, 'Senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[a-z]/, 'Senha deve conter pelo menos uma letra minúscula')
+    .regex(/[0-9]/, 'Senha deve conter pelo menos um número')
+    .regex(/[^A-Za-z0-9]/, 'Senha deve conter pelo menos um caractere especial')
+    .optional(),
 });
 
 export const insertPatientSchema = createInsertSchema(patients).omit({
@@ -362,7 +383,15 @@ export const patientsHistory = pgTable("patients_history", {
 
   // Metadados de arquivamento
   arquivadoEm: timestamp("arquivado_em").notNull().defaultNow(),
-});
+}, (table) => ({
+  // Índices para queries de histórico
+  codigoAtendimentoIdx: index("patients_history_codigo_atendimento_idx").on(table.codigoAtendimento),
+  registroIdx: index("patients_history_registro_idx").on(table.registro),
+  nomeIdx: index("patients_history_nome_idx").on(table.nome),
+  enfermariaIdx: index("patients_history_enfermaria_idx").on(table.dsEnfermaria),
+  motivoIdx: index("patients_history_motivo_idx").on(table.motivoArquivamento),
+  arquivadoEmIdx: index("patients_history_arquivado_em_idx").on(table.arquivadoEm),
+}));
 
 export const insertPatientsHistorySchema = createInsertSchema(patientsHistory).omit({
   id: true,
