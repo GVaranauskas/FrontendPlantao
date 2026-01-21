@@ -300,6 +300,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // Clinical Insights Statistics (for DEV/PROD comparison)
+  // ==========================================
+  app.get("/api/stats/clinical-insights", authMiddleware, async (req, res) => {
+    try {
+      const patients = await storage.getAllPatients();
+      
+      let criticos = 0;
+      let alertas = 0;
+      let verdes = 0;
+      let totalComInsights = 0;
+      let totalComAlertas = 0;
+      const detalhes: Array<{
+        leito: string;
+        nome: string;
+        nivel: string;
+        alertasCount: { verde: number; amarelo: number; vermelho: number };
+      }> = [];
+
+      for (const patient of patients) {
+        if (patient.clinicalInsights) {
+          let insights: any;
+          try {
+            insights = typeof patient.clinicalInsights === 'string' 
+              ? JSON.parse(patient.clinicalInsights) 
+              : patient.clinicalInsights;
+          } catch (parseError) {
+            console.warn(`Erro ao parsear clinicalInsights do paciente ${patient.leito}: ${parseError}`);
+            continue;
+          }
+          
+          totalComInsights++;
+          const nivelAlerta = insights.nivel_alerta || 'VERDE';
+          const alertasCount = insights.alertas_count || { verde: 0, amarelo: 0, vermelho: 0 };
+          const principaisAlertas = insights.principais_alertas || [];
+          
+          if (principaisAlertas.length > 0) {
+            totalComAlertas++;
+          }
+          
+          if (nivelAlerta === 'VERMELHO') {
+            criticos++;
+          } else if (nivelAlerta === 'AMARELO') {
+            alertas++;
+          } else {
+            verdes++;
+          }
+          
+          detalhes.push({
+            leito: patient.leito,
+            nome: patient.nome,
+            nivel: nivelAlerta,
+            alertasCount,
+          });
+        }
+      }
+
+      const timestamp = new Date().toISOString();
+      const environment = process.env.NODE_ENV === 'production' ? 'PROD' : 'DEV';
+
+      res.status(200).json({
+        success: true,
+        environment,
+        timestamp,
+        summary: {
+          total: patients.length,
+          comInsights: totalComInsights,
+          comAlertas: totalComAlertas,
+          criticos,
+          alertas,
+          verdes,
+        },
+        detalhes: detalhes.sort((a, b) => {
+          const ordem = { 'VERMELHO': 0, 'AMARELO': 1, 'VERDE': 2 };
+          return (ordem[a.nivel as keyof typeof ordem] || 2) - (ordem[b.nivel as keyof typeof ordem] || 2);
+        }),
+      });
+    } catch (error: any) {
+      console.error("Erro ao buscar estatísticas de clinical insights:", error);
+      res.status(500).json({ 
+        error: "Erro ao buscar estatísticas de clinical insights",
+        message: error.message 
+      });
+    }
+  });
+
   app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
