@@ -85,7 +85,7 @@ export function ClinicalInsightsStatsSheet() {
           <BarChart3 className="w-5 h-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-lg">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
@@ -98,7 +98,8 @@ export function ClinicalInsightsStatsSheet() {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
+        <ScrollArea className="flex-1 mt-4">
+        <div className="space-y-4 pr-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Compare estes dados entre DEV e PROD
@@ -237,6 +238,7 @@ export function ClinicalInsightsStatsSheet() {
             </>
           )}
         </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );
