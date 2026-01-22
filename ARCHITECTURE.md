@@ -662,9 +662,45 @@ getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined>
 ┌──────────────────▼──────────────────────────┐
 │  Camada 4: Auto Sync Scheduler (95%)        │
 │  └─ Sincronização a cada 1h (não real-time) │
+│  └─ Arquivamento determinístico             │
+│  └─ Validação de sanidade anti-mass-delete  │
 └─────────────────────────────────────────────┘
 
 Economia Total Estimada: 99.8%
+```
+
+### Arquivamento Determinístico
+
+O sistema usa arquivamento imediato quando paciente não está mais no N8N:
+
+```
+┌─────────────────────────────────────────────┐
+│  Paciente no N8N?                           │
+├─────────────────────────────────────────────┤
+│  SIM → UPSERT (inserir/atualizar)           │
+│  NÃO → Arquivar imediatamente               │
+│        ├─ código ausente = alta_hospitalar  │
+│        └─ leito ausente = transferencia     │
+└─────────────────────────────────────────────┘
+```
+
+### Validação de Sanidade
+
+Protege contra arquivamento em massa de dados incompletos do N8N:
+
+```typescript
+// Configuração
+N8N_MIN_RECORD_RATIO = 0.5  // 50% do último sync válido
+MIN_ABSOLUTE_RECORDS = 5    // Mínimo absoluto sempre
+
+// Lógica
+if (n8nRecords < MIN_ABSOLUTE_RECORDS) {
+  // BLOQUEIA remoções - N8N parece vazio/incompleto
+}
+
+if (n8nRecords < lastValidSync * MIN_RECORD_RATIO) {
+  // BLOQUEIA remoções - N8N retornou dados parciais
+}
 ```
 
 ### Prompts

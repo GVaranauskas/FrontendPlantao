@@ -180,6 +180,8 @@ N8N_ALLOWED_IPS=127.0.0.1,::1  # Opcional: whitelist de IPs
 # ============================================
 # Cron para auto-sync (padrão: a cada 1 hora)
 AUTO_SYNC_CRON=0 * * * *
+# Mínimo de registros N8N para permitir arquivamentos (% do último sync válido)
+N8N_MIN_RECORD_RATIO=0.5
 
 # ============================================
 # LOGS

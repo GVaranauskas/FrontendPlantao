@@ -963,6 +963,41 @@ Retorna status do sistema de sincronização.
 
 ---
 
+### GET /api/sync-gpt4o/detailed-status
+
+Retorna status detalhado do último sync com estatísticas de alterações.
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`
+
+**Response** (200):
+```json
+{
+  "lastSync": "2026-01-22T10:00:00Z",
+  "isRunning": false,
+  "lastSyncStats": {
+    "totalRecords": 35,
+    "newRecords": 2,
+    "changedRecords": 5,
+    "unchangedRecords": 25,
+    "removedRecords": 3,
+    "reactivatedRecords": 1
+  },
+  "sanityValidation": {
+    "minAbsoluteRecords": 5,
+    "minRecordRatio": 0.5,
+    "lastValidSync": {
+      "timestamp": "2026-01-22T09:00:00Z",
+      "totalRecords": 35
+    }
+  }
+}
+```
+
+**Uso**: Chamado pelo frontend após sync para exibir resumo das alterações (novos, atualizados, arquivados, reativados).
+
+---
+
 ## Webhooks
 
 ### POST /webhook/evolucoes
