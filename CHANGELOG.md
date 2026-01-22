@@ -17,6 +17,34 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.4.0] - 2026-01-22
+
+### Adicionado
+
+- **Sistema de Sync Determinístico**
+  - Arquivamento imediato quando paciente não está no N8N (sem proteção de 2 falhas)
+  - Validação de sanidade antes de processar remoções (N8N_MIN_RECORD_RATIO)
+  - Mínimo absoluto de 5 registros para permitir qualquer arquivamento
+  - Tracking de último sync válido (lastValidSync) para comparação de thresholds
+
+- **Feedback Detalhado Pós-Sync**
+  - Toast mostra resumo: novos, atualizados, arquivados, reativados
+  - Endpoint `/api/sync-gpt4o/detailed-status` com estatísticas do último sync
+
+### Alterado
+
+- **Lógica de Arquivamento Simplificada**
+  - Remoção do `missingSyncTracker` - não há mais contagem de falhas
+  - Determinação direta do motivo de arquivamento baseado em código ou leito
+  - Contagem de registros N8N usa MAX(códigos, leitos) para evitar undercount
+
+### Corrigido
+
+- **Proteção contra Arquivamento em Massa**
+  - Bloqueia remoções se N8N retorna menos de 5 registros (MIN_ABSOLUTE_RECORDS)
+  - Bloqueia se retorna menos de 50% do último sync válido (configurável via N8N_MIN_RECORD_RATIO)
+  - Estabelece baseline mesmo quando remoções são bloqueadas (evita oscilação)
+
 ## [1.3.2] - 2026-01-19
 
 ### Corrigido
