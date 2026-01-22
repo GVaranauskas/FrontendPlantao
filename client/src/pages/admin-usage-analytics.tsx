@@ -194,7 +194,7 @@ export default function AdminUsageAnalyticsPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setLocation("/admin-menu")}
+              onClick={() => setLocation("/admin")}
               data-testid="button-back"
             >
               <ArrowLeft className="h-5 w-5" />
