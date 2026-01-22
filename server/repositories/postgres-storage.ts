@@ -1,8 +1,8 @@
-import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne } from "drizzle-orm";
+import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory } from "@shared/schema";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters } from "../storage";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory, userSessions, analyticsEvents } from "@shared/schema";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
 export class PostgresStorage implements IStorage {
@@ -643,6 +643,308 @@ export class PostgresStorage implements IStorage {
     await this.archivePatient(patient, motivo, leitoDestino);
     await this.deletePatient(patientId);
     return true;
+  }
+
+  // =============================================
+  // ANALYTICS & USAGE TRACKING
+  // =============================================
+
+  async createSession(session: InsertUserSession): Promise<UserSession> {
+    const result = await db.insert(userSessions).values(session).returning();
+    return result[0];
+  }
+
+  async getSession(id: string): Promise<UserSession | undefined> {
+    const result = await db.select().from(userSessions).where(eq(userSessions.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getActiveSessionByUserId(userId: string): Promise<UserSession | undefined> {
+    const result = await db.select().from(userSessions)
+      .where(and(
+        eq(userSessions.userId, userId),
+        eq(userSessions.isActive, true)
+      ))
+      .orderBy(desc(userSessions.startedAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateSessionActivity(id: string): Promise<void> {
+    await db.update(userSessions)
+      .set({ lastActivityAt: new Date() })
+      .where(eq(userSessions.id, id));
+  }
+
+  async endSession(id: string, logoutReason?: string): Promise<UserSession | undefined> {
+    const session = await this.getSession(id);
+    if (!session) return undefined;
+
+    const endedAt = new Date();
+    const durationSeconds = Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000);
+
+    const result = await db.update(userSessions)
+      .set({
+        endedAt,
+        durationSeconds,
+        logoutReason: logoutReason || 'manual',
+        isActive: false
+      })
+      .where(eq(userSessions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async incrementSessionCounts(id: string, pageViews?: number, actions?: number): Promise<void> {
+    const updates: Partial<UserSession> = { lastActivityAt: new Date() };
+    
+    if (pageViews) {
+      await db.update(userSessions)
+        .set({
+          pageViewCount: sql`${userSessions.pageViewCount} + ${pageViews}`,
+          lastActivityAt: new Date()
+        })
+        .where(eq(userSessions.id, id));
+    }
+    
+    if (actions) {
+      await db.update(userSessions)
+        .set({
+          actionCount: sql`${userSessions.actionCount} + ${actions}`,
+          lastActivityAt: new Date()
+        })
+        .where(eq(userSessions.id, id));
+    }
+    
+    if (!pageViews && !actions) {
+      await db.update(userSessions)
+        .set(updates)
+        .where(eq(userSessions.id, id));
+    }
+  }
+
+  async createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const result = await db.insert(analyticsEvents).values(event).returning();
+    return result[0];
+  }
+
+  async createAnalyticsEventsBatch(events: InsertAnalyticsEvent[]): Promise<number> {
+    if (events.length === 0) return 0;
+    const result = await db.insert(analyticsEvents).values(events);
+    return result.rowCount || events.length;
+  }
+
+  async getAnalyticsEvents(params: AnalyticsFilters & PaginationParams): Promise<PaginatedResult<AnalyticsEvent>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    if (params.userId) conditions.push(eq(analyticsEvents.userId, params.userId));
+    if (params.eventType) conditions.push(eq(analyticsEvents.eventType, params.eventType));
+    if (params.pagePath) conditions.push(eq(analyticsEvents.pagePath, params.pagePath));
+    if (params.actionName) conditions.push(eq(analyticsEvents.actionName, params.actionName));
+    if (params.actionCategory) conditions.push(eq(analyticsEvents.actionCategory, params.actionCategory));
+    if (params.startDate) conditions.push(gte(analyticsEvents.createdAt, params.startDate));
+    if (params.endDate) conditions.push(lte(analyticsEvents.createdAt, params.endDate));
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [data, totalResult] = await Promise.all([
+      db.select().from(analyticsEvents)
+        .where(whereClause)
+        .orderBy(desc(analyticsEvents.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: count() }).from(analyticsEvents).where(whereClause)
+    ]);
+
+    const total = totalResult[0]?.count || 0;
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async getUsageMetrics(startDate?: Date, endDate?: Date): Promise<UsageMetrics> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(userSessions.startedAt, startDate));
+    if (endDate) conditions.push(lte(userSessions.startedAt, endDate));
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const eventConditions = [];
+    if (startDate) eventConditions.push(gte(analyticsEvents.createdAt, startDate));
+    if (endDate) eventConditions.push(lte(analyticsEvents.createdAt, endDate));
+    const eventWhereClause = eventConditions.length > 0 ? and(...eventConditions) : undefined;
+
+    const [sessionsResult, activeResult, pageViewsResult, actionsResult, usersResult, durationResult] = await Promise.all([
+      db.select({ count: count() }).from(userSessions).where(whereClause),
+      db.select({ count: count() }).from(userSessions).where(and(eq(userSessions.isActive, true), whereClause)),
+      db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'page_view'), eventWhereClause)),
+      db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'action'), eventWhereClause)),
+      db.select({ count: sql<number>`COUNT(DISTINCT ${userSessions.userId})` }).from(userSessions).where(whereClause),
+      db.select({ avg: sql<number>`AVG(${userSessions.durationSeconds})` }).from(userSessions).where(and(userSessions.durationSeconds, whereClause))
+    ]);
+
+    const totalSessions = sessionsResult[0]?.count || 0;
+    const totalPageViews = pageViewsResult[0]?.count || 0;
+
+    return {
+      totalSessions,
+      activeSessions: activeResult[0]?.count || 0,
+      totalPageViews,
+      totalActions: actionsResult[0]?.count || 0,
+      uniqueUsers: usersResult[0]?.count || 0,
+      avgSessionDuration: Math.round(durationResult[0]?.avg || 0),
+      avgPageViewsPerSession: totalSessions > 0 ? Math.round(totalPageViews / totalSessions) : 0
+    };
+  }
+
+  async getSessionsStats(startDate?: Date, endDate?: Date): Promise<SessionStats> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(userSessions.startedAt, startDate));
+    if (endDate) conditions.push(lte(userSessions.startedAt, endDate));
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [totalResult, durationResult, byDeviceResult, byBrowserResult, byUserResult] = await Promise.all([
+      db.select({ count: count() }).from(userSessions).where(whereClause),
+      db.select({ avg: sql<number>`AVG(${userSessions.durationSeconds})` }).from(userSessions).where(whereClause),
+      db.select({ device: userSessions.deviceType, count: count() })
+        .from(userSessions)
+        .where(whereClause)
+        .groupBy(userSessions.deviceType),
+      db.select({ browser: userSessions.browser, count: count() })
+        .from(userSessions)
+        .where(whereClause)
+        .groupBy(userSessions.browser),
+      db.select({ userId: userSessions.userId, userName: userSessions.userName, sessions: count() })
+        .from(userSessions)
+        .where(whereClause)
+        .groupBy(userSessions.userId, userSessions.userName)
+        .orderBy(desc(count()))
+        .limit(10)
+    ]);
+
+    const byDevice: Record<string, number> = {};
+    byDeviceResult.forEach(r => {
+      if (r.device) byDevice[r.device] = r.count;
+    });
+
+    const byBrowser: Record<string, number> = {};
+    byBrowserResult.forEach(r => {
+      if (r.browser) byBrowser[r.browser] = r.count;
+    });
+
+    return {
+      totalSessions: totalResult[0]?.count || 0,
+      avgDuration: Math.round(durationResult[0]?.avg || 0),
+      byDevice,
+      byBrowser,
+      byUser: byUserResult.map(r => ({
+        userId: r.userId,
+        userName: r.userName,
+        sessions: r.sessions
+      }))
+    };
+  }
+
+  async getTopPages(limit: number = 10, startDate?: Date, endDate?: Date): Promise<PageStats[]> {
+    const conditions = [eq(analyticsEvents.eventType, 'page_view')];
+    if (startDate) conditions.push(gte(analyticsEvents.createdAt, startDate));
+    if (endDate) conditions.push(lte(analyticsEvents.createdAt, endDate));
+
+    const result = await db.select({
+      pagePath: analyticsEvents.pagePath,
+      pageTitle: analyticsEvents.pageTitle,
+      views: count(),
+      uniqueUsers: sql<number>`COUNT(DISTINCT ${analyticsEvents.userId})`
+    })
+    .from(analyticsEvents)
+    .where(and(...conditions))
+    .groupBy(analyticsEvents.pagePath, analyticsEvents.pageTitle)
+    .orderBy(desc(count()))
+    .limit(limit);
+
+    return result.map(r => ({
+      pagePath: r.pagePath || '',
+      pageTitle: r.pageTitle,
+      views: r.views,
+      uniqueUsers: r.uniqueUsers
+    }));
+  }
+
+  async getTopActions(limit: number = 10, startDate?: Date, endDate?: Date): Promise<ActionStats[]> {
+    const conditions = [eq(analyticsEvents.eventType, 'action')];
+    if (startDate) conditions.push(gte(analyticsEvents.createdAt, startDate));
+    if (endDate) conditions.push(lte(analyticsEvents.createdAt, endDate));
+
+    const result = await db.select({
+      actionName: analyticsEvents.actionName,
+      actionCategory: analyticsEvents.actionCategory,
+      count: count(),
+      uniqueUsers: sql<number>`COUNT(DISTINCT ${analyticsEvents.userId})`
+    })
+    .from(analyticsEvents)
+    .where(and(...conditions))
+    .groupBy(analyticsEvents.actionName, analyticsEvents.actionCategory)
+    .orderBy(desc(count()))
+    .limit(limit);
+
+    return result.map(r => ({
+      actionName: r.actionName || '',
+      actionCategory: r.actionCategory,
+      count: r.count,
+      uniqueUsers: r.uniqueUsers
+    }));
+  }
+
+  async getUserActivity(userId: string, startDate?: Date, endDate?: Date): Promise<UserActivityStats> {
+    const sessionConditions = [eq(userSessions.userId, userId)];
+    const eventConditions = [eq(analyticsEvents.userId, userId)];
+    
+    if (startDate) {
+      sessionConditions.push(gte(userSessions.startedAt, startDate));
+      eventConditions.push(gte(analyticsEvents.createdAt, startDate));
+    }
+    if (endDate) {
+      sessionConditions.push(lte(userSessions.startedAt, endDate));
+      eventConditions.push(lte(analyticsEvents.createdAt, endDate));
+    }
+
+    const [sessionsResult, pageViewsResult, actionsResult, lastActivityResult, topPagesResult, topActionsResult, userResult] = await Promise.all([
+      db.select({ count: count() }).from(userSessions).where(and(...sessionConditions)),
+      db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'page_view'), ...eventConditions)),
+      db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'action'), ...eventConditions)),
+      db.select({ lastActivity: sql<Date>`MAX(${analyticsEvents.createdAt})` }).from(analyticsEvents).where(and(...eventConditions)),
+      db.select({ pagePath: analyticsEvents.pagePath, views: count() })
+        .from(analyticsEvents)
+        .where(and(eq(analyticsEvents.eventType, 'page_view'), ...eventConditions))
+        .groupBy(analyticsEvents.pagePath)
+        .orderBy(desc(count()))
+        .limit(5),
+      db.select({ actionName: analyticsEvents.actionName, count: count() })
+        .from(analyticsEvents)
+        .where(and(eq(analyticsEvents.eventType, 'action'), ...eventConditions))
+        .groupBy(analyticsEvents.actionName)
+        .orderBy(desc(count()))
+        .limit(5),
+      db.select().from(users).where(eq(users.id, userId)).limit(1)
+    ]);
+
+    return {
+      userId,
+      userName: userResult[0]?.name || 'Unknown',
+      totalSessions: sessionsResult[0]?.count || 0,
+      totalPageViews: pageViewsResult[0]?.count || 0,
+      totalActions: actionsResult[0]?.count || 0,
+      lastActivityAt: lastActivityResult[0]?.lastActivity || null,
+      topPages: topPagesResult.map(r => ({ pagePath: r.pagePath || '', views: r.views })),
+      topActions: topActionsResult.map(r => ({ actionName: r.actionName || '', count: r.count }))
+    };
   }
 }
 

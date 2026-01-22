@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters } from "../storage";
+import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats } from "../storage";
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
@@ -11,6 +11,8 @@ export class MemStorage implements IStorage {
   private nursingUnits: Map<string, NursingUnit>;
   private nursingUnitChanges: Map<string, NursingUnitChange>;
   private patientsHistory: Map<string, PatientsHistory>;
+  private sessions: Map<string, UserSession>;
+  private analyticsEvents: Map<string, AnalyticsEvent>;
 
   constructor() {
     this.users = new Map();
@@ -21,6 +23,8 @@ export class MemStorage implements IStorage {
     this.nursingUnits = new Map();
     this.nursingUnitChanges = new Map();
     this.patientsHistory = new Map();
+    this.sessions = new Map();
+    this.analyticsEvents = new Map();
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -599,5 +603,252 @@ export class MemStorage implements IStorage {
     await this.archivePatient(patient, motivo, leitoDestino);
     this.patients.delete(patientId);
     return true;
+  }
+
+  // Analytics & Usage Tracking (in-memory stubs)
+  async createSession(session: InsertUserSession): Promise<UserSession> {
+    const id = randomUUID();
+    const newSession: UserSession = {
+      ...session,
+      id,
+      startedAt: new Date(),
+      endedAt: null,
+      lastActivityAt: new Date(),
+      durationSeconds: null,
+      pageViewCount: session.pageViewCount ?? 0,
+      actionCount: session.actionCount ?? 0,
+      isActive: session.isActive ?? true,
+      ipAddress: session.ipAddress ?? null,
+      userAgent: session.userAgent ?? null,
+      deviceType: session.deviceType ?? null,
+      browser: session.browser ?? null,
+      logoutReason: session.logoutReason ?? null,
+    };
+    this.sessions.set(id, newSession);
+    return newSession;
+  }
+
+  async getSession(id: string): Promise<UserSession | undefined> {
+    return this.sessions.get(id);
+  }
+
+  async getActiveSessionByUserId(userId: string): Promise<UserSession | undefined> {
+    for (const session of this.sessions.values()) {
+      if (session.userId === userId && session.isActive) {
+        return session;
+      }
+    }
+    return undefined;
+  }
+
+  async updateSessionActivity(id: string): Promise<void> {
+    const session = this.sessions.get(id);
+    if (session) {
+      session.lastActivityAt = new Date();
+    }
+  }
+
+  async endSession(id: string, logoutReason?: string): Promise<UserSession | undefined> {
+    const session = this.sessions.get(id);
+    if (!session) return undefined;
+    
+    session.endedAt = new Date();
+    session.durationSeconds = Math.floor((session.endedAt.getTime() - session.startedAt.getTime()) / 1000);
+    session.logoutReason = logoutReason || 'manual';
+    session.isActive = false;
+    return session;
+  }
+
+  async incrementSessionCounts(id: string, pageViews?: number, actions?: number): Promise<void> {
+    const session = this.sessions.get(id);
+    if (session) {
+      if (pageViews) session.pageViewCount += pageViews;
+      if (actions) session.actionCount += actions;
+      session.lastActivityAt = new Date();
+    }
+  }
+
+  async createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const id = randomUUID();
+    const newEvent: AnalyticsEvent = {
+      ...event,
+      id,
+      createdAt: new Date(),
+      sessionId: event.sessionId ?? null,
+      userId: event.userId ?? null,
+      userName: event.userName ?? null,
+      userRole: event.userRole ?? null,
+      pagePath: event.pagePath ?? null,
+      pageTitle: event.pageTitle ?? null,
+      actionName: event.actionName ?? null,
+      actionCategory: event.actionCategory ?? null,
+      entityType: event.entityType ?? null,
+      entityId: event.entityId ?? null,
+      referrer: event.referrer ?? null,
+      metadata: event.metadata ?? null,
+    };
+    this.analyticsEvents.set(id, newEvent);
+    return newEvent;
+  }
+
+  async createAnalyticsEventsBatch(events: InsertAnalyticsEvent[]): Promise<number> {
+    for (const event of events) {
+      await this.createAnalyticsEvent(event);
+    }
+    return events.length;
+  }
+
+  async getAnalyticsEvents(params: AnalyticsFilters & PaginationParams): Promise<PaginatedResult<AnalyticsEvent>> {
+    let data = Array.from(this.analyticsEvents.values());
+    
+    if (params.userId) data = data.filter(e => e.userId === params.userId);
+    if (params.eventType) data = data.filter(e => e.eventType === params.eventType);
+    if (params.pagePath) data = data.filter(e => e.pagePath === params.pagePath);
+    if (params.actionName) data = data.filter(e => e.actionName === params.actionName);
+    if (params.startDate) data = data.filter(e => e.createdAt >= params.startDate!);
+    if (params.endDate) data = data.filter(e => e.createdAt <= params.endDate!);
+    
+    data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const total = data.length;
+    const start = (page - 1) * limit;
+    
+    return {
+      data: data.slice(start, start + limit),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async getUsageMetrics(): Promise<UsageMetrics> {
+    const sessions = Array.from(this.sessions.values());
+    const events = Array.from(this.analyticsEvents.values());
+    
+    return {
+      totalSessions: sessions.length,
+      activeSessions: sessions.filter(s => s.isActive).length,
+      totalPageViews: events.filter(e => e.eventType === 'page_view').length,
+      totalActions: events.filter(e => e.eventType === 'action').length,
+      uniqueUsers: new Set(sessions.map(s => s.userId)).size,
+      avgSessionDuration: sessions.length > 0 
+        ? Math.round(sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0) / sessions.length) 
+        : 0,
+      avgPageViewsPerSession: sessions.length > 0 
+        ? Math.round(sessions.reduce((sum, s) => sum + s.pageViewCount, 0) / sessions.length) 
+        : 0
+    };
+  }
+
+  async getSessionsStats(): Promise<SessionStats> {
+    const sessions = Array.from(this.sessions.values());
+    const byDevice: Record<string, number> = {};
+    const byBrowser: Record<string, number> = {};
+    const byUserMap = new Map<string, { userId: string; userName: string; sessions: number }>();
+    
+    sessions.forEach(s => {
+      if (s.deviceType) byDevice[s.deviceType] = (byDevice[s.deviceType] || 0) + 1;
+      if (s.browser) byBrowser[s.browser] = (byBrowser[s.browser] || 0) + 1;
+      const existing = byUserMap.get(s.userId) || { userId: s.userId, userName: s.userName, sessions: 0 };
+      existing.sessions++;
+      byUserMap.set(s.userId, existing);
+    });
+    
+    return {
+      totalSessions: sessions.length,
+      avgDuration: sessions.length > 0 
+        ? Math.round(sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0) / sessions.length) 
+        : 0,
+      byDevice,
+      byBrowser,
+      byUser: Array.from(byUserMap.values()).sort((a, b) => b.sessions - a.sessions).slice(0, 10)
+    };
+  }
+
+  async getTopPages(limit: number = 10): Promise<PageStats[]> {
+    const events = Array.from(this.analyticsEvents.values()).filter(e => e.eventType === 'page_view');
+    const pageMap = new Map<string, { views: number; users: Set<string>; title: string | null }>();
+    
+    events.forEach(e => {
+      if (!e.pagePath) return;
+      const existing = pageMap.get(e.pagePath) || { views: 0, users: new Set(), title: e.pageTitle };
+      existing.views++;
+      if (e.userId) existing.users.add(e.userId);
+      pageMap.set(e.pagePath, existing);
+    });
+    
+    return Array.from(pageMap.entries())
+      .map(([pagePath, stats]) => ({
+        pagePath,
+        pageTitle: stats.title,
+        views: stats.views,
+        uniqueUsers: stats.users.size
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, limit);
+  }
+
+  async getTopActions(limit: number = 10): Promise<ActionStats[]> {
+    const events = Array.from(this.analyticsEvents.values()).filter(e => e.eventType === 'action');
+    const actionMap = new Map<string, { count: number; users: Set<string>; category: string | null }>();
+    
+    events.forEach(e => {
+      if (!e.actionName) return;
+      const existing = actionMap.get(e.actionName) || { count: 0, users: new Set(), category: e.actionCategory };
+      existing.count++;
+      if (e.userId) existing.users.add(e.userId);
+      actionMap.set(e.actionName, existing);
+    });
+    
+    return Array.from(actionMap.entries())
+      .map(([actionName, stats]) => ({
+        actionName,
+        actionCategory: stats.category,
+        count: stats.count,
+        uniqueUsers: stats.users.size
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  async getUserActivity(userId: string): Promise<UserActivityStats> {
+    const sessions = Array.from(this.sessions.values()).filter(s => s.userId === userId);
+    const events = Array.from(this.analyticsEvents.values()).filter(e => e.userId === userId);
+    const user = this.users.get(userId);
+    
+    const pageViews = events.filter(e => e.eventType === 'page_view');
+    const actions = events.filter(e => e.eventType === 'action');
+    
+    const topPagesMap = new Map<string, number>();
+    pageViews.forEach(e => {
+      if (e.pagePath) topPagesMap.set(e.pagePath, (topPagesMap.get(e.pagePath) || 0) + 1);
+    });
+    
+    const topActionsMap = new Map<string, number>();
+    actions.forEach(e => {
+      if (e.actionName) topActionsMap.set(e.actionName, (topActionsMap.get(e.actionName) || 0) + 1);
+    });
+    
+    const lastEvent = events.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    
+    return {
+      userId,
+      userName: user?.name || sessions[0]?.userName || 'Unknown',
+      totalSessions: sessions.length,
+      totalPageViews: pageViews.length,
+      totalActions: actions.length,
+      lastActivityAt: lastEvent?.createdAt || null,
+      topPages: Array.from(topPagesMap.entries())
+        .map(([pagePath, views]) => ({ pagePath, views }))
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 5),
+      topActions: Array.from(topActionsMap.entries())
+        .map(([actionName, count]) => ({ actionName, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+    };
   }
 }

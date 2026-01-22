@@ -331,6 +331,91 @@ export type InsertUserNotification = z.infer<typeof insertUserNotificationSchema
 export const archiveReasons = ["alta_hospitalar", "transferencia_leito", "obito", "registro_antigo"] as const;
 export type ArchiveReason = typeof archiveReasons[number];
 
+// =============================================
+// ANALYTICS & USAGE TRACKING
+// =============================================
+
+// Tipos de eventos de analytics
+export const analyticsEventTypes = ["page_view", "action", "auth"] as const;
+export type AnalyticsEventType = typeof analyticsEventTypes[number];
+
+// Sessões de usuário
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userName: text("user_name").notNull(),
+  userRole: text("user_role").notNull(),
+  
+  // Informações do dispositivo/navegador
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  deviceType: text("device_type"), // desktop, mobile, tablet
+  browser: text("browser"),
+  
+  // Timestamps
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+  lastActivityAt: timestamp("last_activity_at").notNull().defaultNow(),
+  
+  // Métricas
+  durationSeconds: integer("duration_seconds"),
+  pageViewCount: integer("page_view_count").notNull().default(0),
+  actionCount: integer("action_count").notNull().default(0),
+  
+  // Status
+  logoutReason: text("logout_reason"), // manual, timeout, forced
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
+  id: true,
+  startedAt: true,
+  endedAt: true,
+  durationSeconds: true,
+});
+
+export type UserSession = typeof userSessions.$inferSelect;
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+
+// Eventos de analytics (page views, ações, etc.)
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Referência à sessão
+  sessionId: varchar("session_id").references(() => userSessions.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  userName: text("user_name"),
+  userRole: text("user_role"),
+  
+  // Tipo de evento
+  eventType: text("event_type").notNull(), // page_view, action, auth
+  
+  // Detalhes do evento
+  pagePath: text("page_path"),           // /shift-handover, /patients-history, etc.
+  pageTitle: text("page_title"),         // Título da página
+  actionName: text("action_name"),       // sync_manual, edit_note, view_patient, etc.
+  actionCategory: text("action_category"), // sync, notes, patients, auth
+  
+  // Entidade relacionada (opcional)
+  entityType: text("entity_type"),       // patient, note, user, etc.
+  entityId: varchar("entity_id"),
+  
+  // Metadados adicionais
+  referrer: text("referrer"),
+  metadata: jsonb("metadata"),
+  
+  // Timestamp
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
 // Histórico de pacientes (alta/transferência)
 // Tabela append-only para armazenar snapshot dos pacientes que saíram da passagem de plantão
 export const patientsHistory = pgTable("patients_history", {
