@@ -23,6 +23,7 @@ import {
   Trash2,
   RefreshCcw,
   Loader2,
+  Activity,
 } from "lucide-react";
 
 interface AdminModule {
@@ -77,10 +78,19 @@ const adminModules: AdminModule[] = [
   },
   {
     id: "analytics",
-    title: "Analytics e Relatórios",
-    description: "Análise visual de dados, estatísticas de pacientes e taxa de completude dos registros.",
+    title: "Analytics de Pacientes",
+    description: "Analise visual de dados, estatisticas de pacientes e taxa de completude dos registros.",
     icon: BarChart3,
     route: "/analytics",
+  },
+  {
+    id: "usage-analytics",
+    title: "Analytics de Uso",
+    description: "Metricas de uso do sistema, sessoes de usuarios, paginas visitadas e acoes realizadas.",
+    icon: Activity,
+    route: "/admin/usage-analytics",
+    badge: "Novo",
+    badgeVariant: "default",
   },
   {
     id: "dashboard",
