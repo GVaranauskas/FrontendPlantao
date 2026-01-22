@@ -1730,6 +1730,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
+  // =============================================
+  // ANALYTICS & USAGE TRACKING ENDPOINTS
+  // =============================================
+
+  // Track page view or action event
+  app.post("/api/analytics/events", authMiddleware, asyncHandler(async (req, res) => {
+    const { eventType, pagePath, pageTitle, actionName, actionCategory, entityType, entityId, referrer, metadata, sessionId } = req.body;
+    
+    if (!eventType || (eventType !== 'page_view' && eventType !== 'action')) {
+      throw new AppError(400, "eventType must be 'page_view' or 'action'");
+    }
+    
+    const user = (req as any).user;
+    const event = await storage.createAnalyticsEvent({
+      sessionId: sessionId || null,
+      userId: user?.id || null,
+      userName: user?.name || null,
+      userRole: user?.role || null,
+      eventType,
+      pagePath: pagePath || null,
+      pageTitle: pageTitle || null,
+      actionName: actionName || null,
+      actionCategory: actionCategory || null,
+      entityType: entityType || null,
+      entityId: entityId || null,
+      referrer: referrer || null,
+      metadata: metadata || null
+    });
+    
+    // Increment session counters if sessionId provided
+    if (sessionId) {
+      await storage.incrementSessionCounts(
+        sessionId,
+        eventType === 'page_view' ? 1 : 0,
+        eventType === 'action' ? 1 : 0
+      );
+    }
+    
+    res.status(201).json(event);
+  }));
+
+  // Batch track events (for performance)
+  app.post("/api/analytics/events/batch", authMiddleware, asyncHandler(async (req, res) => {
+    const { events, sessionId } = req.body;
+    
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new AppError(400, "events must be a non-empty array");
+    }
+    
+    const user = (req as any).user;
+    const eventsToInsert = events.map(e => ({
+      sessionId: sessionId || e.sessionId || null,
+      userId: user?.id || null,
+      userName: user?.name || null,
+      userRole: user?.role || null,
+      eventType: e.eventType,
+      pagePath: e.pagePath || null,
+      pageTitle: e.pageTitle || null,
+      actionName: e.actionName || null,
+      actionCategory: e.actionCategory || null,
+      entityType: e.entityType || null,
+      entityId: e.entityId || null,
+      referrer: e.referrer || null,
+      metadata: e.metadata || null
+    }));
+    
+    const count = await storage.createAnalyticsEventsBatch(eventsToInsert);
+    
+    // Increment session counters
+    if (sessionId) {
+      const pageViews = events.filter(e => e.eventType === 'page_view').length;
+      const actions = events.filter(e => e.eventType === 'action').length;
+      await storage.incrementSessionCounts(sessionId, pageViews, actions);
+    }
+    
+    res.status(201).json({ inserted: count });
+  }));
+
+  // Start a new session (called on login)
+  app.post("/api/analytics/sessions", authMiddleware, asyncHandler(async (req, res) => {
+    const user = (req as any).user;
+    const { userAgent, ipAddress } = req.body;
+    
+    // Parse user agent for device/browser info
+    const deviceType = userAgent?.includes('Mobile') ? 'mobile' : 'desktop';
+    const browser = userAgent?.includes('Chrome') ? 'Chrome' : 
+                    userAgent?.includes('Firefox') ? 'Firefox' : 
+                    userAgent?.includes('Safari') ? 'Safari' : 'Other';
+    
+    const session = await storage.createSession({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      userAgent: userAgent || null,
+      ipAddress: ipAddress || req.ip || null,
+      deviceType,
+      browser,
+      pageViewCount: 0,
+      actionCount: 0,
+      isActive: true
+    });
+    
+    res.status(201).json(session);
+  }));
+
+  // End a session (called on logout)
+  app.post("/api/analytics/sessions/:id/end", authMiddleware, asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { logoutReason } = req.body;
+    
+    const session = await storage.endSession(id, logoutReason);
+    if (!session) {
+      throw new AppError(404, "Session not found");
+    }
+    
+    res.json(session);
+  }));
+
+  // Heartbeat to keep session active
+  app.post("/api/analytics/sessions/:id/heartbeat", authMiddleware, asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await storage.updateSessionActivity(id);
+    res.json({ success: true });
+  }));
+
+  // Admin: Get usage metrics (aggregated)
+  app.get("/api/admin/analytics/metrics", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const metrics = await storage.getUsageMetrics(start, end);
+    res.json(metrics);
+  }));
+
+  // Admin: Get sessions statistics
+  app.get("/api/admin/analytics/sessions", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const stats = await storage.getSessionsStats(start, end);
+    res.json(stats);
+  }));
+
+  // Admin: Get top pages
+  app.get("/api/admin/analytics/top-pages", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { limit, startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const pages = await storage.getTopPages(Number(limit) || 10, start, end);
+    res.json(pages);
+  }));
+
+  // Admin: Get top actions
+  app.get("/api/admin/analytics/top-actions", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { limit, startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const actions = await storage.getTopActions(Number(limit) || 10, start, end);
+    res.json(actions);
+  }));
+
+  // Admin: Get user activity
+  app.get("/api/admin/analytics/users/:userId", requireRole('admin'), validateUUIDParam('userId'), asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const activity = await storage.getUserActivity(userId, start, end);
+    res.json(activity);
+  }));
+
+  // Admin: Get events list (paginated)
+  app.get("/api/admin/analytics/events", requireRole('admin'), asyncHandler(async (req, res) => {
+    const { page, limit, userId, eventType, pagePath, actionName, actionCategory, startDate, endDate } = req.query;
+    
+    const events = await storage.getAnalyticsEvents({
+      page: Number(page) || 1,
+      limit: Number(limit) || 50,
+      userId: userId as string,
+      eventType: eventType as 'page_view' | 'action',
+      pagePath: pagePath as string,
+      actionName: actionName as string,
+      actionCategory: actionCategory as string,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined
+    });
+    
+    res.json(events);
+  }));
+
   // Register authentication routes
   registerAuthRoutes(app);
   registerUserRoutes(app);
