@@ -21,6 +21,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Adicionado
 
+- **Sistema de Analytics de Uso (v1.4.0)**
+  - Rastreamento automatico de sessoes de usuarios, page views e acoes
+  - Hook `useAnalytics` com batching (max 20 eventos ou 5 segundos)
+  - Heartbeat de sessao a cada 60 segundos para monitorar usuarios ativos
+  - 10 endpoints REST para eventos, sessoes e metricas
+  - Dashboard administrativo com 4 abas: Visao Geral, Paginas, Acoes, Usuarios
+  - Graficos interativos (pizza, barras) com Recharts
+  - Filtro por periodo (24h, 7 dias, 30 dias, 90 dias)
+  - Protecao RBAC (admin-only) para endpoints de metricas
+  - Tabelas `user_sessions` e `analytics_events` com FK e cascade delete
+
 - **Sistema de Sync Determinístico**
   - Arquivamento imediato quando paciente não está no N8N (sem proteção de 2 falhas)
   - Validação de sanidade antes de processar remoções (N8N_MIN_RECORD_RATIO)

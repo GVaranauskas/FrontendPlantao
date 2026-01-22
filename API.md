@@ -14,6 +14,7 @@ Documentação completa dos endpoints da API REST do **11Care Nursing Platform**
   - [Templates](#templates)
   - [Notes](#notes)
   - [Analytics](#analytics)
+  - [Usage Analytics](#usage-analytics)
   - [Sync & IA](#sync--ia)
   - [Webhooks](#webhooks)
 - [Códigos de Status](#códigos-de-status)
@@ -845,6 +846,292 @@ Retorna visão geral de análises.
     "week": 8.75,
     "month": 32.40
   }
+}
+```
+
+---
+
+## Usage Analytics
+
+Endpoints para rastreamento de uso do sistema (sessoes, page views, acoes).
+
+### POST /api/analytics/events
+
+Registra um evento de analytics.
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`, `visualizador`
+
+**Body**:
+```json
+{
+  "sessionId": "uuid-session-id",
+  "eventType": "page_view",
+  "eventName": "shift_handover_view",
+  "pagePath": "/shift-handover/22",
+  "pageTitle": "Passagem de Plantao - Enfermaria 22",
+  "metadata": {}
+}
+```
+
+**Response** (201):
+```json
+{
+  "id": "uuid-event-id",
+  "createdAt": "2026-01-22T12:00:00Z"
+}
+```
+
+---
+
+### POST /api/analytics/events/batch
+
+Registra multiplos eventos em lote (otimizado para performance).
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`, `visualizador`
+
+**Body**:
+```json
+{
+  "events": [
+    {
+      "sessionId": "uuid-session-id",
+      "eventType": "action",
+      "eventName": "patient_note_create",
+      "pagePath": "/shift-handover/22",
+      "metadata": { "patientId": "123" }
+    }
+  ]
+}
+```
+
+**Response** (201):
+```json
+{
+  "inserted": 1
+}
+```
+
+---
+
+### POST /api/analytics/sessions
+
+Cria uma nova sessao de usuario.
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`, `visualizador`
+
+**Body**:
+```json
+{
+  "userId": "user-id",
+  "userName": "Joao Silva",
+  "userRole": "enfermagem",
+  "userAgent": "Mozilla/5.0...",
+  "screenResolution": "1920x1080",
+  "language": "pt-BR"
+}
+```
+
+**Response** (201):
+```json
+{
+  "id": "uuid-session-id",
+  "startedAt": "2026-01-22T12:00:00Z"
+}
+```
+
+---
+
+### POST /api/analytics/sessions/:id/end
+
+Encerra uma sessao de usuario.
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`, `visualizador`
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "endedAt": "2026-01-22T13:30:00Z"
+}
+```
+
+---
+
+### POST /api/analytics/sessions/:id/heartbeat
+
+Atualiza o heartbeat de uma sessao (mantém sessao ativa).
+
+**Auth**: Bearer token
+**Roles**: `admin`, `enfermagem`, `visualizador`
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "lastActivityAt": "2026-01-22T12:15:00Z"
+}
+```
+
+---
+
+### GET /api/admin/analytics/metrics
+
+Retorna metricas consolidadas de uso.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `days`: Periodo em dias (default: 30)
+
+**Response** (200):
+```json
+{
+  "totalSessions": 150,
+  "activeSessions": 5,
+  "totalPageViews": 2500,
+  "totalActions": 800,
+  "uniqueUsers": 12,
+  "avgSessionDuration": 1800000,
+  "avgPageViewsPerSession": 16.67
+}
+```
+
+---
+
+### GET /api/admin/analytics/sessions
+
+Lista todas as sessoes com paginacao.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `limit`: Limite de registros (default: 50)
+- `offset`: Offset para paginacao (default: 0)
+
+**Response** (200):
+```json
+{
+  "sessions": [
+    {
+      "id": "uuid",
+      "userId": "user-id",
+      "userName": "Joao Silva",
+      "userRole": "enfermagem",
+      "startedAt": "2026-01-22T08:00:00Z",
+      "endedAt": "2026-01-22T16:00:00Z",
+      "isActive": false
+    }
+  ],
+  "total": 150
+}
+```
+
+---
+
+### GET /api/admin/analytics/top-pages
+
+Retorna ranking das paginas mais visitadas.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `days`: Periodo em dias (default: 30)
+- `limit`: Limite de resultados (default: 10)
+
+**Response** (200):
+```json
+{
+  "pages": [
+    { "pagePath": "/shift-handover/22", "pageTitle": "Enfermaria 22", "count": 500 },
+    { "pagePath": "/shift-handover/23", "pageTitle": "Enfermaria 23", "count": 450 }
+  ]
+}
+```
+
+---
+
+### GET /api/admin/analytics/top-actions
+
+Retorna ranking das acoes mais realizadas.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `days`: Periodo em dias (default: 30)
+- `limit`: Limite de resultados (default: 10)
+
+**Response** (200):
+```json
+{
+  "actions": [
+    { "eventName": "patient_note_create", "count": 200 },
+    { "eventName": "ai_analysis_request", "count": 150 }
+  ]
+}
+```
+
+---
+
+### GET /api/admin/analytics/users/:userId
+
+Retorna estatisticas de uso de um usuario especifico.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `days`: Periodo em dias (default: 30)
+
+**Response** (200):
+```json
+{
+  "userId": "user-id",
+  "userName": "Joao Silva",
+  "totalSessions": 25,
+  "totalPageViews": 400,
+  "totalActions": 120,
+  "lastActivity": "2026-01-22T16:00:00Z"
+}
+```
+
+---
+
+### GET /api/admin/analytics/events
+
+Lista eventos de analytics com filtros.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Query Params**:
+- `sessionId`: Filtrar por sessao
+- `userId`: Filtrar por usuario
+- `eventType`: Filtrar por tipo (page_view, action)
+- `limit`: Limite de registros (default: 100)
+- `offset`: Offset para paginacao (default: 0)
+
+**Response** (200):
+```json
+{
+  "events": [
+    {
+      "id": "uuid",
+      "sessionId": "session-uuid",
+      "eventType": "page_view",
+      "eventName": "shift_handover_view",
+      "pagePath": "/shift-handover/22",
+      "createdAt": "2026-01-22T12:00:00Z"
+    }
+  ],
+  "total": 2500
 }
 ```
 

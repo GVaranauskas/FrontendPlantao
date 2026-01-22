@@ -14,6 +14,7 @@ Documentação completa da arquitetura do **11Care Nursing Platform**.
 - [Sistema de IA](#sistema-de-ia)
 - [Segurança](#segurança)
 - [Decisões Arquiteturais](#decisões-arquiteturais)
+- [Sistema de Analytics de Uso](#sistema-de-analytics-de-uso)
 
 ## 🎯 Visão Geral
 
@@ -903,6 +904,89 @@ const limiter = rateLimit({
 - Curva de aprendizado
 - Overhead para queries simples
 
+## 📈 Sistema de Analytics de Uso
+
+### Proposito
+
+Rastrear comportamento de usuarios para analise de UX e Customer Success, permitindo entender como o sistema e utilizado e identificar areas de melhoria.
+
+### Arquitetura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (React)                         │
+│  useAnalytics hook → Batching → POST /api/analytics/*       │
+└─────────────────────────────────┬───────────────────────────┘
+                                  │
+┌─────────────────────────────────▼───────────────────────────┐
+│                     Backend (Express)                        │
+│  Routes → Storage Interface → PostgreSQL                    │
+└─────────────────────────────────┬───────────────────────────┘
+                                  │
+┌─────────────────────────────────▼───────────────────────────┐
+│                    PostgreSQL Tables                         │
+│  user_sessions (FK → users) ← analytics_events (FK → sessions)│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Hook useAnalytics
+
+```typescript
+// Inicializacao automatica ao autenticar
+const { trackAction, trackPageView } = useAnalytics();
+
+// Tracking automatico de page views via useEffect
+// Batching: max 20 eventos ou 5 segundos
+// Heartbeat: 60 segundos para manter sessao ativa
+// Cleanup: beforeunload + unmount
+```
+
+### Modelo de Dados
+
+**user_sessions**:
+- `id`, `userId`, `userName`, `userRole`
+- `userAgent`, `screenResolution`, `language`
+- `startedAt`, `endedAt`, `lastActivityAt`
+- `isActive` (boolean)
+
+**analytics_events**:
+- `id`, `sessionId` (FK), `userId` (FK)
+- `eventType`: `page_view` | `action`
+- `eventName`, `pagePath`, `pageTitle`
+- `metadata` (JSONB)
+- `createdAt`
+
+### Endpoints
+
+| Metodo | Endpoint | Descricao | Roles |
+|--------|----------|-----------|-------|
+| POST | /api/analytics/events | Registra evento | Todos |
+| POST | /api/analytics/events/batch | Registra lote | Todos |
+| POST | /api/analytics/sessions | Cria sessao | Todos |
+| POST | /api/analytics/sessions/:id/end | Encerra sessao | Todos |
+| POST | /api/analytics/sessions/:id/heartbeat | Atualiza heartbeat | Todos |
+| GET | /api/admin/analytics/metrics | Metricas gerais | Admin |
+| GET | /api/admin/analytics/sessions | Lista sessoes | Admin |
+| GET | /api/admin/analytics/top-pages | Paginas mais visitadas | Admin |
+| GET | /api/admin/analytics/top-actions | Acoes mais realizadas | Admin |
+| GET | /api/admin/analytics/users/:userId | Stats do usuario | Admin |
+
+### Dashboard Administrativo
+
+Pagina `/admin/usage-analytics` com 4 abas:
+
+1. **Visao Geral**: Cards de metricas (sessoes, page views, acoes, usuarios unicos)
+2. **Paginas**: Ranking de paginas mais visitadas com grafico de barras
+3. **Acoes**: Ranking de acoes mais realizadas com grafico pizza
+4. **Usuarios**: Tabela com atividade individual de cada usuario
+
+### Otimizacoes
+
+- **Batching**: Reduz requests enviando ate 20 eventos por vez
+- **Heartbeat**: Evita sessoes orfas com ping a cada 60s
+- **Cleanup**: Envia eventos pendentes ao fechar aba/navegador
+- **sessionStorage**: Persiste sessionId entre reloads da pagina
+
 ## 📊 Métricas e Performance
 
 ### Bundle Sizes
@@ -954,4 +1038,4 @@ const limiter = rateLimit({
 
 ---
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-01-22
