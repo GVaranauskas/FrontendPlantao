@@ -16,15 +16,17 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack Query for server state, React Hook Form with Zod for form handling.
 - **Services Layer**: Centralized API abstraction using `ApiService` with generic CRUD methods and specific services for patients, users, templates, and nursing units.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
-- **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, and patient history viewing for archived patients (alta, transfers, deaths).
+- **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, patient history viewing for archived patients (alta, transfers, deaths), and usage analytics dashboard for UX/Customer Success analysis.
+- **Usage Analytics**: Automatic tracking of user sessions, page views, and actions via `useAnalytics` hook with event batching (max 20 events or 5 seconds), session heartbeats (1 min intervals), and cleanup on unmount/beforeunload.
 
 ### Backend Architecture
 - **Server**: Express.js with TypeScript on Node.js (ESM).
 - **API Design**: RESTful API supporting JSON and TOON formats with custom middleware for logging and parsing.
 - **Storage**: PostgreSQL with Drizzle ORM, with automatic fallback to MemStorage.
-- **Data Models**: User, Patient (with 14 normalized N8N fields), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange, PatientNoteEvent (audit trail), UserNotification.
+- **Data Models**: User, Patient (with 14 normalized N8N fields), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange, PatientNoteEvent (audit trail), UserNotification, UserSession, AnalyticsEvent.
 - **Patient Notes Audit System**: Full audit trail for patient note actions (create, update, delete) with encrypted previous values, performer/target user tracking, IP address logging, and optional deletion reasons. Admin-only note deletion with automatic notification to original author.
-- **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, and WebSocket for import.
+- **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, WebSocket for import, and analytics (events, sessions, metrics).
+- **Usage Analytics System**: Session-based tracking with 10 REST endpoints: POST /api/analytics/events (single), POST /api/analytics/events/batch, POST /api/analytics/sessions, POST /api/analytics/sessions/:id/end, POST /api/analytics/sessions/:id/heartbeat, GET /api/admin/analytics/* (metrics, sessions, top-pages, top-actions, users/:userId, events). Admin-only endpoints protected by RBAC.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.
 - **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system: change detection, intelligent cache, GPT-4o-mini, and hourly auto-sync. Includes validation to block patients from non-approved wards. Deterministic archiving (immediate when patient not in N8N) with sanity validation (N8N_MIN_RECORD_RATIO=0.5, MIN_ABSOLUTE_RECORDS=5) to prevent mass archiving from incomplete N8N responses.
 - **Automatic Patient Reactivation**: During N8N sync, patients archived in history are automatically reactivated if they appear in N8N data. Uses dual lookup (primary by codigoAtendimento, fallback by leito). Reactivation only removes the history record - the UPSERT step handles insertion with fresh N8N data. Core rule: "If patient is in N8N, they must be active in the system."
