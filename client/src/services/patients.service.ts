@@ -13,6 +13,28 @@ interface SyncResult {
   data?: unknown;
 }
 
+export interface SyncDetailedStatus {
+  isRunning: boolean;
+  lastRun: string | null;
+  lastSyncDuration: number | null;
+  lastSyncStats: {
+    totalRecords: number;
+    changedRecords: number;
+    unchangedRecords: number;
+    newRecords: number;
+    removedRecords: number;
+    reactivatedRecords: number;
+    aiCallsMade: number;
+    aiCallsAvoided: number;
+    errors: number;
+  } | null;
+  totalSyncsCompleted: number;
+  config: {
+    cronExpression: string;
+    enableAI: boolean;
+  };
+}
+
 class PatientsService extends ApiService {
   constructor() {
     super("/api/patients");
@@ -65,6 +87,11 @@ class PatientsService extends ApiService {
 
   async deletePatient(id: string): Promise<void> {
     return this.delete(id);
+  }
+
+  async getSyncDetailedStatus(): Promise<SyncDetailedStatus> {
+    const response = await apiRequest("GET", "/api/sync-gpt4o/detailed-status");
+    return response.json();
   }
 }
 

@@ -155,14 +155,39 @@ export default function ShiftHandoverPage() {
       
       pollTimerRef.current = setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
-        pollTimerRef.current = setTimeout(() => {
+        pollTimerRef.current = setTimeout(async () => {
           queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/patients-history/stats"] });
           setIsSyncing(false);
           pollTimerRef.current = null;
-          toast({
-            title: "Sincronização Concluída",
-            description: "Dados e análises de IA atualizados com sucesso.",
-          });
+          
+          try {
+            const status = await patientsService.getSyncDetailedStatus();
+            const stats = status.lastSyncStats;
+            if (stats) {
+              const parts: string[] = [];
+              if (stats.newRecords > 0) parts.push(`${stats.newRecords} novos`);
+              if (stats.changedRecords > 0) parts.push(`${stats.changedRecords} atualizados`);
+              if (stats.removedRecords > 0) parts.push(`${stats.removedRecords} arquivados`);
+              if (stats.reactivatedRecords > 0) parts.push(`${stats.reactivatedRecords} reativados`);
+              
+              const summary = parts.length > 0 ? parts.join(", ") : "Nenhuma alteração";
+              toast({
+                title: "Sincronização Concluída",
+                description: `${summary}. Total: ${stats.totalRecords} pacientes.`,
+              });
+            } else {
+              toast({
+                title: "Sincronização Concluída",
+                description: "Dados e análises de IA atualizados com sucesso.",
+              });
+            }
+          } catch {
+            toast({
+              title: "Sincronização Concluída",
+              description: "Dados e análises de IA atualizados com sucesso.",
+            });
+          }
         }, 20000);
       }, 15000);
     },

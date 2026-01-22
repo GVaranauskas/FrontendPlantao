@@ -52,18 +52,26 @@ interface SchedulerConfig {
   batchSize: number;
 }
 
+interface LastValidSync {
+  timestamp: Date;
+  totalRecords: number;
+  recordsByEnfermaria: Record<string, number>;
+}
+
 export class AutoSyncSchedulerGPT4o {
   private task: ReturnType<typeof cron.schedule> | null = null;
   private isRunning: boolean = false;
   private lastRun: Date | null = null;
   private syncHistory: SyncResult[] = [];
   
-  // Rastreador de falhas consecutivas para proteção contra arquivamento acidental
-  // Chave: codigoAtendimento ou leito, Valor: número de falhas consecutivas
-  private missingSyncTracker: Map<string, { count: number; firstMissing: Date; patientName: string }> = new Map();
+  // Último sync válido para validação de sanidade
+  private lastValidSync: LastValidSync | null = null;
   
-  // Número mínimo de falhas consecutivas antes de arquivar (proteção)
-  private static readonly MIN_FAILURES_BEFORE_ARCHIVE = 2;
+  // Limiar mínimo de registros (50% por padrão) - se N8N retornar menos que isso, bloquear arquivamentos
+  private static readonly MIN_RECORD_RATIO = parseFloat(process.env.N8N_MIN_RECORD_RATIO || '0.5');
+  
+  // Mínimo absoluto de registros esperados (proteção adicional)
+  private static readonly MIN_ABSOLUTE_RECORDS = 5;
   
   // Configurações via variáveis de ambiente
   private static readonly DEFAULT_UNITS = process.env.N8N_UNIT_IDS || '22,23';
@@ -298,17 +306,34 @@ export class AutoSyncSchedulerGPT4o {
       }
 
       // 5. REMOVER PACIENTES QUE NÃO VIERAM NA RESPOSTA DO N8N (alta hospitalar)
-      // SEMPRE executar limpeza quando o fetch do N8N foi bem-sucedido
-      // Isso garante que pacientes órfãos sejam removidos mesmo quando N8N retorna zero registros
+      // Validação de sanidade ANTES de executar remoções
       if (n8nFetchSuccessful) {
-        console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
-        console.log(`[AutoSync] 📋 Sets de referência: ${n8nLeitos.size} leitos, ${n8nCodigosAtendimento.size} códigos`);
-        const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos, n8nCodigoToLeito);
-        result.stats.removedRecords = removedCount;
-        if (removedCount > 0) {
-          console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
+        // Usar MAX dos sets para contagem correta (evita undercount quando um set está vazio)
+        const n8nRecordCount = Math.max(n8nCodigosAtendimento.size, n8nLeitos.size);
+        const sanityCheck = this.validateSanity(n8nRecordCount);
+        
+        if (sanityCheck.canProceed) {
+          console.log(`[AutoSync] 🏥 Verificando altas hospitalares...`);
+          console.log(`[AutoSync] 📋 Sets de referência: ${n8nLeitos.size} leitos, ${n8nCodigosAtendimento.size} códigos`);
+          const removedCount = await this.removeDischargedPatients(n8nCodigosAtendimento, n8nLeitos, n8nCodigoToLeito);
+          result.stats.removedRecords = removedCount;
+          if (removedCount > 0) {
+            console.log(`[AutoSync] 🚪 ${removedCount} pacientes removidos (alta hospitalar)`);
+          } else {
+            console.log(`[AutoSync] ✅ Nenhum paciente para remover`);
+          }
+          
+          // Atualizar último sync válido após sucesso
+          this.updateLastValidSync(n8nRecordCount, patientsToProcess);
         } else {
-          console.log(`[AutoSync] ✅ Nenhum paciente para remover`);
+          console.log(`[AutoSync] 🛡️ VALIDAÇÃO DE SANIDADE BLOQUEOU REMOÇÕES: ${sanityCheck.reason}`);
+          console.log(`[AutoSync] 📊 N8N retornou ${n8nRecordCount} registros, esperado mínimo ${sanityCheck.expectedMin}`);
+          // Ainda atualizar baseline se temos dados válidos mas abaixo do threshold esperado
+          // Isso evita oscilação entre "primeiro sync" e syncs subsequentes
+          if (n8nRecordCount > 0 && !this.lastValidSync) {
+            console.log(`[AutoSync] 📋 Estabelecendo baseline inicial com ${n8nRecordCount} registros (sem permitir remoções)`);
+            this.updateLastValidSync(n8nRecordCount, patientsToProcess);
+          }
         }
       } else {
         console.log(`[AutoSync] ⚠️ Limpeza ignorada - falha no fetch do N8N`);
@@ -373,97 +398,101 @@ export class AutoSyncSchedulerGPT4o {
     currentLeitos: Set<string>,
     codigoToLeito: Map<string, string>
   ): Promise<number> {
-    // Get all patients from database
     const allPatients = await storage.getAllPatients();
     let removedCount = 0;
 
-    // PROTEÇÃO: Limpar tracker de pacientes que foram encontrados no N8N
-    for (const [key, _] of this.missingSyncTracker) {
-      if (currentCodigosAtendimento.has(key) || currentLeitos.has(key)) {
-        console.log(`[AutoSync] ✅ Paciente ${key} encontrado no N8N - resetando contador de falhas`);
-        this.missingSyncTracker.delete(key);
-      }
-    }
-
     for (const patient of allPatients) {
-      let isMissing = false;
-      let removeReason = '';
       let archiveReason: ArchiveReason = 'alta_hospitalar';
       let leitoDestino: string | undefined;
-      let trackingKey = '';
+      let shouldArchive = false;
+      let logMessage = '';
 
-      // Caso 1: Paciente TEM codigoAtendimento
       if (patient.codigoAtendimento) {
-        trackingKey = patient.codigoAtendimento;
         if (!currentCodigosAtendimento.has(patient.codigoAtendimento)) {
-          // codigoAtendimento não existe no N8N - possível alta
-          isMissing = true;
-          removeReason = 'alta hospitalar (código não existe no N8N)';
+          shouldArchive = true;
           archiveReason = 'alta_hospitalar';
+          logMessage = `alta hospitalar (código ${patient.codigoAtendimento} não existe no N8N)`;
         } else if (patient.leito) {
-          // codigoAtendimento existe - verificar se o leito corresponde
           const n8nLeito = codigoToLeito.get(patient.codigoAtendimento);
           if (n8nLeito && n8nLeito !== patient.leito) {
-            // Paciente foi transferido de leito - arquivar imediatamente (não é erro de sync)
-            try {
-              await storage.archivePatient(patient, 'transferencia_leito', n8nLeito);
-              console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado - transferência de leito (${patient.leito} -> ${n8nLeito})`);
-              await storage.deletePatient(patient.id);
-              removedCount++;
-              this.missingSyncTracker.delete(trackingKey);
-            } catch (error) {
-              console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
-            }
-            continue;
+            shouldArchive = true;
+            archiveReason = 'transferencia_leito';
+            leitoDestino = n8nLeito;
+            logMessage = `transferência de leito (${patient.leito} -> ${n8nLeito})`;
           }
         }
-      }
-      // Caso 2: Paciente SEM codigoAtendimento - verificar pelo leito
-      else if (patient.leito) {
-        trackingKey = patient.leito;
+      } else if (patient.leito) {
         if (!currentLeitos.has(patient.leito)) {
-          isMissing = true;
-          removeReason = 'leito não existe no N8N';
+          shouldArchive = true;
           archiveReason = 'registro_antigo';
+          logMessage = `registro antigo (leito ${patient.leito} não existe no N8N)`;
         }
       }
 
-      if (isMissing && trackingKey) {
-        // PROTEÇÃO: Verificar se já teve falhas suficientes antes de arquivar
-        const tracking = this.missingSyncTracker.get(trackingKey);
-        
-        if (!tracking) {
-          // Primeira falha - registrar mas NÃO arquivar ainda
-          this.missingSyncTracker.set(trackingKey, {
-            count: 1,
-            firstMissing: new Date(),
-            patientName: patient.nome
-          });
-          console.log(`[AutoSync] ⚠️ Paciente ${patient.leito} (${patient.nome}) não encontrado no N8N - 1ª falha (proteção ativada, aguardando confirmação)`);
-        } else {
-          // Incrementar contador de falhas
-          tracking.count++;
-          console.log(`[AutoSync] ⚠️ Paciente ${patient.leito} (${patient.nome}) não encontrado no N8N - ${tracking.count}ª falha consecutiva`);
-          
-          // Verificar se atingiu o limite de falhas para arquivar
-          if (tracking.count >= AutoSyncSchedulerGPT4o.MIN_FAILURES_BEFORE_ARCHIVE) {
-            try {
-              await storage.archivePatient(patient, archiveReason, leitoDestino);
-              console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado após ${tracking.count} falhas consecutivas - ${removeReason}`);
-              await storage.deletePatient(patient.id);
-              removedCount++;
-              this.missingSyncTracker.delete(trackingKey);
-            } catch (error) {
-              console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
-            }
-          } else {
-            console.log(`[AutoSync] 🛡️ Proteção ativa - aguardando ${AutoSyncSchedulerGPT4o.MIN_FAILURES_BEFORE_ARCHIVE - tracking.count} falha(s) adicional(is) antes de arquivar`);
-          }
+      if (shouldArchive) {
+        try {
+          await storage.archivePatient(patient, archiveReason, leitoDestino);
+          console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado - ${logMessage}`);
+          await storage.deletePatient(patient.id);
+          removedCount++;
+        } catch (error) {
+          console.error(`[AutoSync] Erro ao arquivar/remover paciente ${patient.id}:`, error);
         }
       }
     }
 
     return removedCount;
+  }
+
+  private validateSanity(n8nRecordCount: number): { canProceed: boolean; reason: string; expectedMin: number } {
+    // REGRA: Sempre exigir mínimo absoluto de registros para permitir arquivamento
+    // Isso protege contra N8N vazio ou dados parciais em qualquer situação
+    if (n8nRecordCount < AutoSyncSchedulerGPT4o.MIN_ABSOLUTE_RECORDS) {
+      return { 
+        canProceed: false, 
+        reason: `N8N retornou apenas ${n8nRecordCount} registros (mínimo absoluto: ${AutoSyncSchedulerGPT4o.MIN_ABSOLUTE_RECORDS})`,
+        expectedMin: AutoSyncSchedulerGPT4o.MIN_ABSOLUTE_RECORDS 
+      };
+    }
+    
+    // Se não há sync anterior, permitir se passou no mínimo absoluto
+    if (!this.lastValidSync) {
+      console.log(`[AutoSync] 📋 Primeiro sync com ${n8nRecordCount} registros - estabelecendo baseline`);
+      return { canProceed: true, reason: 'Primeiro sync válido', expectedMin: AutoSyncSchedulerGPT4o.MIN_ABSOLUTE_RECORDS };
+    }
+    
+    // Calcular mínimo esperado baseado no último sync válido
+    const expectedMin = Math.floor(this.lastValidSync.totalRecords * AutoSyncSchedulerGPT4o.MIN_RECORD_RATIO);
+    const absoluteMin = Math.max(expectedMin, AutoSyncSchedulerGPT4o.MIN_ABSOLUTE_RECORDS);
+    
+    // Verificar se N8N retornou registros suficientes
+    if (n8nRecordCount >= absoluteMin) {
+      return { canProceed: true, reason: 'Validação OK', expectedMin: absoluteMin };
+    }
+    
+    // Bloquear remoções - dados do N8N parecem incompletos
+    return { 
+      canProceed: false, 
+      reason: `N8N retornou apenas ${n8nRecordCount} registros (esperado mínimo ${absoluteMin}, último sync tinha ${this.lastValidSync.totalRecords})`,
+      expectedMin: absoluteMin 
+    };
+  }
+
+  private updateLastValidSync(n8nRecordCount: number, patients: InsertPatient[]): void {
+    // Agrupar por enfermaria
+    const recordsByEnfermaria: Record<string, number> = {};
+    for (const p of patients) {
+      const enf = p.dsEnfermaria || 'DESCONHECIDO';
+      recordsByEnfermaria[enf] = (recordsByEnfermaria[enf] || 0) + 1;
+    }
+    
+    this.lastValidSync = {
+      timestamp: new Date(),
+      totalRecords: n8nRecordCount,
+      recordsByEnfermaria
+    };
+    
+    console.log(`[AutoSync] 📊 Sync válido atualizado: ${n8nRecordCount} registros`);
   }
 
   private async saveToDatabase(patients: InsertPatient[]): Promise<{ saved: number; reactivated: number }> {
