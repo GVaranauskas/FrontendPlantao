@@ -150,9 +150,9 @@ export default function AdminMenuPage() {
       const response = await apiRequest("POST", "/api/admin/dedupe-patients");
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setIsDeduping(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Limpeza Concluída",
         description: data.duplicatesRemoved > 0 
@@ -176,9 +176,9 @@ export default function AdminMenuPage() {
       const response = await apiRequest("POST", "/api/admin/cleanup-orphans");
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setIsCleaningOrphans(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Limpeza de Órfãos Concluída",
         description: data.orphansRemoved > 0 

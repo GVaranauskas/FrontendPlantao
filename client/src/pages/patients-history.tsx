@@ -437,14 +437,14 @@ export default function PatientsHistoryPage() {
     onMutate: (historyId) => {
       setReactivatingId(historyId);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({
         title: "Paciente Reativado",
         description: data.message || "Paciente foi reativado e voltou para a passagem de plantão.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/patients-history"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/patients-history/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients-history"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
     },
     onError: (error: Error) => {
       toast({

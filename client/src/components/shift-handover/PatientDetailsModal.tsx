@@ -102,8 +102,8 @@ export function PatientDetailsModal({
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       queryClient.invalidateQueries({ queryKey: ["patient-notes-history", patient?.id] });
       setIsEditingNotes(false);
       toast({ title: "Sucesso", description: "Notas atualizadas com sucesso" });
@@ -132,8 +132,8 @@ export function PatientDetailsModal({
       }
       return response.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    onSuccess: async (data) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       queryClient.invalidateQueries({ queryKey: ["patient-notes-history", patient?.id] });
       queryClient.invalidateQueries({ queryKey: ["patient-note-events", patient?.id] });
       setShowDeleteConfirm(false);

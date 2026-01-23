@@ -58,8 +58,8 @@ export function useAutoSync(props?: UseAutoSyncProps) {
         stats?: { total: number; imported: number; updated: number; errors: number };
       };
 
-      // Invalidate patient cache to refresh UI
-      await queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      // Force refetch patient cache to refresh UI immediately (resolve staleTime: Infinity issue)
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
 
       const imported = data.stats?.imported || 0;
       const updated = data.stats?.updated || 0;

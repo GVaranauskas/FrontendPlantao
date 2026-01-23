@@ -110,8 +110,8 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({ title: "Sucesso", description: "Notas atualizadas com sucesso" });
     },
     onError: (error: Error) => {

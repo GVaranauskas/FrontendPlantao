@@ -11,8 +11,8 @@ export function useSyncPatient() {
       const res = await apiRequest("POST", `/api/sync/patient/${leito}`);
       return res.json() as Promise<Patient>;
     },
-    onSuccess: (patient) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    onSuccess: async (patient) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Sucesso",
         description: `Paciente do leito ${patient.leito} sincronizado da API externa`,
@@ -32,8 +32,8 @@ export function useSyncPatient() {
       const res = await apiRequest("POST", "/api/sync/patients", { leitos });
       return res.json() as Promise<Patient[]>;
     },
-    onSuccess: (patients) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+    onSuccess: async (patients) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Sucesso",
         description: `${patients.length} paciente(s) sincronizado(s) da API externa`,

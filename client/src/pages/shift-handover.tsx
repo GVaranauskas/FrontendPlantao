@@ -78,9 +78,9 @@ export default function ShiftHandoverPage() {
 
   const clinicalAnalysisMutation = useMutation({
     mutationFn: () => patientsService.clinicalAnalysisBatch(),
-    onSuccess: (data: ClinicalBatchResult) => {
+    onSuccess: async (data: ClinicalBatchResult) => {
       setClinicalBatchResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Análise Clínica Concluída",
         description: `${data.summary.vermelho} críticos, ${data.summary.amarelo} alertas, ${data.summary.verde} ok`,
@@ -97,9 +97,9 @@ export default function ShiftHandoverPage() {
 
   const individualAnalysisMutation = useMutation({
     mutationFn: (patientId: string) => patientsService.clinicalAnalysisIndividual(patientId),
-    onSuccess: (data: { insights: ClinicalInsights; analysis: unknown }) => {
+    onSuccess: async (data: { insights: ClinicalInsights; analysis: unknown }) => {
       setIndividualAnalysis(data.insights);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Análise Individual Concluída",
         description: `Nível de alerta: ${data.insights.nivel_alerta}`,
@@ -141,23 +141,25 @@ export default function ShiftHandoverPage() {
       
       return patientsService.syncManualWithAI("22,23", false);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem('lastSyncTime', now.toISOString());
       
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      // Usar refetchQueries para forçar atualização imediata (resolve problema de staleTime: Infinity)
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
       
       toast({
         title: "Sincronização Iniciada",
         description: "Dados sincronizados. Análise de IA em processamento (aguarde ~30s)...",
       });
       
-      pollTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      // Polling para aguardar conclusão da análise de IA em background
+      pollTimerRef.current = setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
         pollTimerRef.current = setTimeout(async () => {
-          queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/patients-history/stats"] });
+          await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+          await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
           setIsSyncing(false);
           pollTimerRef.current = null;
           

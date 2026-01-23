@@ -61,9 +61,9 @@ export function ImportEvolucoes({ autoSync = false, syncInterval = 300000, templ
       const response = (await res.json()) as ImportResponse;
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
     },
   });
 
