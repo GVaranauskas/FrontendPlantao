@@ -16,7 +16,7 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack Query for server state (staleTime: Infinity with refetchQueries for immediate updates), React Hook Form with Zod for form handling.
 - **Services Layer**: Centralized API abstraction using `ApiService` with generic CRUD methods and specific services for patients, users, templates, and nursing units.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
-- **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, patient history viewing for archived patients (alta, transfers, deaths), and usage analytics dashboard for UX/Customer Success analysis.
+- **Key Features**: Login with mandatory first-access password change, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, patient history viewing for archived patients (alta, transfers, deaths), and usage analytics dashboard for UX/Customer Success analysis.
 - **Usage Analytics**: Automatic tracking of user sessions, page views, and actions via `useAnalytics` hook with event batching (max 20 events or 5 seconds), session heartbeats (1 min intervals), and cleanup on unmount/beforeunload.
 
 ### Backend Architecture
@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Bed Conflict Resolution**: Before inserting or reactivating a patient, the system checks if the target bed is occupied by a different patient (different codigoAtendimento). If so, the old patient is automatically archived as "registro_antigo" to prevent UNIQUE constraint violations.
 - **Single Insertion Point**: All patient insertions/updates go through `upsertPatientByCodigoAtendimento()` only. The 3-step sync process is: (1) resolve bed conflicts, (2) clear history records, (3) UPSERT with N8N data. This prevents duplicate key errors during reactivation.
 - **Global Error Handling**: Structured JSON logging for production and human-readable logs for development, with middleware for error catching.
-- **Security**: JWT authentication and Role-Based Access Control (admin, enfermagem, visualizador) applied to all API endpoints. Input validation includes SQL injection detection, UUID, format, and query parameter validation. CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption are implemented.
+- **Security**: JWT authentication with mandatory password change on first login, Role-Based Access Control (admin, enfermagem, visualizador) applied to all API endpoints. Input validation includes SQL injection detection, UUID, format, and query parameter validation. CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption are implemented.
 
 ## External Dependencies
 
