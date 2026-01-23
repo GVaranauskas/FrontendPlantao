@@ -1,10 +1,10 @@
-import { Switch, Route, useLocation } from "wouter";
-import { Suspense, lazy, useEffect } from "react";
+import { Switch, Route } from "wouter";
+import { Suspense, lazy } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, RequireAuth, useAuth } from "./lib/auth-context";
+import { AuthProvider, RequireAuth, FirstAccessGuard } from "./lib/auth-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
@@ -55,32 +55,13 @@ function LazyRoute({ component: Component }: { component: React.ComponentType })
   );
 }
 
-function FirstAccessGuard({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        setLocation("/");
-      } else if (!user?.firstAccess) {
-        setLocation("/modules");
-      }
-    }
-  }, [isLoading, isAuthenticated, user, setLocation]);
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated || !user?.firstAccess) {
-    return <LoadingSpinner />;
-  }
-
+function FirstAccessRoute({ component: Component }: { component: React.ComponentType }) {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <Component />
-    </Suspense>
+    <FirstAccessGuard>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Component />
+      </Suspense>
+    </FirstAccessGuard>
   );
 }
 
@@ -94,7 +75,7 @@ function Router() {
           <LazyRoute component={SetupPage} />
         </Route>
         <Route path="/first-access">
-          <FirstAccessGuard component={FirstAccessPage} />
+          <FirstAccessRoute component={FirstAccessPage} />
         </Route>
         <Route path="/modules">
           <ProtectedRoute component={ModulesPage} />
