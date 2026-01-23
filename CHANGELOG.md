@@ -17,6 +17,27 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.0] - 2026-01-23
+
+### Adicionado
+
+- **Troca de Senha Obrigatória no Primeiro Acesso (v1.5.0)**
+  - Novos usuários são obrigados a trocar a senha temporária no primeiro login
+  - Campo `firstAccess` na tabela de usuários para controlar o estado
+  - Endpoint `POST /api/auth/first-access-password` para troca de senha
+  - Página dedicada `/first-access` com interface isolada
+  - Validação de senha: mínimo 8 caracteres, pelo menos 1 letra e 1 número
+  - Middleware `requireFirstAccessComplete` bloqueia acesso a rotas protegidas
+  - Invalidação e refresh automático do JWT após troca de senha
+  - Redirecionamento automático para `/first-access` quando `firstAccess=true`
+
+### Segurança
+
+- **Proteção de Rotas para Primeiro Acesso**
+  - Usuários com `firstAccess=true` só podem acessar: `/api/auth/first-access-password`, `/api/auth/me`, `/api/auth/logout`, `/api/auth/refresh`
+  - Middleware aplicado a 30+ rotas no backend
+  - `FirstAccessGuard` no frontend redireciona automaticamente para troca de senha
+
 ## [1.4.1] - 2026-01-23
 
 ### Corrigido

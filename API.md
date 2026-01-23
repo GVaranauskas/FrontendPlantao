@@ -226,9 +226,52 @@ Retorna dados do usuário autenticado.
     "email": "admin@11care.com.br",
     "role": "admin",
     "isActive": true,
+    "firstAccess": false,
     "createdAt": "2026-01-15T10:00:00Z"
   }
 }
+```
+
+---
+
+### POST /api/auth/first-access-password
+
+Troca a senha temporária no primeiro acesso. Obrigatório para usuários com `firstAccess: true`.
+
+**Auth**: Bearer token (usuário com firstAccess: true)
+
+**Body**:
+```json
+{
+  "currentPassword": "senhaTemporaria123",
+  "newPassword": "NovaSenha456"
+}
+```
+
+**Validação de Senha**:
+- Mínimo 8 caracteres
+- Pelo menos 1 letra (a-z ou A-Z)
+- Pelo menos 1 número (0-9)
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "message": "Senha alterada com sucesso",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Errors**:
+- `400` - Senha atual e nova senha são obrigatórias
+- `400` - A nova senha deve ter pelo menos 8 caracteres
+- `400` - A nova senha deve conter pelo menos uma letra e um número
+- `401` - Senha atual incorreta
+- `403` - Usuário não está em primeiro acesso
+
+**Cookies**:
+```
+refreshToken=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
 ```
 
 ---

@@ -472,6 +472,49 @@ npm run db:push
     └────────────────────────────────────┘
 ```
 
+### 1.1. Primeiro Acesso (Troca de Senha Obrigatória)
+
+```
+┌──────┐  Login (senha temporária)  ┌────────┐
+│Client│───────────────────────────→│ Server │
+└──────┘                             └────┬───┘
+    │                                     │
+    │     JWT com firstAccess=true        │
+    ├←────────────────────────────────────┘
+    │
+    ↓
+┌──────────────────────────────────────────────┐
+│ Frontend detecta firstAccess=true             │
+│ → Redireciona para /first-access             │
+│ → Bloqueia acesso a outras rotas             │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ↓
+┌──────┐  POST /api/auth/first-access-password  ┌────────┐
+│Client│───────────────────────────────────────→│ Server │
+└──────┘  { currentPassword, newPassword }      └────┬───┘
+    ↑                                                 │
+    │     1. Valida senha atual                      │
+    │     2. Valida nova senha (8+ chars, letra+num) │
+    │     3. Hash e salva nova senha                 │
+    │     4. firstAccess = false                     │
+    │     5. Novo JWT + Refresh Token                │
+    │                                                │
+    │     Novo JWT com firstAccess=false             │
+    └←───────────────────────────────────────────────┘
+                       │
+                       ↓
+┌──────────────────────────────────────────────┐
+│ Frontend detecta firstAccess=false            │
+│ → Redireciona para /modules                  │
+│ → Acesso liberado ao sistema                 │
+└──────────────────────────────────────────────┘
+```
+
+**Rotas protegidas durante primeiro acesso**:
+- Apenas `/api/auth/first-access-password`, `/api/auth/me`, `/api/auth/logout`, `/api/auth/refresh` são permitidas
+- Todas as outras 30+ rotas retornam 403 Forbidden
+
 ### 2. Requisição Autenticada
 
 ```

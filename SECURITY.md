@@ -301,6 +301,63 @@ res.cookie('refreshToken', refreshToken, {
    └─→ Limpa cookie
 ```
 
+### Troca de Senha Obrigatória no Primeiro Acesso
+
+Novos usuários são obrigados a trocar a senha temporária antes de acessar o sistema:
+
+```typescript
+// Campo no banco de dados
+firstAccess: boolean // true = precisa trocar senha
+
+// Endpoint dedicado
+POST /api/auth/first-access-password
+Body: { currentPassword, newPassword }
+
+// Validação de senha
+- Mínimo 8 caracteres
+- Pelo menos 1 letra (a-z ou A-Z)
+- Pelo menos 1 número (0-9)
+```
+
+**Fluxo de Primeiro Acesso**:
+```
+1. Admin cria usuário com senha temporária
+   └─→ firstAccess = true
+
+2. Usuário faz login
+   └─→ Recebe JWT com firstAccess = true
+
+3. Frontend redireciona para /first-access
+   └─→ Página isolada para troca de senha
+
+4. Usuário troca senha
+   └─→ POST /api/auth/first-access-password
+   └─→ firstAccess = false
+   └─→ Novo JWT gerado
+
+5. Acesso liberado ao sistema
+   └─→ Redirecionado para /modules
+```
+
+**Rotas Permitidas Durante Primeiro Acesso**:
+- `POST /api/auth/first-access-password` - Troca de senha
+- `GET /api/auth/me` - Dados do usuário
+- `POST /api/auth/logout` - Logout
+- `POST /api/auth/refresh` - Refresh token
+
+**Proteção de Middleware**:
+```typescript
+// server/middleware/auth.ts
+export function requireFirstAccessComplete(req, res, next) {
+  if (req.user?.firstAccess) {
+    return res.status(403).json({
+      error: 'Primeiro acesso: troca de senha obrigatória'
+    });
+  }
+  next();
+}
+```
+
 ### Autorização (RBAC)
 
 **Role-Based Access Control**:
