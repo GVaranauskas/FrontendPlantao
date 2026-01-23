@@ -1494,16 +1494,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - single patient
+  // UNIFIED: Uses the same service as batch sync for consistent results
   app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
-    const { aiService } = await import("./services/ai-service");
+    const { unifiedClinicalAnalysisService } = await import("./services/unified-clinical-analysis.service");
     const { changeDetectionService } = await import("./services/change-detection.service");
-    const { intelligentCache } = await import("./services/intelligent-cache.service");
+    const { forceRefresh = false } = req.body || {};
+    
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Paciente não encontrado");
     }
     
-    // Detect if patient data has changed
+    // Detect if patient data has changed (for response metadata)
     const changeDetection = changeDetectionService.detectChanges(patient.id, {
       diagnostico: patient.diagnostico,
       alergias: patient.alergias,
@@ -1523,46 +1525,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sexo: patient.sexo,
     });
 
-    const cacheKey = `clinical-analysis:${req.params.id}`;
-    let analysis;
-    let insights;
-    let fromCache = false;
-
-    // Try intelligent cache first
-    const cachedInsights = intelligentCache.get(cacheKey, changeDetection.currentHash);
+    // Use unified service (same as batch sync)
+    const result = await unifiedClinicalAnalysisService.analyze(patient, {
+      useCache: true,
+      forceRefresh,
+      caller: 'individual'
+    });
     
-    if (cachedInsights && !changeDetection.hasChanged) {
-      insights = cachedInsights;
-      fromCache = true;
-      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using intelligent cache`);
-    } else if (!changeDetection.hasChanged && patient.clinicalInsights) {
-      // Use database cache if no changes
-      insights = patient.clinicalInsights;
-      logger.info(`[${getTimestamp()}] [AI] Clinical analysis skipped for patient ${req.params.id} - Using database cache (no changes detected)`);
-    } else {
-      // Call AI for new or changed data
-      analysis = await aiService.performClinicalAnalysis(patient);
-      insights = aiService.extractClinicalInsights(analysis);
-      
-      // Store in database
-      await storage.updatePatient(patient.id, {
-        clinicalInsights: insights,
-        clinicalInsightsUpdatedAt: new Date(),
-      });
-      
-      // Store in intelligent cache with criticality based on alert level
-      const criticality = insights.nivel_alerta === "VERMELHO" ? "critical" : 
-                         insights.nivel_alerta === "AMARELO" ? "high" : "medium";
-      intelligentCache.set(cacheKey, insights, {
-        contentHash: changeDetection.currentHash,
-        criticality,
-        dataStability: changeDetection.changePercentage === 0 ? 100 : 50
-      });
-      
-      logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
-    }
+    const { insights, fromCache } = result;
     
-    res.json({ insights, analysis, changeDetection, fromCache });
+    // Store in database
+    await storage.updatePatient(patient.id, {
+      clinicalInsights: insights,
+      clinicalInsightsUpdatedAt: new Date(),
+    });
+    
+    logger.info(`[${getTimestamp()}] [AI] Clinical analysis for patient ${req.params.id} - Alert level: ${insights.nivel_alerta} (${changeDetection.changedFields.length} fields changed)`);
+    
+    res.json({ insights, changeDetection, fromCache });
   }));
 
   // Clinical analysis for shift handover - all patients (batch)

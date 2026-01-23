@@ -1,7 +1,7 @@
 import * as cron from 'node-cron';
 import { n8nIntegrationService } from './n8n-integration-service';
 import { changeDetectionService } from './change-detection.service';
-import { aiServiceGPT4oMini } from './ai-service-gpt4o-mini';
+import { unifiedClinicalAnalysisService } from './unified-clinical-analysis.service';
 import { intelligentCache } from './intelligent-cache.service';
 import { storage } from '../storage';
 import type { InsertPatient, Patient, ArchiveReason } from '@shared/schema';
@@ -340,7 +340,7 @@ export class AutoSyncSchedulerGPT4o {
       }
 
       // 6. CALCULAR ECONOMIA
-      const metricsAI = aiServiceGPT4oMini.getMetrics();
+      const metricsAI = unifiedClinicalAnalysisService.getMetrics();
       const cacheStats = intelligentCache.getStats();
       
       result.savings.tokensSaved = metricsAI.tokensSaved;
@@ -377,7 +377,8 @@ export class AutoSyncSchedulerGPT4o {
   }
 
   private async processAIInBatches(patients: InsertPatient[], result: SyncResult): Promise<void> {
-    const results = await aiServiceGPT4oMini.analyzeBatch(patients, { useCache: true });
+    // UNIFIED: Uses the same service as individual analysis for consistent results
+    const results = await unifiedClinicalAnalysisService.analyzeBatch(patients, { useCache: true });
     result.stats.aiCallsMade = results.length;
     
     // IMPORTANTE: Salvar os insights nos dados dos pacientes
