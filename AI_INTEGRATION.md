@@ -49,6 +49,32 @@ Vs. abordagem naive: R$ 1,50 por análise
 - Usado se GPT-4o-mini falhar
 - Similar custo e performance
 
+### Serviço Unificado (v1.4.1)
+
+A partir da versão 1.4.1, todas as análises clínicas passam pelo **UnifiedClinicalAnalysisService**:
+
+```typescript
+// server/services/unified-clinical-analysis.service.ts
+export class UnifiedClinicalAnalysisService {
+  // Chave de cache primária por codigoAtendimento
+  // Fallback: UUID do paciente, depois leito
+  getCacheKey(patient: PatientData): string {
+    if (patient.codigoAtendimento) {
+      return `unified-clinical:codigo:${patient.codigoAtendimento}`;
+    }
+    if (patient.id) {
+      return `unified-clinical:uuid:${patient.id}`;
+    }
+    return `unified-clinical:leito:${patient.leito}`;
+  }
+}
+```
+
+**Benefícios:**
+- Consistência entre análise individual e batch sync
+- Cache unificado evita resultados divergentes
+- Invalidação cruzada de chaves legadas
+
 ## 🏗️ Arquitetura Multi-Camada
 
 ```

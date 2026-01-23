@@ -17,6 +17,36 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.4.1] - 2026-01-23
+
+### Corrigido
+
+- **Bug de Inconsistência de Análise Clínica**
+  - Análise individual e batch sync agora usam o mesmo serviço unificado
+  - Causa raiz: chaves de cache diferentes entre os fluxos (UUID vs codigoAtendimento vs leito)
+  - Solução: novo `UnifiedClinicalAnalysisService` com chave primária por `codigoAtendimento`
+  - Invalidação cruzada de chaves de cache legadas para evitar dados stale
+
+- **Bug de Sincronização no Frontend (React Query)**
+  - Botão "Sync N8N + IA" agora atualiza dados na primeira chamada
+  - Causa raiz: `staleTime: Infinity` combinado com `invalidateQueries` não forçava refetch
+  - Solução: substituído `invalidateQueries` por `refetchQueries` em todos os pontos críticos
+  - Arquivos corrigidos: shift-handover.tsx, use-sync-patient.ts, admin-menu.tsx, patients-history.tsx, PatientDetailsModal.tsx, ImportEvolucoes.tsx, PatientTable.tsx, use-auto-sync.ts
+
+### Adicionado
+
+- **Serviço Unificado de Análise Clínica**
+  - `server/services/unified-clinical-analysis.service.ts`
+  - Chave de cache: `unified-clinical:codigo:CODIGO_ATENDIMENTO` (fallback UUID, depois leito)
+  - Prompt e modelo consistentes (GPT-4o-mini) para análise individual e batch
+  - Interface `AnalysisResult` retorna `{ insights, fromCache }` para tracking correto
+
+### Alterado
+
+- Endpoint `/api/ai/clinical-analysis/:id` agora usa `UnifiedClinicalAnalysisService`
+- `AutoSyncScheduler.processAIInBatches` agora usa `unifiedClinicalAnalysisService.analyzeBatch`
+- Callbacks de mutations convertidos para async para aguardar refetch completar
+
 ## [1.4.0] - 2026-01-22
 
 ### Adicionado
@@ -333,4 +363,4 @@ Versões anteriores a 1.0.0 foram desenvolvidas internamente e não possuem chan
 
 **Versionamento**: [Semantic Versioning](https://semver.org/lang/pt-BR/)
 
-**Última atualização**: 2026-01-16
+**Última atualização**: 2026-01-23

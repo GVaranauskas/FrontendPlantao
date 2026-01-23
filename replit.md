@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript, Vite, Wouter for routing.
 - **UI/UX**: shadcn/ui (New York style), Radix UI primitives, Tailwind CSS, custom 11Care brand design system with specific color palette, theming, and spacing.
-- **State Management**: TanStack Query for server state, React Hook Form with Zod for form handling.
+- **State Management**: TanStack Query for server state (staleTime: Infinity with refetchQueries for immediate updates), React Hook Form with Zod for form handling.
 - **Services Layer**: Centralized API abstraction using `ApiService` with generic CRUD methods and specific services for patients, users, templates, and nursing units.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
 - **Key Features**: Login, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, patient history viewing for archived patients (alta, transfers, deaths), and usage analytics dashboard for UX/Customer Success analysis.
@@ -44,6 +44,6 @@ Preferred communication style: Simple, everyday language.
 - **Security**: jsonwebtoken, bcryptjs, csurf, cookie-parser.
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://dev-n8n.7care.com.br/webhook/unidades-internacao`).
-- **AI Integration**: Claude Haiku 3.5 (primary) with OpenAI GPT-4o-mini (fallback) for on-demand AI analysis, and GPT-4o-mini for automatic synchronization.
+- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis across individual and batch flows. Claude Haiku 3.5 as fallback. Cache key strategy uses codigoAtendimento as primary identifier.
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
 - **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.
