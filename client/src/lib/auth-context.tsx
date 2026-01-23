@@ -106,6 +106,9 @@ export function RequireAuth({ children, allowedRoles }: { children: React.ReactN
       if (!isAuthenticated) {
         console.log("RequireAuth - Redirecting to login");
         setLocation("/");
+      } else if (user?.firstAccess) {
+        console.log("RequireAuth - First access, redirecting to password change");
+        setLocation("/first-access");
       } else if (allowedRoles && user && !allowedRoles.includes(user.role)) {
         console.log("RequireAuth - Access denied for role:", user.role);
         setLocation("/modules");

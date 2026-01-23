@@ -5,7 +5,7 @@ import { costMonitorService } from '../services/cost-monitor.service';
 import { intelligentCache } from '../services/intelligent-cache.service';
 import { validateUnitIdsBody } from '../middleware/input-validation';
 import { requireRole } from '../middleware/rbac';
-import { authMiddleware } from '../middleware/auth';
+import { authWithFirstAccessCheck } from '../middleware/auth';
 
 const router = Router();
 
@@ -33,7 +33,7 @@ router.post('/manual', requireRole('admin', 'enfermagem'), validateUnitIdsBody, 
 });
 
 // GET /api/sync-gpt4o/status - PROTECTED
-router.get('/status', authMiddleware, (req, res) => {
+router.get('/status', ...authWithFirstAccessCheck, (req, res) => {
   res.json({
     scheduler: autoSyncSchedulerGPT4o.getStatus(),
     stats: autoSyncSchedulerGPT4o.getAggregatedStats()
@@ -41,12 +41,12 @@ router.get('/status', authMiddleware, (req, res) => {
 });
 
 // GET /api/sync-gpt4o/detailed-status (for UI indicator) - PROTECTED
-router.get('/detailed-status', authMiddleware, (req, res) => {
+router.get('/detailed-status', ...authWithFirstAccessCheck, (req, res) => {
   res.json(autoSyncSchedulerGPT4o.getDetailedStatus());
 });
 
 // GET /api/sync-gpt4o/history - PROTECTED
-router.get('/history', authMiddleware, (req, res) => {
+router.get('/history', ...authWithFirstAccessCheck, (req, res) => {
   const limit = parseInt(req.query.limit as string) || 10;
   res.json({ history: autoSyncSchedulerGPT4o.getHistory(limit) });
 });
@@ -57,12 +57,12 @@ router.get('/costs', requireRole('admin'), (req, res) => {
 });
 
 // GET /api/sync-gpt4o/ai-metrics - PROTECTED
-router.get('/ai-metrics', authMiddleware, (req, res) => {
+router.get('/ai-metrics', ...authWithFirstAccessCheck, (req, res) => {
   res.json(aiServiceGPT4oMini.getMetrics());
 });
 
 // GET /api/sync-gpt4o/cache-stats - PROTECTED
-router.get('/cache-stats', authMiddleware, (req, res) => {
+router.get('/cache-stats', ...authWithFirstAccessCheck, (req, res) => {
   res.json({
     cache: intelligentCache.getStats()
   });

@@ -1,15 +1,16 @@
-import { Switch, Route } from "wouter";
-import { Suspense, lazy } from "react";
+import { Switch, Route, useLocation } from "wouter";
+import { Suspense, lazy, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, RequireAuth } from "./lib/auth-context";
+import { AuthProvider, RequireAuth, useAuth } from "./lib/auth-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 const LoginPage = lazy(() => import("@/pages/login"));
 const SetupPage = lazy(() => import("@/pages/setup"));
+const FirstAccessPage = lazy(() => import("@/pages/first-access"));
 const ModulesPage = lazy(() => import("@/pages/modules"));
 const ShiftHandoverPage = lazy(() => import("@/pages/shift-handover"));
 const ImportPage = lazy(() => import("@/pages/import"));
@@ -54,6 +55,35 @@ function LazyRoute({ component: Component }: { component: React.ComponentType })
   );
 }
 
+function FirstAccessGuard({ component: Component }: { component: React.ComponentType }) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        setLocation("/");
+      } else if (!user?.firstAccess) {
+        setLocation("/modules");
+      }
+    }
+  }, [isLoading, isAuthenticated, user, setLocation]);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!isAuthenticated || !user?.firstAccess) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Component />
+    </Suspense>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -62,6 +92,9 @@ function Router() {
         </Route>
         <Route path="/setup">
           <LazyRoute component={SetupPage} />
+        </Route>
+        <Route path="/first-access">
+          <FirstAccessGuard component={FirstAccessPage} />
         </Route>
         <Route path="/modules">
           <ProtectedRoute component={ModulesPage} />

@@ -12,7 +12,7 @@ import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
 import { requireRole } from "./middleware/rbac";
-import { authMiddleware } from "./middleware/auth";
+import { authMiddleware, authWithFirstAccessCheck } from "./middleware/auth";
 import { validateLeitoParam, validateEnfermariaParam, validateUnitIdsBody, validateUUIDParam, validateQueryNumber } from "./middleware/input-validation";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
@@ -23,7 +23,7 @@ import { patientNotesService } from "./services/patient-notes.service";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/patients", authMiddleware, asyncHandler(async (req, res, next) => {
+  app.get("/api/patients", authWithFirstAccessCheck, asyncHandler(async (req, res, next) => {
     const patients = await storage.getAllPatients();
     const acceptToon = isToonFormat(req.get("accept"));
     if (acceptToon) {
@@ -34,7 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.get("/api/patients/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res, next) => {
+  app.get("/api/patients/:id", authWithFirstAccessCheck, validateUUIDParam('id'), asyncHandler(async (req, res, next) => {
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
       throw new AppError(404, "Patient not found", { patientId: req.params.id });
@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.post("/api/patients", authMiddleware, asyncHandler(async (req, res, next) => {
+  app.post("/api/patients", authWithFirstAccessCheck, asyncHandler(async (req, res, next) => {
     try {
       const validatedData = insertPatientSchema.parse(req.body);
       const patient = await storage.createPatient(validatedData);
@@ -67,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.patch("/api/patients/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.patch("/api/patients/:id", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const validatedData = insertPatientSchema.partial().parse(req.body);
       const patient = await storage.updatePatient(req.params.id, validatedData);
@@ -102,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Patient notes endpoints
-  app.patch("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.patch("/api/patients/:id/notes", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { notasPaciente } = req.body;
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients/:id/notes-history", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients/:id/notes-history", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const history = await patientNotesService.getPatientNotesHistory(id);
@@ -162,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients/:id/notes", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients/:id/notes", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const notes = await patientNotesService.getPatientNotes(id);
@@ -233,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients/:id/note-events", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients/:id/note-events", authWithFirstAccessCheck, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const events = await patientNotesService.getNoteEvents(id);
@@ -255,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Patients History Endpoints (Histórico de altas/transferências)
   // ==========================================
 
-  app.get("/api/patients-history", authMiddleware, async (req, res) => {
+  app.get("/api/patients-history", authWithFirstAccessCheck, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients-history/stats", authMiddleware, async (req, res) => {
+  app.get("/api/patients-history/stats", authWithFirstAccessCheck, async (req, res) => {
     try {
       const stats = await storage.getPatientsHistoryStats();
       res.status(200).json({
@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients-history/:id", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients-history/:id", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const record = await storage.getPatientsHistoryById(id);
@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/patients-history/:id/reactivate", authMiddleware, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.post("/api/patients-history/:id/reactivate", authWithFirstAccessCheck, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const historyRecord = await storage.getPatientsHistoryById(id);
@@ -349,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User Notifications Endpoints
   // ==========================================
 
-  app.get("/api/notifications", authMiddleware, async (req, res) => {
+  app.get("/api/notifications", authWithFirstAccessCheck, async (req, res) => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -374,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/notifications/:id/read", authMiddleware, validateUUIDParam('id'), async (req, res) => {
+  app.patch("/api/notifications/:id/read", authWithFirstAccessCheck, validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user?.userId;
@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notifications/mark-all-read", authMiddleware, async (req, res) => {
+  app.post("/api/notifications/mark-all-read", authWithFirstAccessCheck, async (req, res) => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+  app.get("/api/notifications/unread-count", authWithFirstAccessCheck, async (req, res) => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -496,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
-  app.get("/api/alerts", authMiddleware, async (req, res) => {
+  app.get("/api/alerts", authWithFirstAccessCheck, async (req, res) => {
     try {
       const alerts = await storage.getAllAlerts();
       const acceptToon = isToonFormat(req.get("accept"));
@@ -511,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/alerts", authMiddleware, async (req, res) => {
+  app.post("/api/alerts", authWithFirstAccessCheck, async (req, res) => {
     try {
       const validatedData = insertAlertSchema.parse(req.body);
       const alert = await storage.createAlert(validatedData);
@@ -540,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync endpoints for external API integration - PROTECTED with validation
-  app.post("/api/sync/patient/:leito", authMiddleware, validateLeitoParam, async (req, res) => {
+  app.post("/api/sync/patient/:leito", authWithFirstAccessCheck, validateLeitoParam, async (req, res) => {
     try {
       const leito = req.params.leito;
       const patient = await syncPatientFromExternalAPI(leito);
@@ -561,7 +561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sync/patients", authMiddleware, async (req, res) => {
+  app.post("/api/sync/patients", authWithFirstAccessCheck, async (req, res) => {
     try {
       const { leitos } = req.body;
       
@@ -594,7 +594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const PRODUCTION_UNIT_IDS = "22,23";
   
   // N8N Evolucoes sync endpoint - PRODUÇÃO: apenas unidades 22,23
-  app.post("/api/sync/evolucoes", authMiddleware, validateUnitIdsBody, async (req, res) => {
+  app.post("/api/sync/evolucoes", authWithFirstAccessCheck, validateUnitIdsBody, async (req, res) => {
     try {
       logger.info(`[${getTimestamp()}] [Sync] Request received, body: ${JSON.stringify(req.body)}`);
       
@@ -620,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // N8N Evolucoes sync endpoint - specific unit (legacy)
-  app.post("/api/sync/evolucoes/:enfermaria", authMiddleware, validateEnfermariaParam, async (req, res) => {
+  app.post("/api/sync/evolucoes/:enfermaria", authWithFirstAccessCheck, validateEnfermariaParam, async (req, res) => {
     try {
       const enfermaria = req.params.enfermaria;
       
@@ -643,7 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import endpoints - PROTECTED with authentication
-  app.post("/api/import/evolucoes", authMiddleware, async (req, res) => {
+  app.post("/api/import/evolucoes", authWithFirstAccessCheck, async (req, res) => {
     try {
       const { enfermaria, templateId } = req.body;
       
@@ -805,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // List enfermarias endpoint - PROTECTED
-  app.get("/api/enfermarias", authMiddleware, async (req, res) => {
+  app.get("/api/enfermarias", authWithFirstAccessCheck, async (req, res) => {
     try {
       // Fetch enfermarias from external API
       const enfermarias = await unidadesInternacaoService.fetchUnidades();
@@ -824,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import status endpoint - test N8N connectivity - PROTECTED
-  app.get("/api/import/status", authMiddleware, async (req, res) => {
+  app.get("/api/import/status", authWithFirstAccessCheck, async (req, res) => {
     try {
       const startTime = Date.now();
       
@@ -872,7 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import history endpoint - PROTECTED
-  app.get("/api/import/history", authMiddleware, async (req, res) => {
+  app.get("/api/import/history", authWithFirstAccessCheck, async (req, res) => {
     try {
       const history = await storage.getAllImportHistory();
       
@@ -889,7 +889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import stats endpoint - estatísticas consolidadas - PROTECTED
-  app.get("/api/import/stats", authMiddleware, async (req, res) => {
+  app.get("/api/import/stats", authWithFirstAccessCheck, async (req, res) => {
     try {
       const stats = await storage.getImportStats();
       res.json(stats);
@@ -1235,12 +1235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Template Management Routes - PROTECTED
-  app.get("/api/templates", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/templates", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const templates = await storage.getAllTemplates();
     res.json(templates);
   }));
 
-  app.get("/api/templates/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.get("/api/templates/:id", authWithFirstAccessCheck, validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const template = await storage.getTemplate(req.params.id);
     if (!template) {
       throw new AppError(404, "Template not found", { templateId: req.params.id });
@@ -1290,19 +1290,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =====================================================
 
   // List all nursing units (admin) - PROTECTED
-  app.get("/api/nursing-units", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/nursing-units", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const units = await storage.getAllNursingUnits();
     res.json(units);
   }));
 
   // List only active nursing units (for dropdowns) - PROTECTED
-  app.get("/api/nursing-units/active", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/nursing-units/active", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const units = await storage.getActiveNursingUnits();
     res.json(units);
   }));
 
   // Get single nursing unit by ID - PROTECTED
-  app.get("/api/nursing-units/:id", authMiddleware, validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.get("/api/nursing-units/:id", authWithFirstAccessCheck, validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const unit = await storage.getNursingUnit(req.params.id);
     if (!unit) {
       throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
@@ -1391,19 +1391,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Get pending changes count (for badge) - PROTECTED
-  app.get("/api/nursing-unit-changes/count", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/nursing-unit-changes/count", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const count = await storage.getPendingChangesCount();
     res.json({ count });
   }));
 
   // List all pending changes - PROTECTED
-  app.get("/api/nursing-unit-changes/pending", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/nursing-unit-changes/pending", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const changes = await storage.getPendingNursingUnitChanges();
     res.json(changes);
   }));
 
   // List all changes (history) - PROTECTED
-  app.get("/api/nursing-unit-changes", authMiddleware, asyncHandler(async (req, res) => {
+  app.get("/api/nursing-unit-changes", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
     const changes = await storage.getAllNursingUnitChanges();
     res.json(changes);
   }));

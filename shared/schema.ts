@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull().default("enfermagem"),
   isActive: boolean("is_active").notNull().default(true),
+  firstAccess: boolean("first_access").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastLogin: timestamp("last_login"),
 });

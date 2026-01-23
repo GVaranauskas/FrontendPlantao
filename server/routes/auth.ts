@@ -3,9 +3,22 @@ import { storage } from '../storage';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../security/jwt';
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from '../middleware/cookies';
 import { asyncHandler, AppError } from '../middleware/error-handler';
+import { authMiddleware } from '../middleware/auth';
 import bcryptjs from 'bcryptjs';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
+
+// Schema para validação de senha no primeiro acesso
+const firstAccessPasswordSchema = z.object({
+  newPassword: z.string()
+    .min(8, 'Senha deve ter no mínimo 8 caracteres')
+    .regex(/[A-Za-z]/, 'Senha deve conter pelo menos uma letra')
+    .regex(/[0-9]/, 'Senha deve conter pelo menos um número'),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: 'As senhas não conferem',
+  path: ['confirmPassword'],
+});
 
 export function registerAuthRoutes(app: Express) {
   // Initial setup endpoint - creates admin user if none exists
@@ -105,8 +118,71 @@ export function registerAuthRoutes(app: Express) {
         username: user.username,
         name: user.name,
         role: user.role,
+        firstAccess: user.firstAccess,
       },
       accessToken,
+    });
+  }));
+
+  // First access password change endpoint
+  app.post('/api/auth/first-access-password', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new AppError(401, 'Not authenticated');
+    }
+
+    const user = await storage.getUser(req.user.userId);
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    if (!user.firstAccess) {
+      throw new AppError(400, 'User has already changed their password');
+    }
+
+    // Validate password
+    const validation = firstAccessPasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+      throw new AppError(400, validation.error.errors[0].message);
+    }
+
+    const { newPassword } = validation.data;
+
+    // Hash new password
+    const hashedPassword = await bcryptjs.hash(newPassword, 10);
+
+    // Update user with new password and set firstAccess to false
+    await storage.updateUser(user.id, {
+      password: hashedPassword,
+      firstAccess: false,
+    });
+
+    // Clear old cookies and generate new tokens
+    clearAuthCookies(res);
+
+    const updatedUser = await storage.getUser(user.id);
+    if (!updatedUser) {
+      throw new AppError(500, 'Failed to refresh user data');
+    }
+
+    const newAccessToken = generateAccessToken(updatedUser);
+    const newRefreshToken = generateRefreshToken(updatedUser);
+
+    setAccessTokenCookie(res, newAccessToken);
+    setRefreshTokenCookie(res, newRefreshToken);
+
+    logger.info(`User ${user.username} completed first access password change`);
+
+    res.json({
+      success: true,
+      message: 'Senha alterada com sucesso',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        firstAccess: updatedUser.firstAccess,
+      },
+      accessToken: newAccessToken,
     });
   }));
 
@@ -156,6 +232,7 @@ export function registerAuthRoutes(app: Express) {
       username: user.username,
       name: user.name,
       role: user.role,
+      firstAccess: user.firstAccess,
     });
   }));
 }

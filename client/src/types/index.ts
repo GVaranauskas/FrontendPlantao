@@ -10,6 +10,7 @@ export interface User {
   name: string;
   role: string;
   isActive?: boolean;
+  firstAccess?: boolean;
   createdAt?: string;
   lastLogin?: string | null;
 }
