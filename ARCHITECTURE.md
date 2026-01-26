@@ -642,10 +642,10 @@ Durante a sincronização com N8N, o sistema verifica automaticamente se pacient
 │  └─ Se leito ocupado por código diferente            │
 │     → Arquiva paciente antigo como "registro_antigo" │
 │                                                      │
-│  PASSO 2 - Limpar histórico (reativação):            │
+│  PASSO 2 - Marcar reativação (histórico preservado): │
 │  └─ Busca por codigoAtendimento ou leito (fallback)  │
-│  └─ Se encontrar → APENAS REMOVE do histórico        │
-│     (NÃO reinsere - deixa para o PASSO 3)            │
+│  └─ Se encontrar → MARCA como reativado              │
+│     (histórico NUNCA é deletado - log permanente)    │
 │                                                      │
 │  PASSO 3 - UPSERT (único ponto de inserção):         │
 │  └─ Insere/atualiza com dados frescos do N8N         │
@@ -654,7 +654,7 @@ Durante a sincronização com N8N, o sistema verifica automaticamente se pacient
 
 **Regra Core**: Se um paciente aparece nos dados do N8N, ele **DEVE** estar ativo no sistema.
 
-**Ponto Único de Inserção**: Somente `upsertPatientByCodigoAtendimento()` insere/atualiza pacientes. A reativação apenas limpa o histórico - os dados do N8N são sempre usados na inserção final.
+**Ponto Único de Inserção**: Somente `upsertPatientByCodigoAtendimento()` insere/atualiza pacientes. O histórico **NUNCA é deletado** - serve como log permanente de todas as altas e transferências. Os dados do N8N são sempre usados na inserção final.
 
 ### Resolução de Conflito de Leito
 
