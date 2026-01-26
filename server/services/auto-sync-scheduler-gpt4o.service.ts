@@ -546,14 +546,13 @@ export class AutoSyncSchedulerGPT4o {
         }
         
         if (archivedPatient && !reactivatedHistoryIds.has(archivedPatient.id)) {
-          // Paciente estava arquivado mas apareceu no N8N - remover do histórico
-          // NÃO usamos reactivatePatient() aqui porque ele faz insert internamente
-          // O PASSO 3 (upsert) é quem vai inserir o paciente com os dados atualizados do N8N
-          console.log(`[AutoSync] 🔄 REATIVAÇÃO: Paciente ${patient.leito} (${patient.nome}) encontrado no N8N mas estava arquivado - removendo do histórico...`);
-          await storage.deletePatientHistory(archivedPatient.id);
+          // Paciente estava arquivado mas apareceu no N8N - MANTER histórico intacto
+          // O histórico NUNCA deve ser deletado - é um log permanente de altas/transferências
+          // O PASSO 3 (upsert) vai inserir/atualizar o paciente com os dados do N8N
+          console.log(`[AutoSync] 🔄 REATIVAÇÃO: Paciente ${patient.leito} (${patient.nome}) encontrado no N8N mas estava arquivado - histórico preservado`);
           reactivatedHistoryIds.add(archivedPatient.id);
           reactivatedCount++;
-          console.log(`[AutoSync] ✅ Histórico do paciente ${patient.nome} removido - será inserido com dados do N8N`);
+          console.log(`[AutoSync] ✅ Paciente ${patient.nome} será reativado - histórico de alta mantido`);
         }
         
         // PASSO 3: Fazer o upsert com os dados atualizados do N8N

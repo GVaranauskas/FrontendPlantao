@@ -17,6 +17,12 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.1] - 2026-01-26
+
+### Corrigido
+
+- **Histórico de Pacientes Permanente**: Removida deleção automática de registros de histórico durante reativação de pacientes. O histórico agora é um log permanente de todas as altas e transferências, nunca sendo apagado mesmo quando o paciente é readmitido ou reaparece no sync N8N.
+
 ## [1.5.0] - 2026-01-23
 
 ### Adicionado

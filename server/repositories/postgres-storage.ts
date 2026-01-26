@@ -590,7 +590,8 @@ export class PostgresStorage implements IStorage {
 
     const createdPatient = await this.upsertPatientByCodigoAtendimento(patientData);
 
-    await this.deletePatientHistory(historyId);
+    // Histórico NUNCA é deletado - é um log permanente de altas/transferências
+    // O registro de histórico permanece intacto para auditoria
 
     return createdPatient;
   }

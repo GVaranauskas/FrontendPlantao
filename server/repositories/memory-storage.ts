@@ -561,7 +561,8 @@ export class MemStorage implements IStorage {
     };
 
     const createdPatient = await this.upsertPatientByCodigoAtendimento(patientData);
-    this.patientsHistory.delete(historyId);
+    // Histórico NUNCA é deletado - é um log permanente de altas/transferências
+    // O registro de histórico permanece intacto para auditoria
     return createdPatient;
   }
 
