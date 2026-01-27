@@ -17,6 +17,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.3] - 2026-01-27
+
+### Adicionado
+
+- **Filtro Interativo de Pacientes Pendentes**: Card de "Pendentes" na tela de passagem de plantão agora é clicável, filtrando a tabela para mostrar apenas pacientes com status pendente. Segue o mesmo padrão visual e funcional do filtro de pacientes críticos.
+  - Indicador visual com ring e sombra quando filtro está ativo
+  - Ícone de filtro aparece no card quando ativado
+  - Botão de limpar filtro na barra de busca
+  - Card desabilitado quando não há pacientes pendentes
+
 ## [1.5.2] - 2026-01-27
 
 ### Segurança
