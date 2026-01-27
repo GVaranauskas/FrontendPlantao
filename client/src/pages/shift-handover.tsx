@@ -134,13 +134,16 @@ export default function ShiftHandoverPage() {
   const manualSyncMutation = useMutation({
     mutationFn: async () => {
       setIsSyncing(true);
-      
+
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
         pollTimerRef.current = null;
       }
-      
-      return patientsService.syncManualWithAI("22,23", false);
+
+      // FIX: Usar forceUpdate = true para sempre buscar dados frescos do N8N
+      // Isso resolve o problema do duplo clique, garantindo que cache e change detection
+      // sejam ignorados na sincronização manual
+      return patientsService.syncManualWithAI("22,23", true);
     },
     onSuccess: async () => {
       const now = new Date();
