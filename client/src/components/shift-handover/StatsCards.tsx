@@ -6,9 +6,11 @@ interface StatsCardsProps {
   stats: PatientStats;
   filterCritical: boolean;
   onFilterCriticalToggle: () => void;
+  filterPending: boolean;
+  onFilterPendingToggle: () => void;
 }
 
-export function StatsCards({ stats, filterCritical, onFilterCriticalToggle }: StatsCardsProps) {
+export function StatsCards({ stats, filterCritical, onFilterCriticalToggle, filterPending, onFilterPendingToggle }: StatsCardsProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
       <Card className="p-4 text-center border-t-4 border-t-chart-2 bg-gradient-to-br from-card to-chart-2/5">
@@ -17,11 +19,22 @@ export function StatsCards({ stats, filterCritical, onFilterCriticalToggle }: St
         </div>
         <div className="text-sm font-semibold text-muted-foreground">Completos</div>
       </Card>
-      <Card className="p-4 text-center border-t-4 border-t-chart-3 bg-gradient-to-br from-card to-chart-3/5">
+      <Card 
+        className={`p-4 text-center border-t-4 border-t-chart-3 bg-gradient-to-br from-card to-chart-3/5 cursor-pointer transition-all duration-200 ${
+          filterPending 
+            ? "ring-2 ring-chart-3 ring-offset-2 ring-offset-background shadow-lg scale-[1.02]" 
+            : "hover:shadow-md hover:scale-[1.01]"
+        } ${stats.pending === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+        onClick={() => stats.pending > 0 && onFilterPendingToggle()}
+        data-testid="card-filter-pending"
+      >
         <div className="text-3xl font-bold text-chart-3 mb-1" data-testid="stat-pending">
           {stats.pending}
         </div>
-        <div className="text-sm font-semibold text-muted-foreground">Pendentes</div>
+        <div className="text-sm font-semibold text-muted-foreground flex items-center justify-center gap-1">
+          {filterPending && <Filter className="w-3 h-3" />}
+          Pendentes
+        </div>
       </Card>
       <Card className={`p-4 text-center border-t-4 border-t-chart-4 bg-gradient-to-br from-card to-chart-4/5 ${stats.alert === 0 ? "opacity-50" : ""}`}>
         <div className="text-3xl font-bold text-chart-4 mb-1" data-testid="stat-alert">

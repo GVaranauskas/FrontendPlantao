@@ -55,6 +55,7 @@ export default function ShiftHandoverPage() {
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterCritical, setFilterCritical] = useState(false);
+  const [filterPending, setFilterPending] = useState(false);
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -231,13 +232,14 @@ export default function ShiftHandoverPage() {
       const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.leito.includes(searchTerm);
       const matchesCriticalFilter = !filterCritical || isAICritical(p);
-      return matchesSearch && matchesCriticalFilter;
+      const matchesPendingFilter = !filterPending || p.status === "pending";
+      return matchesSearch && matchesCriticalFilter && matchesPendingFilter;
     }).sort((a, b) => {
       const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
       const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
       return leitoA - leitoB;
     });
-  }, [patients, searchTerm, filterCritical, isAICritical]);
+  }, [patients, searchTerm, filterCritical, filterPending, isAICritical]);
 
   const stats: PatientStats = useMemo(() => ({
     complete: patients?.filter(p => p.status === "complete").length || 0,
@@ -936,6 +938,8 @@ export default function ShiftHandoverPage() {
           stats={stats}
           filterCritical={filterCritical}
           onFilterCriticalToggle={() => setFilterCritical(!filterCritical)}
+          filterPending={filterPending}
+          onFilterPendingToggle={() => setFilterPending(!filterPending)}
         />
 
         <SearchFilterBar
@@ -943,7 +947,10 @@ export default function ShiftHandoverPage() {
           onSearchChange={setSearchTerm}
           filterCritical={filterCritical}
           criticalCount={stats.critical}
-          onClearFilter={() => setFilterCritical(false)}
+          onClearCriticalFilter={() => setFilterCritical(false)}
+          filterPending={filterPending}
+          pendingCount={stats.pending}
+          onClearPendingFilter={() => setFilterPending(false)}
         />
 
         {isLoading ? (
