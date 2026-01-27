@@ -833,6 +833,28 @@ const rolePermissions = {
 };
 ```
 
+### Middleware de Proteção (v1.5.2)
+
+O sistema usa middleware combinado para garantir que todas as rotas protegidas validem:
+1. **Autenticação**: JWT válido
+2. **First-Access**: Troca de senha obrigatória completada
+3. **RBAC**: Papel do usuário autorizado
+
+```typescript
+// requireRoleWithAuth combina os 3 middlewares em um só
+export const requireRoleWithAuth = (...allowedRoles: UserRole[]) => [
+  authMiddleware,           // Valida JWT
+  requireFirstAccessComplete, // Bloqueia firstAccess=true
+  requireRole(...allowedRoles) // Verifica papel
+];
+
+// Uso em rotas
+router.get('/admin-only', ...requireRoleWithAuth('admin'), handler);
+router.post('/sync', ...requireRoleWithAuth('admin', 'enfermagem'), handler);
+```
+
+**Rotas protegidas**: 45+ endpoints usam `requireRoleWithAuth` para prevenir bypass de first-access.
+
 ### Headers de Segurança (Helmet)
 
 - Content-Security-Policy

@@ -405,11 +405,26 @@ export function requireRole(...allowedRoles: UserRole[]) {
     }
   };
 }
-
-// Uso
-router.delete('/patients/:id', requireRole('admin'), deletePatient);
-router.post('/notes', requireRole('admin', 'enfermagem'), createNote);
 ```
+
+#### Middleware Combinado (v1.5.2)
+
+Para prevenir bypass de first-access, todas as rotas protegidas usam `requireRoleWithAuth`:
+
+```typescript
+// Combina autenticação + verificação first-access + RBAC
+export const requireRoleWithAuth = (...allowedRoles: UserRole[]) => [
+  authMiddleware,           // Valida JWT
+  requireFirstAccessComplete, // Bloqueia firstAccess=true
+  requireRole(...allowedRoles) // Verifica papel do usuário
+];
+
+// Uso em rotas - spread operator para aplicar todos os middlewares
+router.delete('/patients/:id', ...requireRoleWithAuth('admin'), deletePatient);
+router.post('/notes', ...requireRoleWithAuth('admin', 'enfermagem'), createNote);
+```
+
+**Importante**: 45+ endpoints usam `requireRoleWithAuth` para garantir que usuários com `firstAccess=true` não acessem rotas privilegiadas antes de completar a troca de senha obrigatória.
 
 ### Senha Forte
 

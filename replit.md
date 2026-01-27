@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Bed Conflict Resolution**: Before inserting or reactivating a patient, the system checks if the target bed is occupied by a different patient (different codigoAtendimento). If so, the old patient is automatically archived as "registro_antigo" to prevent UNIQUE constraint violations.
 - **Single Insertion Point**: All patient insertions/updates go through `upsertPatientByCodigoAtendimento()` only. The 3-step sync process is: (1) resolve bed conflicts, (2) mark reactivated patients (history preserved), (3) UPSERT with N8N data. This prevents duplicate key errors during reactivation.
 - **Global Error Handling**: Structured JSON logging for production and human-readable logs for development, with middleware for error catching.
-- **Security**: JWT authentication with mandatory password change on first login, Role-Based Access Control (admin, enfermagem, visualizador) applied to all API endpoints. Input validation includes SQL injection detection, UUID, format, and query parameter validation. CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption are implemented.
+- **Security**: JWT authentication with mandatory password change on first login, Role-Based Access Control (admin, enfermagem, visualizador) applied to all API endpoints via `requireRoleWithAuth()` middleware (v1.5.2) which combines auth + firstAccess check + RBAC to prevent first-access bypass. Input validation includes SQL injection detection, UUID, format, and query parameter validation. CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption are implemented.
 
 ## External Dependencies
 
