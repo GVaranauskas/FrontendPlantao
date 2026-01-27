@@ -11,7 +11,7 @@ import { unidadesInternacaoService } from "./services/unidades-internacao.servic
 import { nursingUnitsSyncService } from "./services/nursing-units-sync.service";
 import { logger } from "./lib/logger";
 import { asyncHandler, AppError } from "./middleware/error-handler";
-import { requireRole } from "./middleware/rbac";
+import { requireRole, requireRoleWithAuth } from "./middleware/rbac";
 import { authMiddleware, authWithFirstAccessCheck } from "./middleware/auth";
 import { validateLeitoParam, validateEnfermariaParam, validateUnitIdsBody, validateUUIDParam, validateQueryNumber } from "./middleware/input-validation";
 import { registerAuthRoutes } from "./routes/auth";
@@ -89,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/patients/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.delete("/api/patients/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const success = await storage.deletePatient(req.params.id);
       if (!success) {
@@ -179,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/patients/:id/notes", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.delete("/api/patients/:id/notes", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body || {};
@@ -233,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/patients/:id/note-events", authWithFirstAccessCheck, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.get("/api/patients/:id/note-events", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const events = await patientNotesService.getNoteEvents(id);
@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/patients-history/:id/reactivate", authWithFirstAccessCheck, requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.post("/api/patients-history/:id/reactivate", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const historyRecord = await storage.getPatientsHistoryById(id);
@@ -445,7 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to get patient stats
-  app.get("/api/admin/patients/stats", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/patients/stats", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const patients = await storage.getAllPatients();
     res.json({
       totalPatients: patients.length,
@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin endpoint to trigger manual sync
-  app.post("/api/admin/patients/sync", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/admin/patients/sync", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const unitIds = '22,23';
     logger.info(`Admin triggered manual sync for units: ${unitIds}`);
     
@@ -470,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin endpoint to clear all patients (for database reset)
-  app.delete("/api/admin/patients/clear-all", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.delete("/api/admin/patients/clear-all", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { confirm } = req.body;
     if (confirm !== 'CONFIRMAR_LIMPEZA') {
       throw new AppError(400, 'Confirmação necessária: envie {"confirm": "CONFIRMAR_LIMPEZA"}');
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/alerts/:id", requireRole('admin'), validateUUIDParam('id'), async (req, res) => {
+  app.delete("/api/alerts/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), async (req, res) => {
     try {
       const success = await storage.deleteAlert(req.params.id);
       if (!success) {
@@ -900,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cleanup old logs endpoint - retenção de 30 dias por padrão - ADMIN ONLY
-  app.delete("/api/import/cleanup", requireRole('admin'), validateQueryNumber('days', 7, 365), async (req, res) => {
+  app.delete("/api/import/cleanup", ...requireRoleWithAuth('admin'), validateQueryNumber('days', 7, 365), async (req, res) => {
     try {
       const rawDays = parseInt(req.query.days as string);
       const daysToKeep = isNaN(rawDays) ? 30 : Math.max(7, Math.min(365, rawDays));
@@ -923,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dedupe Patients Endpoint - ADMIN ONLY
   // Remove duplicate patients keeping the most recent by importedAt
   // ==========================================
-  app.post("/api/admin/dedupe-patients", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/admin/dedupe-patients", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     logger.info(`[${getTimestamp()}] [Dedupe] Starting patient deduplication...`);
     
     const allPatients = await storage.getAllPatients();
@@ -978,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================
   // Remove orphan patients that no longer exist in N8N
   // ==========================================
-  app.post("/api/admin/cleanup-orphans", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/admin/cleanup-orphans", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     logger.info(`[${getTimestamp()}] [Cleanup] Starting orphan patient cleanup...`);
     
     // Fetch current data from N8N to get valid leitos
@@ -1103,7 +1103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================
   
   // Get security audit logs (blocked attacks, SQL injection attempts, etc.)
-  app.get("/api/security/audit", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/security/audit", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { getSecurityLogs } = await import("./middleware/input-validation");
     const logs = getSecurityLogs();
     const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
@@ -1116,7 +1116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // Clear security audit logs - ADMIN ONLY
-  app.delete("/api/security/audit", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.delete("/api/security/audit", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { clearSecurityLogs, getSecurityLogs } = await import("./middleware/input-validation");
     const count = getSecurityLogs().length;
     clearSecurityLogs();
@@ -1197,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================
   
   // Recalculate status for all patients based on filled fields
-  app.post("/api/patients/recalculate-status", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/patients/recalculate-status", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const patients = await storage.getAllPatients();
     let updated = 0;
     let unchanged = 0;
@@ -1248,7 +1248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(template);
   }));
 
-  app.post("/api/templates", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/templates", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitTemplateSchema.parse(req.body);
       const template = await storage.createTemplate(validatedData);
@@ -1261,7 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.patch("/api/templates/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.patch("/api/templates/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitTemplateSchema.partial().parse(req.body);
       const template = await storage.updateTemplate(req.params.id, validatedData);
@@ -1277,7 +1277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.delete("/api/templates/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.delete("/api/templates/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const success = await storage.deleteTemplate(req.params.id);
     if (!success) {
       throw new AppError(404, "Template not found", { templateId: req.params.id });
@@ -1311,7 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Create nursing unit manually (admin)
-  app.post("/api/nursing-units", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/nursing-units", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     try {
       const validatedData = insertNursingUnitManualSchema.parse(req.body);
       
@@ -1349,7 +1349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Update nursing unit (admin) - ID validated
-  app.patch("/api/nursing-units/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.patch("/api/nursing-units/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     try {
       const validatedData = updateNursingUnitSchema.parse(req.body);
       const unit = await storage.updateNursingUnit(req.params.id, validatedData);
@@ -1368,7 +1368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Delete nursing unit (admin) - ID validated
-  app.delete("/api/nursing-units/:id", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.delete("/api/nursing-units/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const success = await storage.deleteNursingUnit(req.params.id);
     if (!success) {
       throw new AppError(404, "Unidade de enfermagem não encontrada", { unitId: req.params.id });
@@ -1382,7 +1382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =====================================================
 
   // Trigger manual sync with external API (admin only)
-  app.post("/api/nursing-units/sync", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/nursing-units/sync", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { autoApprove } = req.body;
     logger.info(`[${getTimestamp()}] [NursingUnitsSync] Manual sync triggered (autoApprove: ${autoApprove || false})`);
     
@@ -1409,7 +1409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Approve a change (admin only) - ID validated
-  app.post("/api/nursing-unit-changes/:id/approve", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/nursing-unit-changes/:id/approve", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -1425,7 +1425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Reject a change (admin only) - ID validated
-  app.post("/api/nursing-unit-changes/:id/reject", requireRole('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/nursing-unit-changes/:id/reject", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -1441,7 +1441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Approve all pending changes (admin only)
-  app.post("/api/nursing-unit-changes/approve-all", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.post("/api/nursing-unit-changes/approve-all", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { reviewerId } = req.body;
     if (!reviewerId) {
       throw new AppError(400, "reviewerId é obrigatório");
@@ -1456,7 +1456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Analysis Routes (Claude primary, OpenAI fallback)
   // ==========================================
   
-  app.post("/api/ai/analyze-patient/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patient/:id", ...requireRoleWithAuth('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -1468,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/analyze-patients", requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/analyze-patients", ...requireRoleWithAuth('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patients = await storage.getAllPatients();
     
@@ -1481,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(analysis);
   }));
 
-  app.post("/api/ai/care-recommendations/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/care-recommendations/:id", ...requireRoleWithAuth('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const patient = await storage.getPatient(req.params.id);
     if (!patient) {
@@ -1495,7 +1495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Clinical analysis for shift handover - single patient
   // UNIFIED: Uses the same service as batch sync for consistent results
-  app.post("/api/ai/clinical-analysis/:id", requireRole('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis/:id", ...requireRoleWithAuth('admin', 'enfermagem'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
     const { unifiedClinicalAnalysisService } = await import("./services/unified-clinical-analysis.service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { forceRefresh = false } = req.body || {};
@@ -1546,7 +1546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Clinical analysis for shift handover - all patients (batch)
-  app.post("/api/ai/clinical-analysis-batch", requireRole('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+  app.post("/api/ai/clinical-analysis-batch", ...requireRoleWithAuth('admin', 'enfermagem'), asyncHandler(async (req, res) => {
     const { aiService } = await import("./services/ai-service");
     const { changeDetectionService } = await import("./services/change-detection.service");
     const { intelligentCache } = await import("./services/intelligent-cache.service");
@@ -1701,7 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Cache monitoring endpoint (admin only)
-  app.get("/api/admin/cache-stats", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/cache-stats", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { intelligentCache } = await import("./services/intelligent-cache.service");
     const stats = intelligentCache.getStats();
     res.json({
@@ -1836,7 +1836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get usage metrics (aggregated)
-  app.get("/api/admin/analytics/metrics", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/metrics", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
@@ -1846,7 +1846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get sessions statistics
-  app.get("/api/admin/analytics/sessions", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/sessions", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
@@ -1856,7 +1856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get top pages
-  app.get("/api/admin/analytics/top-pages", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/top-pages", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { limit, startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
@@ -1866,7 +1866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get top actions
-  app.get("/api/admin/analytics/top-actions", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/top-actions", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { limit, startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
@@ -1876,7 +1876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get user activity
-  app.get("/api/admin/analytics/users/:userId", requireRole('admin'), validateUUIDParam('userId'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/users/:userId", ...requireRoleWithAuth('admin'), validateUUIDParam('userId'), asyncHandler(async (req, res) => {
     const { userId } = req.params;
     const { startDate, endDate } = req.query;
     const start = startDate ? new Date(startDate as string) : undefined;
@@ -1887,7 +1887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin: Get events list (paginated)
-  app.get("/api/admin/analytics/events", requireRole('admin'), asyncHandler(async (req, res) => {
+  app.get("/api/admin/analytics/events", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { page, limit, userId, eventType, pagePath, actionName, actionCategory, startDate, endDate } = req.query;
     
     const events = await storage.getAnalyticsEvents({

@@ -1,13 +1,15 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { AppError } from './error-handler';
 import type { JWTPayload } from '../security/jwt';
+import { authMiddleware, requireFirstAccessComplete } from './auth';
 
 // Match schema definition in shared/schema.ts
 export type UserRole = 'admin' | 'enfermagem';
 
 /**
  * RBAC Middleware - checks if user has required role
- * Usage: requireRole('admin', 'enfermagem')
+ * IMPORTANT: This only checks role, does NOT handle auth or firstAccess
+ * Use requireRoleWithAuth for complete protection
  */
 export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -22,6 +24,18 @@ export function requireRole(...allowedRoles: UserRole[]) {
 
     next();
   };
+}
+
+/**
+ * Combined middleware: authMiddleware + requireFirstAccessComplete + requireRole
+ * Use this for routes that need auth, firstAccess check, AND role verification
+ */
+export function requireRoleWithAuth(...allowedRoles: UserRole[]): RequestHandler[] {
+  return [
+    authMiddleware,
+    requireFirstAccessComplete as RequestHandler,
+    requireRole(...allowedRoles) as RequestHandler,
+  ];
 }
 
 /**

@@ -2,21 +2,15 @@ import { Express, Request, Response } from 'express';
 import { storage } from '../storage';
 import { asyncHandler, AppError } from '../middleware/error-handler';
 import { insertUserSchema, updateUserSchema, userRoles } from '@shared/schema';
+import { requireRoleWithAuth } from '../middleware/rbac';
 import bcryptjs from 'bcryptjs';
 import { z } from 'zod';
 
-function requireAdmin(req: Request, res: Response, next: Function) {
-  if (!req.user) {
-    throw new AppError(401, 'Authentication required');
-  }
-  if (req.user.role !== 'admin') {
-    throw new AppError(403, 'Admin access required');
-  }
-  next();
-}
+// Use combined middleware: auth + firstAccess check + admin role
+const requireAdmin = requireRoleWithAuth('admin');
 
 export function registerUserRoutes(app: Express) {
-  app.get('/api/users', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.get('/api/users', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     const users = await storage.getAllUsers();
     const sanitizedUsers = users.map(user => ({
       id: user.id,
@@ -31,7 +25,7 @@ export function registerUserRoutes(app: Express) {
     res.json(sanitizedUsers);
   }));
 
-  app.get('/api/users/:id', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.get('/api/users/:id', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
       throw new AppError(404, 'User not found');
@@ -48,7 +42,7 @@ export function registerUserRoutes(app: Express) {
     });
   }));
 
-  app.post('/api/users', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.post('/api/users', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     const createUserSchema = insertUserSchema.extend({
       password: z.string().min(6, 'Password must be at least 6 characters'),
     });
@@ -77,7 +71,7 @@ export function registerUserRoutes(app: Express) {
     });
   }));
 
-  app.patch('/api/users/:id', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.patch('/api/users/:id', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
       throw new AppError(404, 'User not found');
@@ -114,7 +108,7 @@ export function registerUserRoutes(app: Express) {
     });
   }));
 
-  app.delete('/api/users/:id', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.delete('/api/users/:id', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
       throw new AppError(404, 'User not found');
@@ -132,7 +126,7 @@ export function registerUserRoutes(app: Express) {
     res.json({ success: true, message: 'User deactivated successfully' });
   }));
 
-  app.get('/api/roles', requireAdmin, asyncHandler(async (req: Request, res: Response) => {
+  app.get('/api/roles', ...requireAdmin, asyncHandler(async (req: Request, res: Response) => {
     res.json(userRoles);
   }));
 }

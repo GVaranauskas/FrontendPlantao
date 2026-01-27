@@ -17,6 +17,21 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.2] - 2026-01-27
+
+### Segurança
+
+- **Correção de Bypass de First-Access**: Criado `requireRoleWithAuth()` que combina autenticação, verificação de primeiro acesso e RBAC. Todas as rotas protegidas agora verificam se o usuário completou a troca de senha obrigatória.
+- **Proteção Universal de Rotas**:
+  - 31 rotas admin em `server/routes.ts` agora usam `requireRoleWithAuth('admin')`
+  - 5 rotas de IA agora usam `requireRoleWithAuth('admin', 'enfermagem')`
+  - 6 rotas de usuários em `server/routes/users.ts` agora usam middleware combinado
+  - 3 rotas em `server/routes/sync-gpt4o.routes.ts` agora usam `requireRoleWithAuth`
+- **Remoção de Arquivos Sensíveis**:
+  - Removido `cookies.txt` que continha tokens JWT expostos
+  - Removido diretório `logs/` com arquivos de log potencialmente sensíveis
+  - Adicionado `cookies.txt` ao `.gitignore`
+
 ## [1.5.1] - 2026-01-26
 
 ### Corrigido
