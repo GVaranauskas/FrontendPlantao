@@ -500,6 +500,10 @@ export default function ShiftHandoverPage() {
                               <div className="text-xl font-bold text-red-500">{aiAnalysis.estatisticas.altaComplexidade}</div>
                               <div className="text-[10px] text-muted-foreground">Alta Complexidade</div>
                             </div>
+                            <div className="bg-blue-500/10 rounded-lg p-2">
+                              <div className="text-xl font-bold text-blue-500">{aiAnalysis.estatisticas.mediaBraden}</div>
+                              <div className="text-[10px] text-muted-foreground">Média Braden</div>
+                            </div>
                           </div>
                         </Card>
 
@@ -563,6 +567,13 @@ export default function ShiftHandoverPage() {
                                 <div>
                                   <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.total_pacientes}</div>
                                   <div className="text-[10px] text-muted-foreground">Total Pacientes</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                <Shield className="w-4 h-4 text-blue-500" />
+                                <div>
+                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.media_braden}</div>
+                                  <div className="text-[10px] text-muted-foreground">Média Braden</div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">

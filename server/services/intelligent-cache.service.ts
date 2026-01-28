@@ -85,13 +85,12 @@ export class IntelligentCacheService {
       return null;
     }
 
-    // OTIMIZAÇÃO v1.5.5: Ignorar mudanças de conteúdo se dentro do TTL
-    // Dados clínicos mudam frequentemente mas a classificação IA (VERDE/AMARELO/VERMELHO)
-    // geralmente permanece estável. Usar apenas TTL evita re-análise desnecessária.
-    // Se contentHash mudou, apenas logar mas NÃO invalidar o cache
+    // Se forneceu hash, verifica se conteúdo mudou
     if (contentHash && entry.contentHash !== contentHash) {
-      console.log(`[IntelligentCache] TTL_VALID (content changed but using cached): ${key}`);
-      // NÃO invalida - usa o cache mesmo com dados diferentes
+      this.cache.delete(key);
+      this.stats.misses++;
+      console.log(`[IntelligentCache] CONTENT_CHANGED: ${key}`);
+      return null;
     }
 
     // Cache HIT!
