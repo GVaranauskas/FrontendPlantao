@@ -17,6 +17,36 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.6] - 2026-01-28
+
+### Adicionado
+
+- **Filtro por Especialidade/Ramal**: Novo dropdown na barra de filtros da Passagem de Plantão
+  - Permite filtrar pacientes por especialidade médica
+  - Lista de especialidades extraída dinamicamente dos pacientes carregados
+  - Opção "Todas as Especialidades" para limpar o filtro
+  - Botão X para remoção rápida do filtro
+  - Compatível com os filtros existentes (Críticos, Pendentes, busca por texto)
+  - Sem requisições adicionais ao servidor (filtragem client-side)
+
+### Alterado
+
+- **Coluna ENFERMARIA ocultada**: Removida da visualização na tabela de Passagem de Plantão
+  - Código preservado com classe `hidden` para fácil reversão
+  - Também ocultada na impressão PDF via CSS `display: none`
+  - Comentários explicativos adicionados para manutenção futura
+
+- **Coluna DATA DE NASCIMENTO reorganizada**: Integrada à coluna NOME/REGISTRO/IDADE
+  - Nova formatação visual:
+    ```
+    NOME COMPLETO DO PACIENTE
+    REG: XXXXXXX IDADE anos
+    DATA DE NASCIMENTO - DD/MM/AAAA
+    ```
+  - Coluna original ocultada (não removida) com classe `hidden`
+  - Cálculo de idade mantido corretamente
+  - Formato de data DD/MM/AAAA preservado
+
 ## [1.5.5] - 2026-01-28
 
 ### Otimizado
