@@ -75,6 +75,44 @@ export class UnifiedClinicalAnalysisService {
 - Cache unificado evita resultados divergentes
 - Invalidação cruzada de chaves legadas
 
+### Batch Real (v1.5.4)
+
+A partir da versão 1.5.4, análises em lote enviam **múltiplos pacientes em UMA ÚNICA chamada à API**:
+
+```typescript
+// server/services/unified-clinical-analysis.service.ts
+async callGPT4oMiniBatch(patients: PatientData[]): Promise<ClinicalInsights[]> {
+  // 1 chamada API para N pacientes (até 10 por lote)
+  const prompt = this.buildBatchPrompt(patients);
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: BATCH_SYSTEM_PROMPT },
+      { role: 'user', content: prompt }
+    ]
+  });
+  return JSON.parse(response.choices[0].message.content);
+}
+```
+
+**Performance:**
+```
+ANTES (v1.5.3):
+  35 pacientes = 35 chamadas API = ~105 segundos
+
+DEPOIS (v1.5.4):
+  35 pacientes = 4 chamadas API = ~12 segundos
+  
+REDUÇÃO: ~90% no tempo de sincronização
+```
+
+**Como funciona:**
+1. Separar pacientes em cache vs não-cache
+2. Agrupar pacientes não-cache em lotes de 10
+3. Enviar 1 chamada API por lote (vs 10 chamadas antes)
+4. Salvar resultados no cache
+5. Retornar todos na ordem correta
+
 ## 🏗️ Arquitetura Multi-Camada
 
 ```

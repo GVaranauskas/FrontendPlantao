@@ -44,6 +44,6 @@ Preferred communication style: Simple, everyday language.
 - **Security**: jsonwebtoken, bcryptjs, csurf, cookie-parser.
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data (`https://dev-n8n.7care.com.br/webhook/evolucoes`) and nursing units (`https://dev-n8n.7care.com.br/webhook/unidades-internacao`).
-- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis across individual and batch flows. Claude Haiku 3.5 as fallback. Cache key strategy uses codigoAtendimento as primary identifier.
+- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis across individual and batch flows. Claude Haiku 3.5 as fallback. Cache key strategy uses codigoAtendimento as primary identifier. **Batch Real (v1.5.4)**: Multiple patients analyzed in a single API call (10 per batch), reducing sync time from ~105s to ~12s for 35 patients (~90% reduction).
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
 - **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.

@@ -747,6 +747,23 @@ if (n8nRecords < lastValidSync * MIN_RECORD_RATIO) {
 }
 ```
 
+### Batch Real (v1.5.4)
+
+Múltiplos pacientes são analisados em **UMA ÚNICA chamada à API**:
+
+```
+ANTES: 35 pacientes = 35 chamadas = ~105 segundos
+DEPOIS: 35 pacientes = 4 chamadas = ~12 segundos
+
+Redução: ~90% no tempo de sincronização
+```
+
+Implementação via `callGPT4oMiniBatch()`:
+- Até 10 pacientes por chamada API
+- Prompt de sistema específico para batch
+- Resposta em array JSON ordenado
+- Cache individual por paciente
+
 ### Prompts
 
 Prompts ultra-comprimidos para reduzir custos:
