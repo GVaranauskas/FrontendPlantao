@@ -549,48 +549,59 @@ Retorne JSON com array "analises" contendo ${patients.length} objetos NA MESMA O
       const batchSize = 10;
       const totalBatches = Math.ceil(patientsToAnalyze.length / batchSize);
       
+      const batches: typeof patientsToAnalyze[] = [];
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         const batchStart = batchIndex * batchSize;
         const batchEnd = Math.min(batchStart + batchSize, patientsToAnalyze.length);
-        const currentBatch = patientsToAnalyze.slice(batchStart, batchEnd);
-        
-        console.log(`[UnifiedClinicalAnalysis] 🔄 Lote ${batchIndex + 1}/${totalBatches} (${currentBatch.length} pacientes, 1 chamada API)...`);
+        batches.push(patientsToAnalyze.slice(batchStart, batchEnd));
+      }
+      
+      console.log(`[UnifiedClinicalAnalysis] 🚀 Processando ${totalBatches} lotes EM PARALELO...`);
+      
+      const batchPromises = batches.map(async (currentBatch, batchIndex) => {
+        const batchStartTime = Date.now();
+        console.log(`[UnifiedClinicalAnalysis] 🔄 Lote ${batchIndex + 1}/${totalBatches} iniciando (${currentBatch.length} pacientes)...`);
         
         try {
           const batchPatients = currentBatch.map(item => item.patient);
           const batchInsights = await this.callGPT4oMiniBatch(batchPatients);
           
-          this.metrics.actualAPICalls++;
-          this.metrics.tokensUsed += 3500 * currentBatch.length;
-          this.metrics.estimatedCost += 0.03 * currentBatch.length;
+          const batchDuration = Date.now() - batchStartTime;
+          console.log(`[UnifiedClinicalAnalysis] ✅ Lote ${batchIndex + 1} concluído em ${batchDuration}ms`);
           
-          for (let j = 0; j < currentBatch.length; j++) {
-            const item = currentBatch[j];
-            const insights = batchInsights[j] || this.createDefaultInsights();
-            
-            results[item.index] = insights;
-            
-            if (useCache) {
-              this.invalidateLegacyCache(item.cacheKeys);
-              const criticality = insights.nivel_alerta === 'VERMELHO' ? 'critical' : 
-                                 insights.nivel_alerta === 'AMARELO' ? 'high' : 'medium';
-              intelligentCache.set(item.cacheKeys.primary, insights, {
-                contentHash: item.contentHash,
-                ttlMinutes: this.calculateTTL(insights.nivel_alerta),
-                criticality
-              });
-            }
-            
-            const patientId = item.patient.codigoAtendimento || item.patient.leito || 'unknown';
-            console.log(`[UnifiedClinicalAnalysis] ✅ ${patientId} - ${insights.nivel_alerta}`);
-          }
-          
+          return { batchIndex, currentBatch, batchInsights, success: true };
         } catch (error) {
           console.error(`[UnifiedClinicalAnalysis] ❌ Erro no lote ${batchIndex + 1}:`, error);
+          return { batchIndex, currentBatch, batchInsights: [] as ClinicalInsights[], success: false };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      
+      for (const { currentBatch, batchInsights, success } of batchResults) {
+        this.metrics.actualAPICalls++;
+        this.metrics.tokensUsed += 3500 * currentBatch.length;
+        this.metrics.estimatedCost += 0.03 * currentBatch.length;
+        
+        for (let j = 0; j < currentBatch.length; j++) {
+          const item = currentBatch[j];
+          const insights = success ? (batchInsights[j] || this.createDefaultInsights()) : this.createDefaultInsights();
           
-          for (const item of currentBatch) {
-            results[item.index] = this.createDefaultInsights();
+          results[item.index] = insights;
+          
+          if (useCache && success) {
+            this.invalidateLegacyCache(item.cacheKeys);
+            const criticality = insights.nivel_alerta === 'VERMELHO' ? 'critical' : 
+                               insights.nivel_alerta === 'AMARELO' ? 'high' : 'medium';
+            intelligentCache.set(item.cacheKeys.primary, insights, {
+              contentHash: item.contentHash,
+              ttlMinutes: this.calculateTTL(insights.nivel_alerta),
+              criticality
+            });
           }
+          
+          const patientId = item.patient.codigoAtendimento || item.patient.leito || 'unknown';
+          console.log(`[UnifiedClinicalAnalysis] ✅ ${patientId} - ${insights.nivel_alerta}`);
         }
       }
     }
