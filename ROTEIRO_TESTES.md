@@ -1,352 +1,309 @@
 # Roteiro de Testes — 11Care Nursing Platform
 
-> Roteiro refinado com cobertura de regras de negócio, baseado na documentação do sistema (CHANGELOG, ARCHITECTURE, SECURITY, API, AI_INTEGRATION, VALIDACAO, N8N_WEBHOOK_SPECIFICATION).
+> **Público-alvo:** Analista de negócios testando diretamente na interface da aplicação.
+> Todos os passos são realizados via navegador. Nenhum acesso a banco de dados, logs ou ferramentas técnicas é necessário.
 
 ---
 
-## 1. Autenticação e Fluxo JWT
+## Pré-requisitos
 
-### 1.1 Login e Tokens
+Antes de iniciar os testes, certifique-se de ter:
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 1.1.1 | Login válido | POST `/api/auth/login` com credenciais corretas | 200: `accessToken` no body + `refreshToken` em cookie httpOnly Secure SameSite=Strict | Access token expira em 15min; refresh em 7 dias |
-| 1.1.2 | Login inválido | POST `/api/auth/login` com senha errada | 401: mensagem de erro | Não revelar se é username ou senha inválida |
-| 1.1.3 | Login sem campos | POST `/api/auth/login` sem username ou password | 400: campos obrigatórios | Validação Zod no body |
-| 1.1.4 | Brute force | Enviar 6 tentativas de login em < 15min | 429: rate limit atingido a partir da 6ª tentativa | Limite de 5 tentativas/15min por IP |
-| 1.1.5 | Refresh token | POST `/api/auth/refresh` com cookie válido | 200: novo accessToken | Cookie httpOnly não acessível por JS |
-| 1.1.6 | Refresh token expirado | POST `/api/auth/refresh` com cookie expirado (>7d) | 401 | Redirecionar para login |
-| 1.1.7 | Logout | POST `/api/auth/logout` | 200: cookie refreshToken limpo, token invalidado | Sessão invalidada no servidor |
-| 1.1.8 | Acesso sem token | GET `/api/patients` sem header Authorization | 401 | Middleware bloqueia |
-| 1.1.9 | Token expirado com refresh | Fazer request com access token expirado, depois refresh | Novo access token funcional | Frontend deve fazer refresh automático |
-
-### 1.2 Primeiro Acesso — Troca de Senha Obrigatória (v1.5.0)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 1.2.1 | Redirect ao primeiro login | Login com usuário `firstAccess=true` | JWT contém `firstAccess=true`; frontend redireciona para `/first-access` | Campo `firstAccess` na tabela users |
-| 1.2.2 | Bloqueio de rotas com firstAccess | Com `firstAccess=true`, acessar GET `/api/patients` | 403: "Primeiro acesso: troca de senha obrigatória" | Middleware `requireFirstAccessComplete` bloqueia 30+ rotas |
-| 1.2.3 | Rotas permitidas durante firstAccess | Com `firstAccess=true`, acessar `/api/auth/me`, `/api/auth/logout`, `/api/auth/refresh` | 200: acesso permitido | Apenas 4 rotas liberadas |
-| 1.2.4 | Troca de senha com sucesso | POST `/api/auth/first-access-password` com `{ currentPassword, newPassword }` (8+ chars, 1 letra, 1 número) | 200: novo JWT com `firstAccess=false`, novo refreshToken | Senha hashada com bcrypt; JWT regenerado |
-| 1.2.5 | Senha nova fraca (< 8 chars) | POST com `newPassword` = "abc1" | 400: "pelo menos 8 caracteres" | Validação: min 8 chars |
-| 1.2.6 | Senha nova sem número | POST com `newPassword` = "abcdefgh" | 400: "pelo menos uma letra e um número" | Validação: 1 letra + 1 número |
-| 1.2.7 | Senha nova sem letra | POST com `newPassword` = "12345678" | 400: "pelo menos uma letra e um número" | Validação: 1 letra + 1 número |
-| 1.2.8 | Senha atual incorreta | POST com `currentPassword` errado | 401: "Senha atual incorreta" | Verifica bcrypt do password atual |
-| 1.2.9 | Usuário não está em firstAccess | POST first-access-password com `firstAccess=false` | 403: "Usuário não está em primeiro acesso" | Apenas para firstAccess=true |
-
-### 1.3 Bypass de First-Access (v1.5.2 — Correção de Segurança)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 1.3.1 | Admin routes bloqueadas | Com `firstAccess=true`, GET `/api/users` | 403 | 31 rotas admin usam `requireRoleWithAuth('admin')` |
-| 1.3.2 | IA routes bloqueadas | Com `firstAccess=true`, POST `/api/sync/patient/1` | 403 | 5 rotas de IA usam `requireRoleWithAuth('admin', 'enfermagem')` |
-| 1.3.3 | Sync routes bloqueadas | Com `firstAccess=true`, POST `/api/sync-gpt4o/manual` | 403 | 3 rotas sync usam `requireRoleWithAuth` |
-| 1.3.4 | 45+ endpoints protegidos | Testar amostra de endpoints com firstAccess=true | Todos retornam 403 | `requireRoleWithAuth` combina auth + firstAccess + RBAC |
+- Acesso ao sistema rodando no navegador
+- Credenciais de 3 perfis distintos:
+  - **Administrador** (ex: `admin` / senha configurada)
+  - **Enfermagem** (ex: `enfermeiro` / senha configurada)
+  - **Visualizador** (usuário com esse perfil criado pelo admin)
+- Um **usuário novo** (recém-criado pelo admin, que nunca fez login) para testes de primeiro acesso
 
 ---
 
-## 2. Controle de Acesso RBAC
+## 1. Login e Autenticação
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 2.1 | Admin acessa tudo | Logar como `admin`, acessar `/api/users`, `/api/admin/*`, `/api/patients` | 200 em todos | Role admin: `['*']` |
-| 2.2 | Enfermagem — leitura de pacientes | Logar como `enfermagem`, GET `/api/patients` | 200 | Permissão: `patients:read` |
-| 2.3 | Enfermagem — criar nota | POST `/api/notes` | 201 | Permissão: `notes:create` |
-| 2.4 | Enfermagem — trigger sync | POST `/api/sync/patient/:id` | 200 | Permissão: `sync:trigger` |
-| 2.5 | Enfermagem — acessar admin | GET `/api/users` | 403 | Sem permissão admin |
-| 2.6 | Enfermagem — deletar paciente | DELETE `/api/patients/:id` | 403 | Apenas admin pode deletar |
-| 2.7 | Visualizador — apenas leitura | GET `/api/patients` | 200; POST `/api/patients` | 403 | Permissão: `patients:read`, `notes:read` apenas |
-| 2.8 | Visualizador — criar nota | POST `/api/notes` | 403 | Sem permissão `notes:create` |
-| 2.9 | Enfermagem — deletar nota | DELETE `/api/notes/:id` com role enfermagem | 403 | Deleção de nota: admin only com motivo obrigatório |
-| 2.10 | Admin deleta nota sem motivo | DELETE `/api/notes/:id` sem campo `reason` | 400 | Motivo é obrigatório para exclusão |
+### 1.1 Fluxo Normal de Login
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 1.1.1 | Login com sucesso | 1. Abrir a página inicial do sistema. 2. Digitar usuário e senha válidos. 3. Clicar em **Entrar**. | Sistema redireciona para a tela de **Módulos**. Nome do usuário aparece no cabeçalho. |
+| 1.1.2 | Senha incorreta | 1. Na tela de login, digitar o usuário correto e uma senha errada. 2. Clicar em **Entrar**. | Mensagem de erro é exibida. Sistema permanece na tela de login. A mensagem **não** deve revelar se o erro foi no usuário ou na senha. |
+| 1.1.3 | Campos em branco | 1. Deixar os campos de usuário e/ou senha vazios. 2. Clicar em **Entrar**. | Sistema impede o envio e exibe mensagem pedindo o preenchimento dos campos. |
+| 1.1.4 | Muitas tentativas seguidas | 1. Digitar a senha errada 6 vezes seguidas. | A partir da 6ª tentativa, o sistema exibe mensagem informando que o acesso foi temporariamente bloqueado. Aguardar 15 minutos para tentar novamente. |
+| 1.1.5 | Logout | 1. Estando logado, clicar no botão **Sair** (ou ícone de logout). | Sistema volta para a tela de login. Ao tentar usar o botão "Voltar" do navegador, não deve ser possível acessar as telas internas. |
+
+### 1.2 Sessão e Expiração
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 1.2.1 | Sessão mantida durante uso | 1. Fazer login. 2. Navegar normalmente entre as telas por vários minutos. | Sistema mantém o usuário logado sem interrupções durante o uso contínuo. |
+| 1.2.2 | Sessão expira após inatividade longa | 1. Fazer login. 2. Deixar o sistema aberto sem interagir por um longo período. 3. Tentar navegar. | Sistema redireciona para a tela de login pedindo novas credenciais. |
+| 1.2.3 | Acesso direto a uma página interna | 1. Sem estar logado, digitar diretamente na barra de endereços o caminho de uma tela interna (ex: a tela de Passagem de Plantão). | Sistema redireciona para a tela de login. |
+
+### 1.3 Primeiro Acesso — Troca de Senha Obrigatória
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 1.3.1 | Novo usuário é redirecionado | 1. Como admin, criar um novo usuário. 2. Em outra aba/navegador, fazer login com esse novo usuário. | Sistema redireciona automaticamente para a tela de **Troca de Senha**, não permitindo acessar nenhuma outra funcionalidade. |
+| 1.3.2 | Navegação bloqueada antes da troca | 1. Logado como novo usuário (antes de trocar a senha), tentar acessar diretamente a Passagem de Plantão pela barra de endereços. | Sistema continua na tela de troca de senha ou redireciona de volta. Nenhuma tela interna é acessível. |
+| 1.3.3 | Troca de senha com sucesso | 1. Na tela de primeiro acesso, preencher a senha atual (temporária). 2. Digitar uma nova senha que atenda os requisitos (8+ caracteres, com letra maiúscula, minúscula, número e caractere especial). 3. Confirmar. | Sistema exibe mensagem de sucesso e redireciona para a tela de **Módulos**. A partir deste momento, todas as funcionalidades do perfil ficam disponíveis. |
+| 1.3.4 | Senha nova muito curta | 1. Na troca de senha, digitar uma nova senha com menos de 8 caracteres (ex: "Ab@1"). | Sistema exibe mensagem de erro indicando o requisito mínimo de caracteres. |
+| 1.3.5 | Senha nova sem número | 1. Digitar nova senha sem nenhum número (ex: "Abcdefg@"). | Sistema exibe mensagem de erro. |
+| 1.3.6 | Senha nova sem caractere especial | 1. Digitar nova senha sem caractere especial (ex: "Abcdefg1"). | Sistema exibe mensagem de erro. |
+| 1.3.7 | Senha nova sem maiúscula | 1. Digitar nova senha sem letra maiúscula (ex: "abcdefg@1"). | Sistema exibe mensagem de erro. |
+| 1.3.8 | Senha atual incorreta | 1. Digitar a senha atual (temporária) de forma errada. 2. Preencher nova senha válida. 3. Confirmar. | Sistema exibe mensagem de erro informando que a senha atual está incorreta. |
 
 ---
 
-## 3. Sincronização N8N e Regras de Dados
+## 2. Permissões por Perfil de Usuário
 
-### 3.1 Fluxo de Sync (3 Passos — v1.3.2)
+### 2.1 Perfil Administrador
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 3.1.1 | UPSERT paciente novo | Sync com paciente que não existe no sistema | Paciente inserido via `upsertPatientByCodigoAtendimento` | Ponto único de inserção: somente UPSERT insere/atualiza |
-| 3.1.2 | UPSERT paciente existente | Sync com paciente já existente + dados alterados | Dados atualizados com informações frescas do N8N | UPSERT por codigoAtendimento |
-| 3.1.3 | Conflito de leito | Paciente A no leito 101, N8N traz paciente B (código diferente) para leito 101 | Paciente A arquivado como `registro_antigo`; Paciente B inserido no leito 101 | PASSO 1: `getPatientOccupyingLeitoWithDifferentCodigo` → `archiveAndRemovePatient` |
-| 3.1.4 | Reativação de paciente | Paciente arquivado aparece no N8N novamente | Registro de histórico NÃO é deletado; paciente reaparece na lista ativa via UPSERT | PASSO 2: Histórico é log permanente, nunca deletado (v1.5.1) |
-| 3.1.5 | Busca dual para reativação | Paciente no histórico sem codigoAtendimento | Busca por leito como fallback | Estratégia: primário `codigoAtendimento`, fallback `leito` |
-| 3.1.6 | Deduplicação de reativações | Mesmo paciente aparece 2x no lote N8N | Reativado apenas 1x no ciclo | Set de IDs já reativados evita duplicidade |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 2.1.1 | Acesso total ao sistema | 1. Logar como administrador. 2. Navegar por todas as telas: Módulos, Passagem de Plantão, Admin (Usuários, Unidades, Templates, Analytics de Uso), Ferramentas, Analytics, Histórico de Pacientes. | Todas as telas são acessíveis sem restrição. |
+| 2.1.2 | Menu Admin visível | 1. Logar como admin. 2. Verificar o menu ou tela de módulos. | Opções administrativas (Gerenciar Usuários, Unidades, Templates, Analytics de Uso, Ferramentas) estão visíveis. |
+| 2.1.3 | Deletar paciente | 1. Na Passagem de Plantão, localizar um paciente. 2. Tentar excluí-lo. | Opção de exclusão disponível e funcional. |
+| 2.1.4 | Deletar nota de paciente | 1. Abrir detalhes de um paciente com notas. 2. Tentar excluir uma nota. | Sistema pede um **motivo** para a exclusão. Após informar o motivo, a nota é removida. |
+| 2.1.5 | Deletar nota sem motivo | 1. Tentar excluir uma nota sem preencher o motivo. | Sistema impede a exclusão e exige o preenchimento do campo de motivo. |
 
-### 3.2 Arquivamento Determinístico (v1.4.0)
+### 2.2 Perfil Enfermagem
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 3.2.1 | Paciente ausente no N8N | Paciente ativo não aparece nos dados N8N | Arquivado imediatamente | Sem contagem de falhas; remoção imediata |
-| 3.2.2 | Motivo de arquivamento — código ausente | Paciente com código de atendimento não encontrado no N8N | Motivo: `alta_hospitalar` | Determinado pelo tipo de ausência |
-| 3.2.3 | Motivo de arquivamento — leito ausente | Paciente com leito não encontrado no N8N | Motivo: `transferencia` | Determinado pelo tipo de ausência |
-| 3.2.4 | Histórico permanente | Reativar paciente que já foi arquivado | Registro anterior de histórico permanece; novo UPSERT cria/atualiza paciente ativo | Log permanente de altas e transferências (v1.5.1) |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 2.2.1 | Acesso às funcionalidades clínicas | 1. Logar como enfermagem. 2. Acessar Passagem de Plantão. | Tela carrega normalmente. É possível visualizar pacientes, buscar, filtrar. |
+| 2.2.2 | Criar e editar notas | 1. Abrir detalhes de um paciente. 2. Adicionar uma nota. 3. Editar a nota que acabou de criar. | Nota criada com sucesso. Edição da própria nota funciona. |
+| 2.2.3 | Não pode editar nota de outro | 1. Abrir um paciente que tenha uma nota criada por outro profissional. 2. Tentar editar essa nota. | Opção de edição não aparece ou sistema bloqueia com mensagem de erro. |
+| 2.2.4 | Não pode excluir paciente | 1. Na Passagem de Plantão, tentar excluir um paciente. | Opção de exclusão **não** está disponível para este perfil. |
+| 2.2.5 | Não pode excluir notas | 1. Tentar excluir qualquer nota de paciente. | Opção de exclusão **não** está disponível para este perfil. |
+| 2.2.6 | Menu Admin oculto | 1. Verificar o menu ou tela de módulos. | Opções administrativas (Gerenciar Usuários, Unidades, Templates, Ferramentas) **não** aparecem. |
+| 2.2.7 | Acesso direto ao painel Admin | 1. Digitar o caminho da área administrativa diretamente na barra de endereços. | Sistema bloqueia o acesso ou redireciona para outra tela. |
 
-### 3.3 Proteção contra Arquivamento em Massa (Validação de Sanidade)
+### 2.3 Perfil Visualizador
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 3.3.1 | N8N retorna < 5 registros | Sync com apenas 3 pacientes do N8N | Remoções BLOQUEADAS | `MIN_ABSOLUTE_RECORDS = 5` |
-| 3.3.2 | N8N retorna < 50% do último sync | Último sync: 35 registros; N8N retorna 15 | Remoções BLOQUEADAS | `N8N_MIN_RECORD_RATIO = 0.5` |
-| 3.3.3 | Baseline atualizado mesmo com bloqueio | Remoções bloqueadas pela validação | Baseline do lastValidSync é estabelecido para evitar oscilação | Previne loops de bloqueio/desbloqueio |
-| 3.3.4 | N8N retorna dados completos | Sync com número adequado de registros (>5 e >50% do último) | Arquivamentos processados normalmente | Validação de sanidade passa |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 2.3.1 | Apenas leitura | 1. Logar como visualizador. 2. Acessar Passagem de Plantão. | Tela carrega normalmente. Dados dos pacientes são visíveis. |
+| 2.3.2 | Não pode criar notas | 1. Abrir detalhes de um paciente. 2. Tentar adicionar uma nota. | Opção de criar nota **não** está disponível ou o botão está desabilitado. |
+| 2.3.3 | Não pode editar dados | 1. Tentar editar qualquer dado de paciente. | Campos de edição não são exibidos ou estão bloqueados. |
+| 2.3.4 | Menu Admin oculto | 1. Verificar o menu ou tela de módulos. | Opções administrativas não aparecem. |
 
-### 3.4 Botão Sync N8N + IA (v1.5.3 — Correção 2 cliques)
+---
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 3.4.1 | Sync manual em 1 clique | Clicar botão "Sync N8N + IA" | Dados atualizados na tabela após 1 clique | Polling com syncId a cada 2s por até 60s |
-| 3.4.2 | Status de sync por syncId | Verificar GET `/api/sync-gpt4o/status/:syncId` | Status progride: `started → fetching_n8n → processing_ai → complete` | Rastreamento por ID único |
-| 3.4.3 | Refetch após conclusão | Frontend verifica status `complete` | Dados da tabela são recarregados via `refetchQueries` | Usa `refetchQueries` ao invés de `invalidateQueries` (v1.4.1) |
-| 3.4.4 | Feedback detalhado pós-sync | Após sync, verificar GET `/api/sync-gpt4o/detailed-status` | Toast com resumo: novos, atualizados, arquivados, reativados | Estatísticas do último sync |
-| 3.4.5 | Limpeza de status antigos | Status com > 1 hora | Status removido automaticamente | Cleanup automático |
+## 3. Passagem de Plantão — Tela Principal
+
+### 3.1 Visualização de Pacientes
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 3.1.1 | Tabela carregada | 1. Acessar a tela de Passagem de Plantão. | Tabela exibe a lista de pacientes com as colunas configuradas (leito, nome, diagnóstico, etc.). Cards de resumo aparecem no topo (total, críticos, pendentes, etc.). |
+| 3.1.2 | Busca por nome | 1. Digitar o nome (ou parte do nome) de um paciente na barra de busca. | Tabela filtra em tempo real mostrando apenas os pacientes que correspondem à busca. |
+| 3.1.3 | Busca por leito | 1. Digitar o número de um leito na barra de busca. | Tabela filtra mostrando apenas o paciente do leito informado. |
+| 3.1.4 | Busca sem resultado | 1. Digitar um texto que não corresponde a nenhum paciente. | Tabela fica vazia com mensagem indicando que nenhum resultado foi encontrado. |
+| 3.1.5 | Detalhes do paciente | 1. Clicar em um paciente na tabela. | Modal ou painel lateral abre com os dados completos do paciente: diagnóstico, alergias, dieta, mobilidade, dispositivos, antibióticos, curativos, aporte/saturação, exames, cirurgia, observações, previsão de alta. |
+
+### 3.2 Filtros por Cards de Resumo
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 3.2.1 | Filtrar pacientes pendentes | 1. Clicar no card de **Pendentes** no topo da tela. | Tabela mostra apenas pacientes com status pendente. O card fica destacado visualmente (borda, sombra ou ícone de filtro). |
+| 3.2.2 | Filtrar pacientes críticos | 1. Clicar no card de **Críticos** no topo da tela. | Tabela mostra apenas pacientes classificados como críticos. |
+| 3.2.3 | Limpar filtro do card | 1. Com um filtro de card ativo, clicar no botão de limpar filtro (na barra de busca ou no próprio card). | Tabela volta a exibir todos os pacientes. Destaque visual do card é removido. |
+| 3.2.4 | Card desabilitado quando vazio | 1. Observar os cards quando não há pacientes de determinado tipo (ex: nenhum pendente). | O card correspondente aparece desabilitado (acinzentado, não clicável). |
+| 3.2.5 | Filtro de card + busca por texto | 1. Clicar no card de Pendentes. 2. Digitar o nome de um paciente na busca. | A tabela aplica ambos os filtros simultaneamente: mostra apenas pacientes pendentes cujo nome corresponde à busca. |
+
+### 3.3 Sincronização de Dados (Botão Sync)
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 3.3.1 | Sync com 1 clique | 1. Na Passagem de Plantão, clicar no botão **Sync N8N + IA** (ou equivalente). | Botão entra em estado de carregamento. Após a conclusão, a tabela é atualizada automaticamente com os dados mais recentes. |
+| 3.3.2 | Feedback de progresso | 1. Clicar no botão de sync e observar a interface. | Sistema mostra indicação visual de progresso (spinner, barra, mensagem de status). |
+| 3.3.3 | Resumo pós-sync | 1. Após a conclusão da sincronização, observar a notificação. | Toast ou notificação exibe o resumo: quantos pacientes novos, atualizados, arquivados e reativados. |
+| 3.3.4 | Novos pacientes aparecem | 1. Solicitar a um colega (ou via sistema externo) que um novo paciente seja adicionado no sistema hospitalar. 2. Clicar em Sync. | Novo paciente aparece na tabela após a sincronização. |
+| 3.3.5 | Paciente com alta desaparece | 1. Um paciente que recebeu alta no sistema hospitalar. 2. Clicar em Sync. | Paciente não aparece mais na lista ativa da Passagem de Plantão. |
+| 3.3.6 | Troca de leito | 1. No sistema hospitalar, transferir um paciente de leito. 2. Clicar em Sync. | Paciente aparece com o novo número de leito na tabela. Se havia outro paciente no leito antigo, este é tratado corretamente. |
 
 ---
 
 ## 4. Análise Clínica por IA
 
-### 4.1 Serviço Unificado de Análise (v1.4.1)
+### 4.1 Riscos e Insights
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 4.1.1 | Análise individual | POST `/api/sync/patient/:id` | Retorna `clinicalInsights` com `riskLevel`, `risks`, `sbarAnalysis`, `recommendations`, `protocols` | Usa `UnifiedClinicalAnalysisService` |
-| 4.1.2 | Chave de cache por codigoAtendimento | Analisar paciente com código de atendimento | Cache key: `unified-clinical:codigo:CODIGO` | Chave primária por codigoAtendimento |
-| 4.1.3 | Fallback cache — UUID | Paciente sem codigoAtendimento | Cache key: `unified-clinical:uuid:UUID` | Fallback hierárquico |
-| 4.1.4 | Fallback cache — leito | Paciente sem código e sem UUID | Cache key: `unified-clinical:leito:LEITO` | Último fallback |
-| 4.1.5 | Consistência individual vs batch | Analisar mesmo paciente individualmente e via batch | Mesmos resultados (ou cache hit) | Serviço unificado elimina divergências (v1.4.1) |
-| 4.1.6 | Invalidação cruzada de cache | Cache legado com chave antiga (UUID) + nova análise por código | Cache antigo invalidado | Previne dados stale |
-
-### 4.2 Otimização em 4 Camadas
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 4.2.1 | Camada 1 — Change Detection | Sync paciente sem alterações de dados | Análise de IA NÃO é chamada; retorno instantâneo | Hash SHA-256 dos campos relevantes; 85-90% economia |
-| 4.2.2 | Camada 2 — Cache hit | Sync paciente com dados alterados mas cache válido (<1h) | Retorna `fromCache: true` | TTL padrão 1 hora |
-| 4.2.3 | Camada 2 — Cache miss | Cache expirado (>1h) ou inexistente | Nova chamada à API GPT-4o-mini | Cache em memória limpo ao reiniciar |
-| 4.2.4 | Camada 3 — GPT-4o-mini | Nova análise sem cache | Chamada com `temperature: 0.3`, `max_tokens: 800`, `response_format: json_object` | Modelo mais barato; temperature baixa para determinismo |
-| 4.2.5 | Camada 3 — Fallback Claude | GPT-4o-mini falha (timeout/rate limit) | Fallback automático para Claude Haiku 3.5 | Try/catch com fallback |
-| 4.2.6 | Camada 4 — Auto Sync Scheduler | Aguardar 1 hora | Cron job `0 * * * *` executa sync de todos pacientes | Cron configurável via `AUTO_SYNC_CRON` |
-
-### 4.3 Batch Real (v1.5.4)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 4.3.1 | Batch de 10 pacientes | Sync batch com 10 pacientes sem cache | 1 chamada API (não 10) | `callGPT4oMiniBatch` processa até 10 por chamada |
-| 4.3.2 | Batch de 35 pacientes | Sync batch com 35 pacientes sem cache | 4 chamadas API (~12s, não 35 chamadas/~105s) | Agrupamento em lotes de 10 |
-| 4.3.3 | Batch misto (cache + não-cache) | 35 pacientes: 30 em cache, 5 não-cache | 30 retornados do cache; 1 chamada API para os 5 restantes | Separação cache vs não-cache antes do batch |
-| 4.3.4 | Cache individual após batch | Batch processa 10 pacientes | Cada resultado salvo individualmente no cache | Cache por paciente, não por batch |
-| 4.3.5 | Ordem dos resultados | Batch com pacientes [A, B, C] | Resultados retornados na ordem [A, B, C] | Prompt de sistema exige array JSON ordenado |
-
-### 4.4 Classificação de Riscos
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 4.4.1 | 6 categorias de risco | Abrir detalhes de paciente com análise | Riscos exibidos: quedas, lesão por pressão, infecção, broncoaspiração, nutricional, respiratório | Cada risco: `low`, `medium`, `high` |
-| 4.4.2 | Análise SBAR completa | Verificar insights do paciente | Campos: `situation`, `background`, `assessment`, `recommendation` | Metodologia SBAR |
-| 4.4.3 | Protocolos assistenciais | Paciente com risco alto de queda | Protocolo "Prevenção de Quedas" listado | IA gera protocolos baseados nos riscos |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 4.1.1 | Classificação de riscos exibida | 1. Abrir os detalhes de um paciente na Passagem de Plantão. 2. Localizar a seção de riscos clínicos. | São exibidas até 6 categorias de risco: quedas, lesão por pressão, infecção, broncoaspiração, nutricional e respiratório. Cada risco tem classificação (baixo, médio, alto). |
+| 4.1.2 | Análise SBAR | 1. Nos detalhes do paciente, verificar a seção de análise SBAR. | São exibidos 4 blocos: Situação, Histórico, Avaliação e Recomendação — correspondentes à metodologia SBAR usada na enfermagem. |
+| 4.1.3 | Protocolos assistenciais | 1. Abrir paciente com risco alto em alguma categoria. | Sistema sugere protocolos assistenciais adequados (ex: "Prevenção de Quedas" para risco alto de queda). |
+| 4.1.4 | Dados atualizados após sync | 1. Clicar em Sync. 2. Reabrir os detalhes de um paciente cujos dados mudaram. | Análise clínica é atualizada conforme os novos dados do paciente. |
+| 4.1.5 | Resposta rápida para dados sem alteração | 1. Fazer sync. 2. Sem alterações nos dados, fazer sync novamente. 3. Abrir detalhes de um paciente. | Análise é exibida rapidamente (os dados não mudaram, então o sistema usa informações já processadas). |
 
 ---
 
-## 5. Gestão de Pacientes
+## 5. Notas de Pacientes
 
-### 5.1 CRUD e Validação
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 5.1.1 | Criar paciente (admin/enfermagem) | POST `/api/patients` com dados válidos | 201: paciente criado | Roles: admin, enfermagem |
-| 5.1.2 | Criar paciente (visualizador) | POST `/api/patients` como visualizador | 403 | Visualizador: read-only |
-| 5.1.3 | Campos obrigatórios | POST sem `nome` ou `registro` | 400: erro de validação | Validação Zod: `nome` min 3, max 200; `registro` min 1, max 50 |
-| 5.1.4 | Idade válida | POST com `idade: -5` ou `idade: 200` | 400 | Validação: `z.number().int().min(0).max(150)` |
-| 5.1.5 | Arquivar paciente | POST `/api/patients/:id/archive` com motivo | 200: snapshot completo salvo no histórico | Motivos: `alta`, `transferencia`, `obito`, `registro_antigo` |
-| 5.1.6 | Arquivamento sem motivo | POST `/api/patients/:id/archive` sem `reason` | 400 | Motivo é obrigatório |
-| 5.1.7 | Deletar (admin only) | DELETE `/api/patients/:id` como admin | 200 | Soft delete (arquiva) |
-| 5.1.8 | Deletar (enfermagem) | DELETE `/api/patients/:id` como enfermagem | 403 | Admin only |
-
-### 5.2 Notas de Pacientes
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 5.2.1 | Criar nota | POST `/api/notes` com patientId e note | 201: nota com userId, userName, createdAt | Audit trail completo |
-| 5.2.2 | Editar nota própria (enfermagem) | PUT `/api/notes/:id` da própria nota | 200 | Enfermagem edita apenas suas notas |
-| 5.2.3 | Editar nota de outro (enfermagem) | PUT `/api/notes/:id` de outro enfermeiro | 403 | Não pode editar nota alheia |
-| 5.2.4 | Histórico de versões | GET `/api/patients/:id/notes-history` | Lista com versões, autor e timestamp | Versionamento completo |
-| 5.2.5 | Deletar nota (admin com motivo) | DELETE `/api/notes/:id` com `reason` | 200 | Admin only; motivo obrigatório |
-
-### 5.3 Criptografia de Dados (LGPD Art. 46)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 5.3.1 | Dados criptografados no DB | Consultar campo `nome` direto no PostgreSQL | Dado ilegível (base64 criptografado) | AES-256-GCM: salt 64B, IV 16B, authTag 16B |
-| 5.3.2 | Descriptografia na API | GET `/api/patients/:id` | Dados legíveis na response | Descriptografia transparente no repository |
-| 5.3.3 | Campos criptografados | Verificar no DB: nome, registro, dataNascimento, diagnostico, alergias, observacoes, dsEvolucaoCompleta | Todos criptografados | 7 campos sensíveis |
-| 5.3.4 | Campos não criptografados | Verificar no DB: leito, idade, unidadeInternacao | Em texto plano (metadados para busca) | Necessários para queries SQL |
-| 5.3.5 | Compatibilidade com dados legados | Paciente antigo com dados em texto plano | Retornado sem erro | Fallback para texto plano se descriptografia falhar |
-| 5.3.6 | IV único por registro | Criar 2 pacientes com mesmo nome | IVs e encrypted diferentes | IV gerado aleatoriamente a cada criptografia |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 5.1 | Adicionar nota (enfermagem) | 1. Logar como enfermagem. 2. Abrir detalhes de um paciente. 3. Escrever um texto no campo de notas. 4. Salvar. | Nota aparece na lista com o nome do autor e a data/hora de criação. |
+| 5.2 | Adicionar nota (admin) | 1. Logar como admin. 2. Repetir o mesmo processo. | Nota criada com sucesso com o nome do admin como autor. |
+| 5.3 | Editar nota própria | 1. Logar como enfermagem. 2. Localizar uma nota que você criou. 3. Clicar para editar. 4. Alterar o texto e salvar. | Nota é atualizada. |
+| 5.4 | Tentar editar nota de outro profissional | 1. Logar como enfermagem. 2. Localizar uma nota criada por outro profissional. | O botão de edição não está disponível ou está bloqueado para notas de terceiros. |
+| 5.5 | Histórico de versões | 1. Abrir o histórico de notas de um paciente que teve notas editadas. | É possível ver as versões anteriores, com autor e data de cada alteração. |
+| 5.6 | Visualizador não pode adicionar nota | 1. Logar como visualizador. 2. Abrir detalhes de um paciente. | Campo de adição de notas não está disponível ou está desabilitado. |
 
 ---
 
-## 6. Filtros Interativos na Passagem de Plantão
+## 6. Gestão de Pacientes
 
-### 6.1 Filtro de Pacientes Pendentes (v1.5.3)
+### 6.1 Dados Clínicos
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 6.1.1 | Clicar no card Pendentes | Clicar no card de "Pendentes" na tela de passagem | Tabela filtra para mostrar apenas pacientes com status pendente | Card é interativo (clicável) |
-| 6.1.2 | Indicador visual de filtro ativo | Filtro de pendentes ativado | Ring, sombra e ícone de filtro visíveis no card | Feedback visual consistente |
-| 6.1.3 | Limpar filtro | Clicar botão de limpar filtro na barra de busca | Tabela volta a mostrar todos os pacientes | Botão de limpar na SearchFilterBar |
-| 6.1.4 | Card desabilitado sem pendentes | Não há pacientes pendentes | Card de "Pendentes" aparece desabilitado (não clicável) | Previne filtro vazio |
-| 6.1.5 | Filtro de pacientes críticos | Clicar no card de "Críticos" | Tabela filtra para pacientes críticos | Mesmo padrão visual do filtro de pendentes |
-| 6.1.6 | Busca + filtro combinados | Ativar filtro de pendentes + digitar nome | Lista filtra por ambos critérios | Filtros se acumulam |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 6.1.1 | Todos os campos clínicos presentes | 1. Abrir detalhes de um paciente sincronizado. | São exibidos: diagnóstico, alergias, dieta, mobilidade, eliminações, dispositivos, antibióticos (ATB), curativos, aporte/saturação, exames, cirurgia, observações, previsão de alta, especialidade, escala de Braden. |
+| 6.1.2 | Dados do leito e internação | 1. Verificar as informações do cabeçalho do paciente. | Exibe: número do leito, nome completo, número de registro (prontuário), data de internação, data da última evolução. |
+| 6.1.3 | Criar paciente manualmente | 1. Logar como admin ou enfermagem. 2. Usar a opção de adicionar paciente (se disponível). 3. Preencher nome (mín. 3 caracteres) e registro. 4. Salvar. | Paciente é criado e aparece na lista. |
+| 6.1.4 | Nome muito curto | 1. Tentar criar paciente com nome de 1 ou 2 caracteres. | Sistema rejeita com mensagem de erro. |
+| 6.1.5 | Idade inválida | 1. Tentar criar paciente com idade negativa ou acima de 150 anos. | Sistema rejeita com mensagem de erro. |
 
----
+### 6.2 Arquivamento de Pacientes
 
-## 7. Administração de Usuários
-
-### 7.1 CRUD de Usuários
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 7.1.1 | Criar usuário com senha forte | POST `/api/users` com senha `Senh@123` | 201: usuário criado com `firstAccess=true` | Senha: 8+ chars, 1 maiúsc, 1 minúsc, 1 número, 1 especial |
-| 7.1.2 | Senha sem maiúscula | POST com senha `senh@123` | 400 | Regex: `(?=.*[A-Z])` |
-| 7.1.3 | Senha sem especial | POST com senha `Senha123` | 400 | Regex: `(?=.*[@$!%*?&])` |
-| 7.1.4 | Username duplicado | POST com username já existente | 409: "Username já existe" | Unique constraint no DB |
-| 7.1.5 | Email duplicado | POST com email já existente | 409 | Unique constraint |
-| 7.1.6 | Desativar usuário | PUT `/api/users/:id` com `isActive: false` | Usuário não consegue mais fazer login | Verificação `isActive` no login |
-| 7.1.7 | Novo usuário faz primeiro login | Login com usuário recém-criado | Redireciona para `/first-access` | `firstAccess=true` por padrão |
-| 7.1.8 | Atribuir roles | PUT com `role: 'enfermagem'` ou `role: 'visualizador'` | Permissões atualizadas imediatamente | 3 roles: admin, enfermagem, visualizador |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 6.2.1 | Paciente que recebeu alta | 1. Após um sync onde um paciente não está mais nos dados externos. | Paciente desaparece da lista ativa e vai para o Histórico. |
+| 6.2.2 | Conflito de leito resolvido | 1. Após um sync onde um novo paciente ocupa o leito de um paciente anterior. | Paciente anterior é arquivado automaticamente. Novo paciente aparece no leito. |
+| 6.2.3 | Proteção contra remoção em massa | 1. Se o sistema externo retornar pouquíssimos dados (falha temporária). 2. Clicar em sync. | Sistema **não** remove todos os pacientes de uma vez. A lista permanece estável e um aviso pode ser exibido. |
 
 ---
 
-## 8. Administração de Unidades e Templates
+## 7. Histórico de Pacientes
 
-### 8.1 Unidades de Enfermagem
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 8.1.1 | Listar unidades | GET `/api/nursing-units` | Lista com codigo, nome, localizacao, ramal, ativa | Acessível por todos os roles |
-| 8.1.2 | Criar unidade (admin) | POST `/api/nursing-units` | 201 | Admin only |
-| 8.1.3 | Mudanças pendentes de aprovação | Webhook N8N detecta mudança em unidade | Registro em `nursing_unit_changes` com status `pending` | Admin deve aprovar mudanças |
-| 8.1.4 | Aprovar mudança | POST `/api/nursing-units/changes/:id/approve` | Mudança aplicada à unidade | Admin only |
-| 8.1.5 | Rejeitar mudança | POST `/api/nursing-units/changes/:id/reject` | Mudança descartada | Admin only |
-| 8.1.6 | Sincronização diária | Verificar cron de sync de unidades | Executa às 6h AM UTC diariamente | `nursing-units-scheduler.ts` |
-
-### 8.2 Templates por Enfermaria
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 8.2.1 | Configurar campos visíveis | Acessar `/admin/templates`, marcar/desmarcar campos | Apenas campos marcados aparecem na passagem de plantão | Template customizável por unidade |
-| 8.2.2 | Template não afeta dados | Desmarcar campo "diagnostico" no template | Dado continua salvo no DB, apenas não exibido | Template controla display, não persistência |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 7.1 | Acessar tela de histórico | 1. No menu, clicar em **Histórico de Pacientes**. | Tela exibe lista de pacientes que já tiveram alta, transferência ou óbito. |
+| 7.2 | Detalhes preservados | 1. Clicar em um paciente do histórico. | Todos os dados clínicos do momento do arquivamento são exibidos (diagnóstico, alergias, notas, análise de risco, etc.). São dados "congelados" no momento da saída. |
+| 7.3 | Motivo do arquivamento | 1. Verificar as informações do paciente no histórico. | O motivo é exibido: alta hospitalar, transferência, óbito ou registro antigo. |
+| 7.4 | Buscar no histórico | 1. Usar a barra de busca na tela de histórico. 2. Digitar o nome de um paciente. | Paciente encontrado na lista. |
+| 7.5 | Paciente reativado mantém histórico | 1. Um paciente que teve alta volta a ser internado. 2. Após sync, o paciente reaparece na lista ativa. 3. Verificar o histórico. | O registro anterior de alta permanece no histórico como um log permanente. O paciente aparece tanto na lista ativa quanto no histórico (com datas diferentes). |
 
 ---
 
-## 9. Analytics de Uso (v1.4.0)
+## 8. Administração de Usuários
 
-### 9.1 Sessões e Eventos
+### 8.1 Gerenciamento (apenas Admin)
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 9.1.1 | Criação de sessão | POST `/api/analytics/sessions` | 201: sessionId retornado | sessionStorage persiste entre reloads |
-| 9.1.2 | Batching de eventos | Navegar entre 25 páginas | Eventos enviados em lotes de 20 + 5 | Max 20 eventos ou 5 segundos (o que vier primeiro) |
-| 9.1.3 | Heartbeat | Manter sessão aberta por 3 minutos | 3 heartbeats registrados | Ping a cada 60 segundos |
-| 9.1.4 | Encerrar sessão | Fechar aba do navegador | POST `/api/analytics/sessions/:id/end` via `beforeunload` | Cleanup automático |
-
-### 9.2 Dashboard Administrativo (Admin Only)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 9.2.1 | Métricas gerais | GET `/api/admin/analytics/metrics?days=30` | totalSessions, activeSessions, totalPageViews, totalActions, uniqueUsers | Admin only |
-| 9.2.2 | Top páginas | GET `/api/admin/analytics/top-pages` | Ranking de páginas + contagem | Filtro por período (24h, 7d, 30d, 90d) |
-| 9.2.3 | Top ações | GET `/api/admin/analytics/top-actions` | Ranking de ações + contagem | Gráfico pizza |
-| 9.2.4 | Stats por usuário | GET `/api/admin/analytics/users/:userId` | Sessões, page views, ações, última atividade | Admin only |
-| 9.2.5 | Enfermagem acessa dashboard | GET `/api/admin/analytics/metrics` como enfermagem | 403 | RBAC: admin-only |
-| 9.2.6 | 4 abas do dashboard | Acessar `/admin/usage-analytics` | Abas: Visão Geral, Páginas, Ações, Usuários | Gráficos com Recharts |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 8.1.1 | Listar usuários | 1. Logar como admin. 2. Acessar **Admin > Gerenciar Usuários**. | Lista com todos os usuários do sistema, incluindo nome, login, perfil (role) e status (ativo/inativo). |
+| 8.1.2 | Criar novo usuário | 1. Clicar em **Criar Usuário**. 2. Preencher: nome, login, email, senha e perfil. 3. Salvar. | Usuário criado aparece na lista. Senha deve atender os requisitos (8+ chars, maiúscula, minúscula, número, especial). |
+| 8.1.3 | Senha fraca rejeitada | 1. Tentar criar usuário com senha "123456" (sem maiúscula, sem especial). | Sistema rejeita e exibe mensagem sobre os requisitos de senha. |
+| 8.1.4 | Login duplicado rejeitado | 1. Tentar criar um usuário com um login que já existe. | Sistema rejeita e informa que o login já está em uso. |
+| 8.1.5 | Alterar perfil do usuário | 1. Editar um usuário existente. 2. Mudar o perfil de "enfermagem" para "visualizador". 3. Salvar. | Perfil alterado. No próximo login desse usuário, ele terá apenas permissão de leitura. |
+| 8.1.6 | Desativar usuário | 1. Desativar um usuário na lista. | Usuário marcado como inativo. Ao tentar fazer login com esse usuário, o acesso é negado. |
+| 8.1.7 | Novo usuário obrigado a trocar senha | 1. Criar um novo usuário. 2. Em outra aba, fazer login com ele. | O sistema obriga a troca de senha antes de qualquer outra ação (conforme testado na seção 1.3). |
 
 ---
 
-## 10. Webhook N8N
+## 9. Administração de Unidades de Enfermagem
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 10.1 | Webhook com secret válido | POST `/webhook/evolucoes` com header `x-n8n-secret` correto | 200: dados processados | Validação no middleware `n8n-validation.ts` |
-| 10.2 | Webhook sem secret | POST sem header `x-n8n-secret` | 401 | Bloqueado pelo middleware |
-| 10.3 | Webhook com secret inválido | POST com secret errado | 401 | Comparação exata com env |
-| 10.4 | IP whitelist (se configurado) | POST de IP não permitido | 403: "IP not allowed" | `N8N_ALLOWED_IPS` (opcional) |
-| 10.5 | Parsing de nomePaciente | Webhook com `"nomePaciente": "JOAO SILVA   PT: 3198597 AT: 10114118"` | `nome`: "JOAO SILVA", `registro`: "3198597", `codigoAtendimento`: "10114118" | Extração de PT: e AT: do campo |
-| 10.6 | Mapeamento de campos | Verificar todos os 20+ campos do payload | Mapeados corretamente conforme `N8N_WEBHOOK_SPECIFICATION.md` | De `dsLeito` → `dsLeitoCompleto`, etc. |
-| 10.7 | Dados criptografados após import | Após webhook, verificar DB | Campos sensíveis criptografados | Criptografia aplicada no `postgres-storage.ts` |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 9.1 | Listar unidades | 1. Logar como admin. 2. Acessar **Admin > Unidades de Enfermagem**. | Lista com todas as unidades cadastradas: código, nome, localização, ramal e status (ativa/inativa). |
+| 9.2 | Criar nova unidade | 1. Clicar em **Criar Unidade**. 2. Preencher os campos obrigatórios. 3. Salvar. | Unidade aparece na lista. |
+| 9.3 | Editar unidade | 1. Editar uma unidade existente. 2. Alterar o nome ou localização. 3. Salvar. | Dados atualizados na lista. |
 
 ---
 
-## 11. Auditoria LGPD (Art. 37)
+## 10. Templates de Passagem de Plantão
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 11.1 | Log de CREATE | Criar paciente | Registro em `audit_log`: action=CREATE, resource=patients, changes=after | userId, userName, userRole, ipAddress, userAgent registrados |
-| 11.2 | Log de READ | GET `/api/patients/:id` | Registro em `audit_log`: action=READ, resource=patients, resourceId | Rastreamento de quem visualizou |
-| 11.3 | Log de UPDATE | Atualizar dados de paciente | Registro: action=UPDATE, changes=`{before: ..., after: ...}` | Valores antes/depois preservados |
-| 11.4 | Log de DELETE | Deletar nota com motivo | Registro: action=DELETE, changes=`{before: nota, reason: "motivo"}` | Motivo registrado |
-| 11.5 | Log de LOGIN/LOGOUT | Login e logout | Registros com action=LOGIN e LOGOUT | IP e User Agent capturados |
-| 11.6 | Log de EXPORT | Exportar dados para Excel | Registro: action=EXPORT | Rastreamento de exportações |
-| 11.7 | Retenção de 5 anos | Consultar logs antigos | Logs mantidos por 5 anos | LGPD Art. 37 compliance |
-| 11.8 | Acesso a auditoria (admin) | GET `/api/security/audit` | 200: lista de logs | Admin only |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 10.1 | Acessar configuração de templates | 1. Logar como admin. 2. Acessar **Admin > Templates**. | Tela exibe os campos configuráveis por unidade de enfermagem. |
+| 10.2 | Ocultar campo no template | 1. Desmarcar o campo "Cirurgia" para uma determinada unidade. 2. Salvar. 3. Acessar a Passagem de Plantão daquela unidade. | O campo "Cirurgia" **não** aparece na visualização da passagem de plantão. |
+| 10.3 | Reativar campo no template | 1. Marcar novamente o campo "Cirurgia". 2. Salvar. 3. Acessar a Passagem de Plantão. | O campo "Cirurgia" volta a ser exibido com os dados do paciente (os dados nunca foram removidos, apenas a exibição). |
 
 ---
 
-## 12. Segurança Adicional
+## 11. Exportação e Impressão
 
-### 12.1 Headers e Proteções
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 12.1.1 | CSRF Token | Request POST sem X-CSRF-Token | 403 (se CSRF habilitado) | Proteção CSRF via csurf |
-| 12.1.2 | Rate limit geral | Enviar 101 requests em < 15min | 429 a partir do 101º | 100 req/15min por IP |
-| 12.1.3 | Helmet headers | Verificar response headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security` | Helmet middleware |
-| 12.1.4 | SQL Injection via Drizzle | Input: `'; DROP TABLE users; --` em campo de busca | Query executada como prepared statement, sem efeito | Drizzle ORM usa prepared statements |
-| 12.1.5 | XSS no input | Input: `<script>alert('XSS')</script>` | React escapa automaticamente; CSP bloqueia inline scripts | React + Helmet CSP |
-
-### 12.2 Validação de Senha (Criação de Usuário)
-
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 12.2.1 | Senha forte válida | `Admin@123` | Aceita | 8+ chars, maiúsc, minúsc, número, especial |
-| 12.2.2 | Sem caractere especial | `Admin1234` | 400 | `(?=.*[@$!%*?&])` |
-| 12.2.3 | Sem número | `Admin@abc` | 400 | `(?=.*\d)` |
-| 12.2.4 | Sem maiúscula | `admin@123` | 400 | `(?=.*[A-Z])` |
-| 12.2.5 | Sem minúscula | `ADMIN@123` | 400 | `(?=.*[a-z])` |
-| 12.2.6 | Menos de 8 chars | `Ad@1` | 400 | Min 8 caracteres |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 11.1 | Exportar planilha Excel | 1. Na Passagem de Plantão, clicar no botão de **Exportar**. | Um arquivo `.xlsx` é baixado no computador contendo os dados dos pacientes da tabela. |
+| 11.2 | Dados legíveis no Excel | 1. Abrir o arquivo exportado. | Todos os dados aparecem em texto legível: nomes, diagnósticos, alergias, etc. Nenhum dado aparece como texto cifrado ou ilegível. |
+| 11.3 | Imprimir relatório | 1. Na Passagem de Plantão, clicar no botão de **Imprimir**. | Uma visualização de impressão é gerada com layout adequado para papel, contendo os dados clínicos dos pacientes. |
 
 ---
 
-## 13. Histórico de Pacientes
+## 12. Analytics de Uso (Admin)
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 13.1 | Visualizar histórico | Acessar `/patients-history` | Lista de pacientes com alta/transferência/óbito | Snapshot completo preservado |
-| 13.2 | Snapshot preservado | Abrir detalhe de paciente arquivado | Todos os dados clínicos do momento do arquivamento | Clinical insights preservados |
-| 13.3 | Histórico nunca deletado | Reativar paciente e verificar histórico | Registro anterior permanece no histórico | Log permanente (v1.5.1) |
-| 13.4 | Motivos de arquivamento | Verificar motivos nos registros | `alta_hospitalar`, `transferencia`, `obito`, `registro_antigo` | 4 tipos de motivo |
-| 13.5 | Busca no histórico | Buscar por nome de paciente arquivado | Paciente encontrado | Busca funcional no histórico |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 12.1 | Acessar dashboard de uso | 1. Logar como admin. 2. Acessar **Admin > Analytics de Uso**. | Dashboard com 4 abas: Visão Geral, Páginas, Ações e Usuários. |
+| 12.2 | Visão geral | 1. Na aba **Visão Geral**, verificar as métricas. | Exibe: total de sessões, sessões ativas, total de visualizações de página, total de ações e usuários únicos. Gráficos carregados. |
+| 12.3 | Top páginas | 1. Na aba **Páginas**. | Ranking das páginas mais acessadas com contagem. |
+| 12.4 | Top ações | 1. Na aba **Ações**. | Ranking das ações mais realizadas (gráfico pizza ou equivalente). |
+| 12.5 | Stats por usuário | 1. Na aba **Usuários**, selecionar um usuário. | Exibe sessões, visualizações, ações e última atividade daquele usuário. |
+| 12.6 | Filtro por período | 1. Alterar o filtro de período (últimas 24h, 7 dias, 30 dias, 90 dias). | Os dados e gráficos são atualizados conforme o período selecionado. |
+| 12.7 | Enfermagem não acessa | 1. Logar como enfermagem. 2. Tentar acessar a tela de Analytics de Uso (via menu ou URL direto). | Acesso negado ou tela não disponível. |
 
 ---
 
-## 14. Exportação e Impressão
+## 13. Importação Manual de Dados
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 14.1 | Exportar Excel (.xlsx) | Clicar botão exportar na passagem de plantão | Arquivo `.xlsx` baixado com todos os dados da tabela | ExcelJS para geração |
-| 14.2 | Dados descriptografados no Excel | Abrir Excel exportado | Nome, diagnóstico, etc. legíveis | Descriptografia antes da exportação |
-| 14.3 | Auditoria de exportação | Exportar dados | Log de EXPORT registrado na auditoria | LGPD: rastreamento de exportações |
-| 14.4 | Imprimir relatório | Clicar botão de impressão | Layout formatado para impressão com dados clínicos | `print-shift-handover.tsx` |
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 13.1 | Importar evoluções | 1. Logar como admin. 2. Acessar a tela de **Importação**. 3. Selecionar a unidade de enfermagem desejada. 4. Clicar em **Importar**. | Sistema inicia a importação. Exibe progresso e, ao final, mostra quantos registros foram importados/atualizados. |
+| 13.2 | Ver status da importação | 1. Acessar **Logs de Importação**. | Exibe logs em tempo real da última importação com status de cada etapa. |
+| 13.3 | Ver histórico de importações | 1. Acessar o **Dashboard** de importação. | Lista de importações anteriores com data, unidade e estatísticas (total importado, novos, atualizados). |
+
+---
+
+## 14. Segurança — Testes pela Interface
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 14.1 | Texto com HTML em campo de nota | 1. Criar uma nota de paciente com o texto: `<b>teste</b> <script>alerta</script>`. 2. Salvar e reabrir os detalhes. | O texto é exibido como texto puro, sem formatar HTML nem executar scripts. As tags aparecem literalmente. |
+| 14.2 | Texto com SQL em campo de busca | 1. Na barra de busca, digitar: `'; DROP TABLE --`. 2. Pressionar Enter. | A busca retorna "nenhum resultado". O sistema continua funcionando normalmente. |
+| 14.3 | Campo com texto muito longo | 1. Em um campo de observações, colar um texto com mais de 5.000 caracteres. 2. Salvar. | Sistema aceita (se dentro do limite) ou rejeita com mensagem de erro sobre o tamanho máximo. |
 
 ---
 
 ## 15. Setup Inicial do Sistema
 
-| # | Cenário | Passos | Resultado Esperado | Regra de Negócio |
-|---|---------|--------|--------------------|------------------|
-| 15.1 | Setup com chave válida | POST `/api/auth/setup` com `setupKey` correto | 200: credenciais do admin e enfermeiro criados | Apenas primeira execução |
-| 15.2 | Setup com chave inválida | POST com `setupKey` errado | 403: "Invalid setup key" | Protegido por env `SETUP_KEY` |
-| 15.3 | Setup sem SETUP_KEY configurado | POST quando env não tem SETUP_KEY | 503: "SETUP_KEY not configured" | Validação de ambiente |
-| 15.4 | Setup já executado | POST setup quando usuários já existem | 409 ou mensagem de "already setup" | Previne recriação |
+> **Nota:** Este teste só pode ser executado antes do primeiro uso do sistema ou em ambiente limpo.
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 15.1 | Configuração inicial | 1. Acessar a página de setup do sistema. 2. Informar a chave de configuração fornecida pelo time técnico. 3. Confirmar. | Sistema cria os usuários padrão (admin e enfermeiro) e exibe as credenciais iniciais. |
+| 15.2 | Chave inválida | 1. Na página de setup, digitar uma chave incorreta. 2. Confirmar. | Sistema rejeita com mensagem de erro, informando que a chave é inválida. |
+| 15.3 | Setup já realizado | 1. Após o setup inicial, tentar acessar a página de setup novamente. | Sistema informa que a configuração já foi realizada ou redireciona para o login. |
+
+---
+
+## 16. Responsividade e Usabilidade
+
+| # | Cenário | Passos | Resultado Esperado |
+|---|---------|--------|--------------------|
+| 16.1 | Tela no celular | 1. Acessar o sistema pelo navegador do celular (ou simular no desktop com F12 > modo mobile). | Telas são legíveis. Menu se adapta (hamburger). Tabelas rolam horizontalmente. Botões são tocáveis. |
+| 16.2 | Tela em tablet | 1. Acessar em resolução de tablet. | Layout se adapta sem quebras visuais. |
+| 16.3 | Navegação por teclado | 1. Navegar pelos campos de login usando Tab. 2. Pressionar Enter no botão. | Todos os campos interativos são acessíveis por teclado. O foco é visualmente identificável. |
+
+---
+
+## Resumo de Cobertura
+
+| Seção | Qtd. Testes | Perfis Envolvidos |
+|-------|-------------|-------------------|
+| 1. Login e Autenticação | 13 | Todos |
+| 2. Permissões por Perfil | 16 | Admin, Enfermagem, Visualizador |
+| 3. Passagem de Plantão | 11 | Todos |
+| 4. Análise Clínica por IA | 5 | Todos |
+| 5. Notas de Pacientes | 6 | Admin, Enfermagem, Visualizador |
+| 6. Gestão de Pacientes | 8 | Admin, Enfermagem |
+| 7. Histórico de Pacientes | 5 | Todos |
+| 8. Administração de Usuários | 7 | Admin |
+| 9. Unidades de Enfermagem | 3 | Admin |
+| 10. Templates | 3 | Admin |
+| 11. Exportação e Impressão | 3 | Todos |
+| 12. Analytics de Uso | 7 | Admin, Enfermagem |
+| 13. Importação de Dados | 3 | Admin |
+| 14. Segurança | 3 | Todos |
+| 15. Setup Inicial | 3 | Admin |
+| 16. Responsividade | 3 | Todos |
+| **Total** | **99** | |
