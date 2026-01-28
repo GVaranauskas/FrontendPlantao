@@ -85,6 +85,55 @@ export class AutoSyncSchedulerGPT4o {
     batchSize: 10
   };
 
+  private syncStatusMap: Map<string, {
+    status: 'started' | 'fetching_n8n' | 'processing_ai' | 'saving' | 'complete' | 'error';
+    progress: number;
+    startedAt: Date;
+    completedAt?: Date;
+    stats?: SyncResult['stats'];
+    error?: string;
+  }> = new Map();
+
+  private generateSyncId(): string {
+    return `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  public initSyncStatus(): string {
+    this.cleanOldSyncStatus();
+    const syncId = this.generateSyncId();
+    this.syncStatusMap.set(syncId, {
+      status: 'started',
+      progress: 0,
+      startedAt: new Date()
+    });
+    return syncId;
+  }
+
+  public getSyncStatusById(syncId: string) {
+    return this.syncStatusMap.get(syncId) || null;
+  }
+
+  public updateSyncStatus(syncId: string, status: 'started' | 'fetching_n8n' | 'processing_ai' | 'saving' | 'complete' | 'error', progress: number, extra?: Partial<{ completedAt: Date; stats: SyncResult['stats']; error: string }>) {
+    const current = this.syncStatusMap.get(syncId);
+    if (current) {
+      this.syncStatusMap.set(syncId, {
+        ...current,
+        status,
+        progress,
+        ...extra
+      });
+    }
+  }
+
+  private cleanOldSyncStatus() {
+    const oneHourAgo = Date.now() - 3600000;
+    for (const [id, status] of this.syncStatusMap.entries()) {
+      if (status.startedAt.getTime() < oneHourAgo) {
+        this.syncStatusMap.delete(id);
+      }
+    }
+  }
+
   start(config?: Partial<SchedulerConfig>): void {
     if (!AutoSyncSchedulerGPT4o.AUTO_SYNC_ENABLED) {
       console.log('[AutoSync] ⚠️ Auto-sync desabilitado via AUTO_SYNC_ENABLED=false');
@@ -667,12 +716,67 @@ export class AutoSyncSchedulerGPT4o {
     }
     if (forceUpdate) {
       console.log('[AutoSync] ⚡ FORCE UPDATE ATIVO - Ignorando cache e change detection!');
-      // Limpar caches para garantir dados frescos
       intelligentCache.clear();
       changeDetectionService.reset();
       console.log('[AutoSync] 🗑️ Cache inteligente e snapshots limpos');
     }
     return await this.runSyncCycle(specificUnitIds, forceUpdate);
+  }
+
+  async runManualSyncWithId(syncId: string, specificUnitIds?: string, forceUpdate: boolean = false): Promise<SyncResult> {
+    console.log(`[AutoSync] 🔧 Executando sincronização manual com syncId: ${syncId}`);
+    
+    try {
+      if (specificUnitIds) {
+        console.log(`[AutoSync] 📋 Usando unidades específicas: ${specificUnitIds}`);
+      }
+      if (forceUpdate) {
+        console.log('[AutoSync] ⚡ FORCE UPDATE ATIVO - Ignorando cache e change detection!');
+        intelligentCache.clear();
+        changeDetectionService.reset();
+        console.log('[AutoSync] 🗑️ Cache inteligente e snapshots limpos');
+      }
+      
+      this.updateSyncStatus(syncId, 'fetching_n8n', 20);
+      
+      const result = await this.runSyncCycleWithStatus(specificUnitIds, forceUpdate, syncId);
+      
+      this.syncStatusMap.set(syncId, {
+        status: 'complete',
+        progress: 100,
+        startedAt: this.syncStatusMap.get(syncId)!.startedAt,
+        completedAt: new Date(),
+        stats: result.stats
+      });
+      
+      console.log(`[AutoSync] ✅ Sync ${syncId} concluído com sucesso`);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      const startedAt = this.syncStatusMap.get(syncId)?.startedAt || new Date();
+      this.syncStatusMap.set(syncId, {
+        status: 'error',
+        progress: 0,
+        startedAt,
+        error: errorMessage
+      });
+      console.error(`[AutoSync] ❌ Sync ${syncId} falhou:`, errorMessage);
+      throw error;
+    }
+  }
+
+  private async runSyncCycleWithStatus(specificUnitIds?: string, forceUpdate: boolean = false, syncId?: string): Promise<SyncResult> {
+    if (syncId) {
+      this.updateSyncStatus(syncId, 'fetching_n8n', 30);
+    }
+    
+    const result = await this.runSyncCycle(specificUnitIds, forceUpdate);
+    
+    if (syncId) {
+      this.updateSyncStatus(syncId, 'saving', 90, { stats: result.stats });
+    }
+    
+    return result;
   }
 }
 

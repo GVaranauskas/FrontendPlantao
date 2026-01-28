@@ -1,0 +1,293 @@
+
+---
+
+## 📋 PROMPT 2: Polling Inteligente com Status (Alternativa 3)
+
+
+Tarefa: Implementar sistema de Polling Inteligente com SyncId para o botão "Sync N8N + IA"
+Contexto
+Precisamos melhorar o sistema de sincronização para que o frontend saiba EXATAMENTE quando a sincronização terminou, usando um ID único para rastrear cada sincronização.
+
+Arquivos a Modificar
+Backend:
+
+server/routes/sync-gpt4o.routes.ts - Adicionar endpoint de status por syncId
+server/services/auto-sync-scheduler-gpt4o.service.ts - Rastrear status por syncId
+Frontend:
+3. client/src/services/patients.service.ts - Adicionar método para buscar status por syncId
+4. client/src/pages/shift-handover.tsx - Usar o novo sistema de polling
+
+PARTE 1: Backend - Rastreamento de Status
+1.1. Modificar server/services/auto-sync-scheduler-gpt4o.service.ts
+Adicionar no início da classe (após as propriedades existentes):
+
+// Mapa para rastrear status de sincronizações por ID
+private syncStatusMap: Map<string, {
+  status: 'started' | 'fetching_n8n' | 'processing_ai' | 'saving' | 'complete' | 'error';
+  progress: number;
+  startedAt: Date;
+  completedAt?: Date;
+  stats?: any;
+  error?: string;
+}> = new Map();
+
+// Gerar ID único para sincronização
+private generateSyncId(): string {
+  return `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Obter status de uma sincronização específica
+public getSyncStatusById(syncId: string) {
+  return this.syncStatusMap.get(syncId) || null;
+}
+
+// Atualizar status de uma sincronização
+private updateSyncStatus(syncId: string, status: string, progress: number, extra?: any) {
+  const current = this.syncStatusMap.get(syncId);
+  if (current) {
+    this.syncStatusMap.set(syncId, {
+      ...current,
+      status: status as any,
+      progress,
+      ...extra
+    });
+  }
+}
+
+// Limpar status antigos (mais de 1 hora)
+private cleanOldSyncStatus() {
+  const oneHourAgo = Date.now() - 3600000;
+  for (const [id, status] of this.syncStatusMap.entries()) {
+    if (status.startedAt.getTime() < oneHourAgo) {
+      this.syncStatusMap.delete(id);
+    }
+  }
+}
+
+Modificar o método runManualSync para aceitar e retornar syncId:
+
+async runManualSync(specificUnitIds?: string, forceUpdate: boolean = false): Promise<{ syncId: string; result: SyncResult }> {
+  const syncId = this.generateSyncId();
+  
+  // Limpar status antigos
+  this.cleanOldSyncStatus();
+  
+  // Inicializar status
+  this.syncStatusMap.set(syncId, {
+    status: 'started',
+    progress: 0,
+    startedAt: new Date()
+  });
+  
+  try {
+    if (forceUpdate) {
+      intelligentCache.clear();
+      changeDetectionService.reset();
+    }
+    
+    // Atualizar progresso durante o ciclo
+    this.updateSyncStatus(syncId, 'fetching_n8n', 20);
+    
+    const result = await this.runSyncCycle(specificUnitIds, forceUpdate, syncId);
+    
+    // Marcar como completo
+    this.syncStatusMap.set(syncId, {
+      status: 'complete',
+      progress: 100,
+      startedAt: this.syncStatusMap.get(syncId)!.startedAt,
+      completedAt: new Date(),
+      stats: result.stats
+    });
+    
+    return { syncId, result };
+  } catch (error) {
+    this.syncStatusMap.set(syncId, {
+      status: 'error',
+      progress: 0,
+      startedAt: this.syncStatusMap.get(syncId)!.startedAt,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+    throw error;
+  }
+}
+
+1.2. Modificar server/routes/sync-gpt4o.routes.ts
+Modificar o endpoint POST /manual para retornar syncId:
+
+router.post('/manual', ...requireRoleWithAuth('admin', 'enfermagem'), validateUnitIdsBody, async (req, res) => {
+  const { unitIds, forceUpdate } = req.body || {};
+  const shouldForceUpdate = forceUpdate === true;
+  
+  // Gerar syncId ANTES de iniciar
+  const syncId = `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`[API] /sync-gpt4o/manual - syncId: ${syncId}, unitIds: ${unitIds || 'default'}`);
+  
+  // Retorna imediatamente com o syncId
+  res.status(202).json({ 
+    success: true, 
+    message: 'Sincronização iniciada em background',
+    syncId: syncId,
+    statusCheckUrl: `/api/sync-gpt4o/status/${syncId}`,
+    unitIds: unitIds || 'all',
+    forceUpdate: shouldForceUpdate
+  });
+  
+  // Executa sincronização em background passando o syncId
+  autoSyncSchedulerGPT4o.runManualSyncWithId(syncId, unitIds, shouldForceUpdate).catch(error => {
+    console.error('[AutoSync] Erro na sincronização manual em background:', error);
+  });
+});
+
+Adicionar novo endpoint para verificar status por syncId:
+
+// GET /api/sync-gpt4o/status/:syncId - Verificar status de uma sincronização específica
+router.get('/status/:syncId', ...authWithFirstAccessCheck, (req, res) => {
+  const { syncId } = req.params;
+  const status = autoSyncSchedulerGPT4o.getSyncStatusById(syncId);
+  
+  if (!status) {
+    return res.status(404).json({ 
+      error: 'Sincronização não encontrada',
+      syncId 
+    });
+  }
+  
+  res.json({
+    syncId,
+    ...status
+  });
+});
+
+PARTE 2: Frontend - Consumir o novo sistema
+2.1. Modificar client/src/services/patients.service.ts
+Adicionar interface e método:
+
+interface SyncStatusResponse {
+  syncId: string;
+  status: 'started' | 'fetching_n8n' | 'processing_ai' | 'saving' | 'complete' | 'error';
+  progress: number;
+  startedAt: string;
+  completedAt?: string;
+  stats?: any;
+  error?: string;
+}
+
+// Dentro da classe PatientsService:
+async getSyncStatusById(syncId: string): Promise<SyncStatusResponse> {
+  const response = await apiRequest("GET", `/api/sync-gpt4o/status/${syncId}`);
+  return response.json();
+}
+
+Modificar o retorno de syncManualWithAI para incluir syncId:
+
+interface SyncInitResponse {
+  success: boolean;
+  message: string;
+  syncId: string;
+  statusCheckUrl: string;
+}
+
+async syncManualWithAI(unitIds: string = "22,23", forceUpdate: boolean = false): Promise<SyncInitResponse> {
+  const response = await apiRequest("POST", "/api/sync-gpt4o/manual", {
+    unitIds,
+    forceUpdate,
+  });
+  return response.json();
+}
+
+2.2. Modificar client/src/pages/shift-handover.tsx
+Substituir o manualSyncMutation atual por:
+
+const manualSyncMutation = useMutation({
+  mutationFn: async () => {
+    setIsSyncing(true);
+    
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    
+    // Iniciar sincronização e obter syncId
+    const initResponse = await patientsService.syncManualWithAI("22,23", false);
+    const { syncId } = initResponse;
+    
+    toast({
+      title: "Sincronização Iniciada",
+      description: "Buscando dados do N8N...",
+    });
+    
+    // Polling até completar (máximo 60 segundos)
+    const maxAttempts = 30; // 30 tentativas x 2s = 60s máximo
+    const pollInterval = 2000; // 2 segundos entre cada verificação
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      try {
+        const status = await patientsService.getSyncStatusById(syncId);
+        
+        // Atualizar toast com progresso
+        if (status.status === 'fetching_n8n') {
+          // Opcional: atualizar UI com progresso
+        } else if (status.status === 'processing_ai') {
+          // Opcional: atualizar UI
+        } else if (status.status === 'complete') {
+          // Sincronização concluída!
+          return { syncId, stats: status.stats };
+        } else if (status.status === 'error') {
+          throw new Error(status.error || 'Erro na sincronização');
+        }
+        
+        // Fazer refetch parcial a cada 3 polls para mostrar progresso
+        if (attempt % 3 === 0) {
+          await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+        }
+        
+      } catch (error) {
+        // Se for 404, a sync ainda não foi registrada, continuar tentando
+        if (error instanceof Error && !error.message.includes('404')) {
+          throw error;
+        }
+      }
+    }
+    
+    // Timeout - retornar mesmo assim
+    return { syncId, stats: null, timeout: true };
+  },
+  onSuccess: async (result) => {
+    setLastSyncTime(new Date());
+    localStorage.setItem('lastSyncTime', new Date().toISOString());
+    
+    // Refetch final garantido
+    await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+    await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
+    
+    setIsSyncing(false);
+    
+    if (result.timeout) {
+      toast({
+        title: "Sincronização Demorada",
+        description: "A sincronização está demorando mais que o esperado. Os dados foram atualizados parcialmente.",
+        variant: "default",
+      });
+    } else {
+      const stats = result.stats;
+      toast({
+        title: "Sincronização Concluída",
+        description: stats 
+          ? `${stats.patientsProcessed || 0} pacientes processados, ${stats.aiProcessed || 0} com análise IA`
+          : "Dados atualizados com sucesso!",
+      });
+    }
+  },
+  onError: (error: Error) => {
+    setIsSyncing(false);
+    toast({
+      title: "Erro na Sincronização",
+      description: error.message,
+      variant: "destructive",
+    });
+  },
+});
+

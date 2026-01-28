@@ -29,11 +29,12 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Corrigido
 
-- **Botão "Sync N8N + IA" requeria 2 cliques**: Implementado polling inteligente que aguarda a conclusão real da sincronização antes de atualizar os dados.
-  - Removido refetch imediato que buscava dados antes do processamento terminar
-  - Polling progressivo com intervalos de 3s, 3s, 4s, 5s, 5s, 10s (total ~30s)
-  - Verifica `lastRun` do endpoint de status para detectar conclusão
-  - Refetch dos dados apenas após confirmação de que a sync terminou
+- **Botão "Sync N8N + IA" requeria 2 cliques**: Implementado sistema de polling com syncId para rastrear status exato de cada sincronização.
+  - Backend: Novo endpoint `GET /api/sync-gpt4o/status/:syncId` para verificar status por ID
+  - Backend: Método `runManualSyncWithId` com rastreamento de status (started, fetching_n8n, processing_ai, complete, error)
+  - Frontend: Polling a cada 2s por até 60s, verificando status pelo syncId específico
+  - Refetch dos dados apenas após confirmação de que a sync terminou (status === 'complete')
+  - Limpeza automática de status antigos (> 1 hora)
 
 ## [1.5.2] - 2026-01-27
 

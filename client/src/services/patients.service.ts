@@ -13,6 +13,35 @@ interface SyncResult {
   data?: unknown;
 }
 
+export interface SyncInitResponse {
+  success: boolean;
+  message: string;
+  syncId: string;
+  statusCheckUrl: string;
+  unitIds: string;
+  forceUpdate: boolean;
+}
+
+export interface SyncStatusResponse {
+  syncId: string;
+  status: 'started' | 'fetching_n8n' | 'processing_ai' | 'saving' | 'complete' | 'error';
+  progress: number;
+  startedAt: string;
+  completedAt?: string;
+  stats?: {
+    totalRecords: number;
+    changedRecords: number;
+    unchangedRecords: number;
+    newRecords: number;
+    removedRecords: number;
+    reactivatedRecords: number;
+    aiCallsMade: number;
+    aiCallsAvoided: number;
+    errors: number;
+  };
+  error?: string;
+}
+
 export interface SyncDetailedStatus {
   isRunning: boolean;
   lastRun: string | null;
@@ -50,11 +79,16 @@ class PatientsService extends ApiService {
     return response.json();
   }
 
-  async syncManualWithAI(unitIds: string = "22,23", forceUpdate: boolean = false): Promise<SyncResult> {
+  async syncManualWithAI(unitIds: string = "22,23", forceUpdate: boolean = false): Promise<SyncInitResponse> {
     const response = await apiRequest("POST", "/api/sync-gpt4o/manual", {
       unitIds,
       forceUpdate,
     });
+    return response.json();
+  }
+
+  async getSyncStatusById(syncId: string): Promise<SyncStatusResponse> {
+    const response = await apiRequest("GET", `/api/sync-gpt4o/status/${syncId}`);
     return response.json();
   }
 

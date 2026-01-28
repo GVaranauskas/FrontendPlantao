@@ -11,23 +11,23 @@ const router = Router();
 
 // POST /api/sync-gpt4o/manual - requires admin or enfermagem role with firstAccess check
 router.post('/manual', ...requireRoleWithAuth('admin', 'enfermagem'), validateUnitIdsBody, (req, res) => {
-  // Support specific unit IDs and forceUpdate via request body
   const { unitIds, forceUpdate } = req.body || {};
   const shouldForceUpdate = forceUpdate === true;
   
-  console.log(`[API] /sync-gpt4o/manual - unitIds: ${unitIds || 'default'}, forceUpdate: ${shouldForceUpdate}`);
+  const syncId = autoSyncSchedulerGPT4o.initSyncStatus();
   
-  // Retorna imediatamente sem aguardar a conclusão
+  console.log(`[API] /sync-gpt4o/manual - syncId: ${syncId}, unitIds: ${unitIds || 'default'}, forceUpdate: ${shouldForceUpdate}`);
+  
   res.status(202).json({ 
     success: true, 
     message: 'Sincronização iniciada em background',
-    statusCheckUrl: '/api/sync-gpt4o/status',
+    syncId: syncId,
+    statusCheckUrl: `/api/sync-gpt4o/status/${syncId}`,
     unitIds: unitIds || 'all',
     forceUpdate: shouldForceUpdate
   });
   
-  // Executa sincronização em background (sem await) - AGORA PASSA forceUpdate!
-  autoSyncSchedulerGPT4o.runManualSync(unitIds, shouldForceUpdate).catch(error => {
+  autoSyncSchedulerGPT4o.runManualSyncWithId(syncId, unitIds, shouldForceUpdate).catch(error => {
     console.error('[AutoSync] Erro na sincronização manual em background:', error);
   });
 });
@@ -43,6 +43,24 @@ router.get('/status', ...authWithFirstAccessCheck, (req, res) => {
 // GET /api/sync-gpt4o/detailed-status (for UI indicator) - PROTECTED
 router.get('/detailed-status', ...authWithFirstAccessCheck, (req, res) => {
   res.json(autoSyncSchedulerGPT4o.getDetailedStatus());
+});
+
+// GET /api/sync-gpt4o/status/:syncId - Verificar status de uma sincronização específica
+router.get('/status/:syncId', ...authWithFirstAccessCheck, (req, res) => {
+  const { syncId } = req.params;
+  const status = autoSyncSchedulerGPT4o.getSyncStatusById(syncId);
+  
+  if (!status) {
+    return res.status(404).json({ 
+      error: 'Sincronização não encontrada',
+      syncId 
+    });
+  }
+  
+  res.json({
+    syncId,
+    ...status
+  });
 });
 
 // GET /api/sync-gpt4o/history - PROTECTED
