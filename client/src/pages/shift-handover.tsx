@@ -56,6 +56,7 @@ export default function ShiftHandoverPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [filterCritical, setFilterCritical] = useState(false);
   const [filterPending, setFilterPending] = useState(false);
+  const [filterEspecialidade, setFilterEspecialidade] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
@@ -246,6 +247,14 @@ export default function ShiftHandoverPage() {
     return insights?.nivel_alerta === "AMARELO";
   }, []);
 
+  const especialidadesUnicas = useMemo(() => {
+    if (!patients) return [];
+    const especialidades = patients
+      .map(p => p.especialidadeRamal || "")
+      .filter(e => e.trim() !== "");
+    return [...new Set(especialidades)].sort();
+  }, [patients]);
+
   const filteredPatients = useMemo(() => {
     if (!patients) return [];
     return patients.filter(p => {
@@ -253,13 +262,14 @@ export default function ShiftHandoverPage() {
         p.leito.includes(searchTerm);
       const matchesCriticalFilter = !filterCritical || isAICritical(p);
       const matchesPendingFilter = !filterPending || p.status === "pending";
-      return matchesSearch && matchesCriticalFilter && matchesPendingFilter;
+      const matchesEspecialidade = !filterEspecialidade || filterEspecialidade === "__all__" || p.especialidadeRamal === filterEspecialidade;
+      return matchesSearch && matchesCriticalFilter && matchesPendingFilter && matchesEspecialidade;
     }).sort((a, b) => {
       const leitoA = parseInt(a.leito.replace(/\D/g, '')) || 0;
       const leitoB = parseInt(b.leito.replace(/\D/g, '')) || 0;
       return leitoA - leitoB;
     });
-  }, [patients, searchTerm, filterCritical, filterPending, isAICritical]);
+  }, [patients, searchTerm, filterCritical, filterPending, filterEspecialidade, isAICritical]);
 
   const stats: PatientStats = useMemo(() => ({
     complete: patients?.filter(p => p.status === "complete").length || 0,
@@ -960,6 +970,9 @@ export default function ShiftHandoverPage() {
           filterPending={filterPending}
           pendingCount={stats.pending}
           onClearPendingFilter={() => setFilterPending(false)}
+          filterEspecialidade={filterEspecialidade}
+          especialidades={especialidadesUnicas}
+          onEspecialidadeChange={setFilterEspecialidade}
         />
 
         {isLoading ? (
