@@ -145,10 +145,10 @@ export default function ShiftHandoverPage() {
       
       toast({
         title: "Sincronização Iniciada",
-        description: "Buscando dados do N8N...",
+        description: "Buscando dados do N8N e processando IA... (pode levar até 2 minutos)",
       });
       
-      const maxAttempts = 30;
+      const maxAttempts = 60;
       const pollInterval = 2000;
       
       for (let attempt = 0; attempt < maxAttempts; attempt++) {

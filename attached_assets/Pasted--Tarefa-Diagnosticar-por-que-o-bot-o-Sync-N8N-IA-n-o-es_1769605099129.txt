@@ -1,0 +1,48 @@
+## Tarefa: Diagnosticar por que o botão "Sync N8N + IA" não está completando a sincronização
+
+### Contexto
+O botão "Sync N8N + IA" foi testado e a sincronização NÃO completou em 60 segundos. Precisamos descobrir o motivo.
+
+### O que você precisa fazer:
+
+1. **Verificar os logs do servidor** para encontrar erros relacionados à sincronização:
+   - Procure por mensagens com [AutoSync], [N8N], [AI], [Error], [GPT4o]
+   - Verifique se há erros de conexão, timeout, ou API
+
+2. **Verificar as variáveis de ambiente** necessárias:
+   - Confirme que DATABASE_URL está configurada
+   - Confirme que a chave de API da IA está configurada (ANTHROPIC_API_KEY ou OPENAI_API_KEY)
+   - Confirme que as URLs do N8N estão configuradas (N8N_WEBHOOK_URL ou similar)
+
+3. **Testar a conexão com o N8N**:
+   - Verificar se o endpoint do N8N está acessível
+   - Verificar se retorna dados válidos
+
+4. **Testar a conexão com a IA**:
+   - Verificar se a API key está válida
+   - Verificar se há créditos/quota disponível
+
+5. **Verificar o código do scheduler**:
+   - Abra o arquivo `server/services/auto-sync-scheduler-gpt4o.service.ts`
+   - Procure pelo método `runManualSync` e `runSyncCycle`
+   - Identifique onde pode estar falhando silenciosamente
+
+6. **Criar um endpoint de diagnóstico temporário** (se necessário):
+   - Adicione logs detalhados para identificar em qual etapa a sincronização está falhando
+
+### Arquivos importantes para verificar:
+- `server/services/auto-sync-scheduler-gpt4o.service.ts` - Scheduler principal
+- `server/services/n8n-integration.service.ts` - Integração com N8N
+- `server/services/ai-service-gpt4o-mini.ts` - Serviço de IA
+- `server/routes/sync-gpt4o.routes.ts` - Rotas da API
+- `.env` ou configurações de ambiente do Replit
+
+### Output esperado:
+1. Lista de problemas encontrados
+2. Para cada problema, a solução recomendada
+3. Se possível, implemente as correções necessárias
+
+### Prioridade de investigação:
+1. Primeiro: Verificar se o N8N está retornando dados (sem N8N, não há o que sincronizar)
+2. Segundo: Verificar se a IA está funcionando (sem IA, não há clinicalInsights)
+3. Terceiro: Verificar se há erros no banco de dados
