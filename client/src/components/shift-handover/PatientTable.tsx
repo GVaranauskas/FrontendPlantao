@@ -151,7 +151,8 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
               <th className="hidden px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[80px]">ENFERMARIA</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">ESPECIALIDADE/<br/>RAMAL</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>IDADE</th>
-              <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>NASCIMENTO</th>
+              {/* Coluna DATA DE NASCIMENTO oculta - remover 'hidden' para exibir novamente */}
+              <th className="hidden px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>NASCIMENTO</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>INTERNAÇÃO</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[70px]">RQ BRADEN<br/>SCP</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[140px]">DIAGNÓSTICO/<br/>COMORBIDADES</th>
@@ -225,8 +226,14 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
                       </span>
                     )}
                   </div>
+                  {patient.dataNascimento && (
+                    <div className="text-muted-foreground mt-0.5">
+                      DATA DE NASCIMENTO - {patient.dataNascimento}
+                    </div>
+                  )}
                 </td>
-                <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataNascimento || "-"}</td>
+                {/* Coluna DATA DE NASCIMENTO oculta - remover 'hidden' para exibir novamente */}
+                <td className="hidden px-2 py-2 text-[10px] text-center border border-border">{patient.dataNascimento || "-"}</td>
                 <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dataInternacao || "-"}</td>
                 <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.braden || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.diagnostico || "-"}</td>

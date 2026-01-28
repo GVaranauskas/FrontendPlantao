@@ -48,7 +48,8 @@ function generatePatientRow(patient: Patient): string {
       <td class="center" style="color: ${alertaColor}; font-weight: bold;">${alertaIA}</td>
       <td class="center">${escapeHtml(patient.dsEnfermaria)}</td>
       <td>${escapeHtml(patient.especialidadeRamal)}</td>
-      <td><strong>${escapeHtml(patient.nome)}</strong><br/>REG: ${escapeHtml(patient.registro)}<br/>${calculateAge(patient.dataNascimento)}</td>
+      <td><strong>${escapeHtml(patient.nome)}</strong><br/>REG: ${escapeHtml(patient.registro)} ${calculateAge(patient.dataNascimento)}<br/>DATA DE NASCIMENTO - ${escapeHtml(patient.dataNascimento)}</td>
+      <!-- Coluna DATA NASC oculta via CSS - remover display:none no CSS para exibir -->
       <td class="center">${escapeHtml(patient.dataNascimento)}</td>
       <td class="center">${escapeHtml(patient.dataInternacao)}</td>
       <td class="center">${escapeHtml(patient.braden)}</td>
@@ -263,7 +264,8 @@ export function printShiftHandover(patients: Patient[]) {
         th:nth-child(3), td:nth-child(3) { display: none; width: 3.5%; }   /* ENFERMARIA */
         th:nth-child(4), td:nth-child(4) { width: 4.5%; }   /* ESPEC/RAMAL */
         th:nth-child(5), td:nth-child(5) { width: 7%; }     /* NOME/REG/IDADE */
-        th:nth-child(6), td:nth-child(6) { width: 3.5%; }   /* DATA NASC */
+        /* Coluna DATA NASC oculta - remover display:none para exibir novamente */
+        th:nth-child(6), td:nth-child(6) { display: none; width: 3.5%; }   /* DATA NASC */
         th:nth-child(7), td:nth-child(7) { width: 3.5%; }   /* DATA INTERN */
         th:nth-child(8), td:nth-child(8) { width: 2.8%; }   /* BRADEN */
         th:nth-child(9), td:nth-child(9) { width: 7%; }     /* DIAGNÓSTICO */
