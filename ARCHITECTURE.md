@@ -1071,6 +1071,20 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 ## 📊 Métricas e Performance
 
+### Sync N8N + IA (v1.5.5)
+
+| Operação | Tempo |
+|----------|-------|
+| N8N Fetch | ~700ms |
+| IA Batch (4 paralelos) | ~14s |
+| Database UPSERT (10 paralelos) | ~10s |
+| **Total** | **~30s** |
+
+**Otimizações aplicadas:**
+- 4 batches de IA processados em paralelo via `Promise.all()`
+- 10 operações de banco simultâneas com `CONCURRENCY_LIMIT`
+- Redução de ~62% vs versão anterior (78s → 30s)
+
 ### Bundle Sizes
 
 - **Client**: ~487KB (antes de code splitting)
@@ -1081,6 +1095,7 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 - **Conexões**: Pool de 10 conexões (Neon DB)
 - **Queries**: Indexadas por leito, registro, unidadeInternacao
+- **UPSERT Paralelo**: 10 operações simultâneas
 
 ### API
 

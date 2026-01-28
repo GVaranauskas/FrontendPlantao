@@ -17,6 +17,36 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.5] - 2026-01-28
+
+### Otimizado
+
+- **Salvamento paralelo no banco de dados**: Operações de UPSERT agora são processadas em paralelo com limite de 10 concorrentes
+  - ANTES: 35 pacientes = 140 queries sequenciais = ~65 segundos
+  - DEPOIS: 35 pacientes = 4 chunks paralelos = ~10 segundos
+  - Redução de ~85% no tempo de salvamento
+  - Processamento em chunks com `Promise.all()` e `CONCURRENCY_LIMIT = 10`
+
+- **Processamento de IA em paralelo**: 4 batches de 10 pacientes processados simultaneamente
+  - ANTES: 4 batches sequenciais = ~56 segundos
+  - DEPOIS: 4 batches paralelos = ~14 segundos
+  - Redução de ~75% no tempo de análise de IA
+
+### Alterado
+
+- **Modal "Análise de IA - Passagem de Plantão"**: Campo "Média Braden" removido da interface
+  - Removido do card de estatísticas (seção de indicadores numéricos)
+  - Removido do painel de indicadores gerais (seção com ícones)
+  - Funcionalidade backend mantida sem alterações
+
+### Resumo de Performance
+
+| Operação | Antes (v1.5.4) | Depois (v1.5.5) | Melhoria |
+|----------|----------------|-----------------|----------|
+| Sync Total (35 pac.) | ~78s | ~30s | -62% |
+| IA (4 batches) | ~56s | ~14s | -75% |
+| Banco de Dados | ~65s | ~10s | -85% |
+
 ## [1.5.4] - 2026-01-28
 
 ### Otimizado

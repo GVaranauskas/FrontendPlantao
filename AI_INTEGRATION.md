@@ -101,17 +101,23 @@ ANTES (v1.5.3):
   35 pacientes = 35 chamadas API = ~105 segundos
 
 DEPOIS (v1.5.4):
-  35 pacientes = 4 chamadas API = ~12 segundos
+  35 pacientes = 4 chamadas API sequenciais = ~56 segundos
   
-REDUÇÃO: ~90% no tempo de sincronização
+DEPOIS (v1.5.5 - Paralelo):
+  35 pacientes = 4 chamadas API em paralelo = ~14 segundos
+  + Salvamento paralelo no banco = ~10 segundos
+  = TOTAL: ~30 segundos
+  
+REDUÇÃO TOTAL: ~71% vs v1.5.4, ~95% vs v1.5.3
 ```
 
-**Como funciona:**
+**Como funciona (v1.5.5):**
 1. Separar pacientes em cache vs não-cache
 2. Agrupar pacientes não-cache em lotes de 10
-3. Enviar 1 chamada API por lote (vs 10 chamadas antes)
+3. Enviar TODOS os lotes em paralelo via `Promise.all()`
 4. Salvar resultados no cache
-5. Retornar todos na ordem correta
+5. Salvar pacientes no banco em paralelo (CONCURRENCY_LIMIT=10)
+6. Retornar todos na ordem correta
 
 ## 🏗️ Arquitetura Multi-Camada
 
