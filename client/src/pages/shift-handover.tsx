@@ -143,56 +143,75 @@ export default function ShiftHandoverPage() {
       return patientsService.syncManualWithAI("22,23", false);
     },
     onSuccess: async () => {
+      const syncStartTime = Date.now();
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem('lastSyncTime', now.toISOString());
       
-      // Usar refetchQueries para forçar atualização imediata (resolve problema de staleTime: Infinity)
-      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
-      
       toast({
         title: "Sincronização Iniciada",
-        description: "Dados sincronizados. Análise de IA em processamento (aguarde ~30s)...",
+        description: "Aguarde enquanto processamos os dados...",
       });
       
-      // Polling para aguardar conclusão da análise de IA em background
-      pollTimerRef.current = setTimeout(async () => {
-        await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
-        pollTimerRef.current = setTimeout(async () => {
-          await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
-          await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
-          setIsSyncing(false);
-          pollTimerRef.current = null;
+      const pollIntervals = [3000, 3000, 4000, 5000, 5000, 10000];
+      let syncCompleted = false;
+      
+      for (const interval of pollIntervals) {
+        await new Promise(resolve => setTimeout(resolve, interval));
+        
+        try {
+          const status = await patientsService.getSyncDetailedStatus();
+          const lastRun = status.lastRun;
           
-          try {
-            const status = await patientsService.getSyncDetailedStatus();
-            const stats = status.lastSyncStats;
-            if (stats) {
-              const parts: string[] = [];
-              if (stats.newRecords > 0) parts.push(`${stats.newRecords} novos`);
-              if (stats.changedRecords > 0) parts.push(`${stats.changedRecords} atualizados`);
-              if (stats.removedRecords > 0) parts.push(`${stats.removedRecords} arquivados`);
-              if (stats.reactivatedRecords > 0) parts.push(`${stats.reactivatedRecords} reativados`);
+          if (lastRun) {
+            const completedTime = new Date(lastRun).getTime();
+            if (completedTime > syncStartTime) {
+              await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+              await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
               
-              const summary = parts.length > 0 ? parts.join(", ") : "Nenhuma alteração";
-              toast({
-                title: "Sincronização Concluída",
-                description: `${summary}. Total: ${stats.totalRecords} pacientes.`,
-              });
-            } else {
-              toast({
-                title: "Sincronização Concluída",
-                description: "Dados e análises de IA atualizados com sucesso.",
-              });
+              syncCompleted = true;
+              
+              const stats = status.lastSyncStats;
+              if (stats) {
+                const parts: string[] = [];
+                if (stats.newRecords > 0) parts.push(`${stats.newRecords} novos`);
+                if (stats.changedRecords > 0) parts.push(`${stats.changedRecords} atualizados`);
+                if (stats.removedRecords > 0) parts.push(`${stats.removedRecords} arquivados`);
+                if (stats.reactivatedRecords > 0) parts.push(`${stats.reactivatedRecords} reativados`);
+                
+                const summary = parts.length > 0 ? parts.join(", ") : "Nenhuma alteração";
+                toast({
+                  title: "Sincronização Concluída",
+                  description: `${summary}. Total: ${stats.totalRecords} pacientes.`,
+                });
+              } else {
+                toast({
+                  title: "Sincronização Concluída",
+                  description: "Dados e análises de IA atualizados com sucesso.",
+                });
+              }
+              break;
             }
-          } catch {
-            toast({
-              title: "Sincronização Concluída",
-              description: "Dados e análises de IA atualizados com sucesso.",
-            });
           }
-        }, 20000);
-      }, 15000);
+          
+          await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+          
+        } catch (error) {
+          console.error('[Sync] Erro ao verificar status:', error);
+        }
+      }
+      
+      if (!syncCompleted) {
+        await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+        await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
+        
+        toast({
+          title: "Sincronização em Andamento",
+          description: "Os dados foram atualizados. A análise de IA pode ainda estar processando.",
+        });
+      }
+      
+      setIsSyncing(false);
     },
     onError: (error: Error) => {
       setIsSyncing(false);

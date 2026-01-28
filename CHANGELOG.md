@@ -27,6 +27,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Botão de limpar filtro na barra de busca
   - Card desabilitado quando não há pacientes pendentes
 
+### Corrigido
+
+- **Botão "Sync N8N + IA" requeria 2 cliques**: Implementado polling inteligente que aguarda a conclusão real da sincronização antes de atualizar os dados.
+  - Removido refetch imediato que buscava dados antes do processamento terminar
+  - Polling progressivo com intervalos de 3s, 3s, 4s, 5s, 5s, 10s (total ~30s)
+  - Verifica `lastRun` do endpoint de status para detectar conclusão
+  - Refetch dos dados apenas após confirmação de que a sync terminou
+
 ## [1.5.2] - 2026-01-27
 
 ### Segurança

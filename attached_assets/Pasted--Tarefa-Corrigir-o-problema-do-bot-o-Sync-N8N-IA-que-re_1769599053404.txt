@@ -1,0 +1,112 @@
+## Tarefa: Corrigir o problema do botão "Sync N8N + IA" que requer 2 cliques
+
+### Contexto do Problema
+O botão "Sync N8N + IA" no arquivo `client/src/pages/shift-handover.tsx` tem um problema: o usuário precisa clicar 2 vezes para ver os dados atualizados. Isso acontece porque:
+
+1. O backend responde imediatamente com HTTP 202 (antes de processar)
+2. O `onSuccess` faz `refetchQueries` imediato - mas os dados ainda são os ANTIGOS
+3. O polling atual (15s + 20s) é muito lento e não verifica se a sync realmente terminou
+
+### Arquivos a Modificar
+- `client/src/pages/shift-handover.tsx` (linhas ~134-205, onde está o `manualSyncMutation`)
+
+### Mudanças Necessárias
+
+1. **REMOVER o refetch imediato** que está no `onSuccess` (linha ~151) - ele busca dados velhos
+
+2. **Implementar polling mais inteligente** com as seguintes características:
+   - Intervalos mais curtos e progressivos: 3s, 6s, 10s, 15s, 20s
+   - Verificar o endpoint `/api/sync-gpt4o/detailed-status` para saber se a sync terminou
+   - Parar o polling assim que detectar que a sincronização completou
+   - Só fazer `refetchQueries` APÓS confirmar que a sync terminou
+
+3. **Lógica de verificação de conclusão**:
+   - Chamar `patientsService.getSyncDetailedStatus()` a cada poll
+   - Comparar o `lastSyncStats.syncCompletedAt` com o timestamp de quando clicou
+   - Se `syncCompletedAt` for MAIOR que o timestamp do clique, a sync terminou
+
+### Código de Referência (adapte conforme necessário)
+
+```typescript
+const manualSyncMutation = useMutation({
+  mutationFn: async () => {
+    setIsSyncing(true);
+    
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    
+    return patientsService.syncManualWithAI("22,23", false);
+  },
+  onSuccess: async () => {
+    const syncStartTime = Date.now();
+    setLastSyncTime(new Date());
+    localStorage.setItem('lastSyncTime', new Date().toISOString());
+    
+    toast({
+      title: "Sincronização Iniciada",
+      description: "Aguarde enquanto processamos os dados...",
+    });
+    
+    // NÃO fazer refetch imediato - os dados ainda estão velhos!
+    
+    // Polling inteligente com intervalos progressivos
+    const pollIntervals = [3000, 3000, 4000, 5000, 5000, 10000]; // Total: ~30s
+    let syncCompleted = false;
+    
+    for (const interval of pollIntervals) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+      
+      try {
+        // Verificar se a sincronização terminou
+        const status = await patientsService.getSyncDetailedStatus();
+        const completedAt = status.lastSyncStats?.syncCompletedAt;
+        
+        if (completedAt) {
+          const completedTime = new Date(completedAt).getTime();
+          if (completedTime > syncStartTime) {
+            // Sincronização terminou! Agora sim fazer refetch
+            await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+            await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
+            
+            syncCompleted = true;
+            
+            toast({
+              title: "Sincronização Concluída",
+              description: `${status.lastSyncStats?.patientsProcessed || 0} pacientes processados`,
+            });
+            break;
+          }
+        }
+        
+        // Fazer refetch parcial para mostrar progresso (opcional)
+        await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+        
+      } catch (error) {
+        console.error('[Sync] Erro ao verificar status:', error);
+      }
+    }
+    
+    // Se não completou após todos os polls, fazer refetch final de qualquer forma
+    if (!syncCompleted) {
+      await queryClient.refetchQueries({ queryKey: ["/api/patients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/patients-history/stats"] });
+      
+      toast({
+        title: "Sincronização em Andamento",
+        description: "Os dados foram atualizados. A análise de IA pode ainda estar processando.",
+      });
+    }
+    
+    setIsSyncing(false);
+  },
+  onError: (error: Error) => {
+    setIsSyncing(false);
+    toast({
+      title: "Erro na Sincronização",
+      description: error.message,
+      variant: "destructive",
+    });
+  },
+});
