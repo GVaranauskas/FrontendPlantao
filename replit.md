@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript, Vite, Wouter for routing.
 - **UI/UX**: shadcn/ui (New York style), Radix UI primitives, Tailwind CSS, custom 11Care brand design system with specific color palette, theming, and spacing.
-- **State Management**: TanStack Query for server state (staleTime: Infinity with refetchQueries for immediate updates), React Hook Form with Zod for form handling.
+- **State Management**: TanStack Query for server state (staleTime: Infinity with refetchQueries for immediate updates), React Hook Form with Zod for form handling. Manual sync uses intelligent polling (3s-10s intervals) to detect completion via `lastRun` status before refreshing data.
 - **Services Layer**: Centralized API abstraction using `ApiService` with generic CRUD methods and specific services for patients, users, templates, and nursing units.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
 - **Key Features**: Login with mandatory first-access password change, module selection dashboard, SBAR shift handover with an 18-column patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality for handover reports, centralized admin menu for nursing unit management with approval workflows, patient history viewing for archived patients (alta, transfers, deaths), usage analytics dashboard for UX/Customer Success analysis, and interactive table filtering by patient status (Critical and Pending filters with clickable stat cards).

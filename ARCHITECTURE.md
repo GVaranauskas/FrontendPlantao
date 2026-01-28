@@ -1103,4 +1103,4 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 ---
 
-**Última atualização**: 2026-01-22
+**Última atualização**: 2026-01-28
