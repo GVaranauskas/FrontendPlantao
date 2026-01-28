@@ -147,7 +147,8 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
             <tr>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap sticky left-0 bg-primary z-30">LEITO</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[60px]">ALERTA<br/>IA</th>
-              <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[80px]">ENFERMARIA</th>
+              {/* Coluna ENFERMARIA oculta - remover 'hidden' para exibir novamente */}
+              <th className="hidden px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[80px]">ENFERMARIA</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[100px]">ESPECIALIDADE/<br/>RAMAL</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[180px]">NOME/<br/>REGISTRO/<br/>IDADE</th>
               <th className="px-2 py-2 text-center font-semibold text-[10px] border border-primary/30 whitespace-nowrap min-w-[90px]">DATA DE<br/>NASCIMENTO</th>
@@ -211,7 +212,8 @@ export function PatientTable({ patients, onPatientClick }: PatientTableProps) {
                     );
                   })()}
                 </td>
-                <td className="px-2 py-2 text-[10px] text-center border border-border">{patient.dsEnfermaria || "-"}</td>
+                {/* Coluna ENFERMARIA oculta - remover 'hidden' para exibir novamente */}
+                <td className="hidden px-2 py-2 text-[10px] text-center border border-border">{patient.dsEnfermaria || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">{patient.especialidadeRamal || "-"}</td>
                 <td className="px-2 py-2 text-[10px] border border-border">
                   <div className="font-semibold">{patient.nome}</div>

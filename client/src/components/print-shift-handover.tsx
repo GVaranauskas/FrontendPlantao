@@ -259,7 +259,8 @@ export function printShiftHandover(patients: Patient[]) {
         /* Column widths - 22 columns optimized for A4 landscape */
         th:nth-child(1), td:nth-child(1) { width: 2.2%; }   /* LEITO */
         th:nth-child(2), td:nth-child(2) { width: 2.8%; }   /* ALERTA IA */
-        th:nth-child(3), td:nth-child(3) { width: 3.5%; }   /* ENFERMARIA */
+        /* Coluna ENFERMARIA oculta - remover display:none para exibir novamente */
+        th:nth-child(3), td:nth-child(3) { display: none; width: 3.5%; }   /* ENFERMARIA */
         th:nth-child(4), td:nth-child(4) { width: 4.5%; }   /* ESPEC/RAMAL */
         th:nth-child(5), td:nth-child(5) { width: 7%; }     /* NOME/REG/IDADE */
         th:nth-child(6), td:nth-child(6) { width: 3.5%; }   /* DATA NASC */
