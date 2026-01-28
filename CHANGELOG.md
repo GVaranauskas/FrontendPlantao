@@ -17,6 +17,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.4] - 2026-01-28
+
+### Otimizado
+
+- **Análise de IA em batch real**: Múltiplos pacientes são analisados em UMA ÚNICA chamada à API OpenAI
+  - ANTES: 35 pacientes = 35 chamadas API = ~105 segundos
+  - DEPOIS: 35 pacientes = 4 chamadas API = ~12 segundos
+  - Redução de ~90% no tempo de sincronização com IA
+  - Novo método `callGPT4oMiniBatch` processa até 10 pacientes por chamada
+  - Prompt de sistema adaptado para retornar array de análises
+
 ## [1.5.3] - 2026-01-27
 
 ### Adicionado
