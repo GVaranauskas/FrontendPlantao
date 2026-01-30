@@ -44,7 +44,7 @@ Após as mudanças:
 
 **Teste:**
 ```bash
-npm run build && npm run typecheck
+npm run check && npm run build
 ```
 
 ---
