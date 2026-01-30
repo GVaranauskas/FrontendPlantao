@@ -1,0 +1,77 @@
+🔒 AUDITORIA DE SEGURANÇA E LGPD COMPLETA
+A auditoria identificou 18 vulnerabilidades que precisam de remediação. Aqui está o resumo:
+
+🔴 VULNERABILIDADES CRÍTICAS (Ação Imediata)
+1. Senhas Padrão Hardcoded - /server/routes/auth.ts:50-51
+const defaultAdminPassword = 'admin123';
+const defaultEnfermeiroPassword = 'enf123';
+
+Risco: Acesso não autorizado com credenciais fracas
+OWASP: A2 - Broken Authentication
+Ação: Remover fallbacks, forçar configuração via env vars
+2. Content Security Policy Permissiva - /server/security.ts:11-20
+scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"]
+
+Risco: Permite XSS e execução de código malicioso
+OWASP: A7 - Cross-Site Scripting
+Ação: Remover unsafe-eval e unsafe-inline
+3. SameSite=none em Cookies - /server/middleware/cookies.ts:12,25
+Risco: Vulnerável a ataques CSRF cross-site
+OWASP: A5 - Broken Access Control
+Ação: Mudar para sameSite: 'strict'
+4. Dados Não Criptografados em Dev - /server/services/encryption.service.ts:16-21
+Risco: Dados sensíveis em plaintext se ENCRYPTION_KEY não configurado
+LGPD: Art. 9 e 46 - Violação de proteção de dados sensíveis
+Ação: Forçar criptografia obrigatória mesmo em dev
+5. Senhas Retornadas do Banco - /server/repositories/postgres-storage.ts:9-20
+async getAllUsers() {
+  return await db.select().from(users); // Retorna tudo incluindo hashes
+}
+
+Risco: Hashes de senha acessíveis em queries
+Ação: Selecionar apenas campos necessários explicitamente
+6. CSRF Desabilitado para APIs - /server/middleware/csrf.ts:37-43
+Risco: Requisições maliciosas podem deletar/modificar dados
+Ação: Validar CSRF mesmo com Bearer tokens
+7. JWT com Expiração de 24h - /server/security/jwt.ts:14
+Risco: Tokens roubados dão acesso prolongado
+OWASP: A2 - Broken Authentication
+Ação: Reduzir para 15 minutos
+🟠 VULNERABILIDADES ALTAS
+8. Validação de SQL por Regex - /server/validation.ts:9-47
+Risco: Regex pode ser contornada com encoding
+Ação: Confiar no ORM e validar IDs por whitelist
+9. Rate Limiting Fraco - /server/security.ts:66-73
+max: 5, // 5 tentativas em 15 minutos
+
+Risco: Brute force possível com senhas padrão
+Ação: Reduzir para 3 tentativas, adicionar lockout progressivo
+10. Todos os Pacientes Sem Filtro - /server/routes.ts:449-464
+const patients = await storage.getAllPatients();
+res.json({ patients }); // Retorna TUDO
+
+LGPD: Art. 37 e 46 - Acesso não controlado a dados sensíveis
+Ação: Implementar paginação obrigatória e validação de acesso
+🔵 ANÁLISE DE CONFORMIDADE LGPD
+✅ Implementado:
+Auditoria de ações (Art. 37)
+Criptografia AES-256-GCM (Art. 46)
+Controle de acesso por roles (Art. 46)
+Retenção de logs 90 dias
+❌ Problemas:
+Falta Anonimização/Pseudonimização (Art. 32)
+
+Nomes em plaintext
+Sem campo de pseudônimo
+Consentimento Não Documentado (Art. 5)
+
+Sem API de consentimento
+Sem política de privacidade
+Direitos Incompletos dos Titulares
+
+✓ Acesso, Correção
+✗ Portabilidade, Contestação
+Data Retention Vaga
+
+Sem política automática de exclusão
+Sem retenção definida para dados de pacientes
