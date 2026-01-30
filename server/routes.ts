@@ -2019,7 +2019,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // LGPD: Get all personal data categories stored (Art. 9 - Transparency)
-  app.get("/api/lgpd/data-categories", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
+  // Note: Admin-only for full transparency report; regular users see this info on login/profile
+  app.get("/api/lgpd/data-categories", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     res.json({
       categories: [
         {

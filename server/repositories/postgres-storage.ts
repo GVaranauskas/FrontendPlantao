@@ -1,4 +1,4 @@
-import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc } from "drizzle-orm";
+import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc, isNotNull } from "drizzle-orm";
 import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory, userSessions, analyticsEvents } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
@@ -811,7 +811,7 @@ export class PostgresStorage implements IStorage {
       db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'page_view'), eventWhereClause)),
       db.select({ count: count() }).from(analyticsEvents).where(and(eq(analyticsEvents.eventType, 'action'), eventWhereClause)),
       db.select({ count: sql<number>`COUNT(DISTINCT ${userSessions.userId})` }).from(userSessions).where(whereClause),
-      db.select({ avg: sql<number>`AVG(${userSessions.durationSeconds})` }).from(userSessions).where(and(userSessions.durationSeconds, whereClause))
+      db.select({ avg: sql<number>`AVG(${userSessions.durationSeconds})` }).from(userSessions).where(and(isNotNull(userSessions.durationSeconds), whereClause))
     ]);
 
     const totalSessions = sessionsResult[0]?.count || 0;
@@ -999,12 +999,12 @@ export class PostgresStorage implements IStorage {
       SELECT 
         pne.id,
         pne.action,
-        pne.performed_at as "performedAt",
-        COALESCE(u.name, 'Sistema') as "performerName"
+        pne.created_at as "performedAt",
+        COALESCE(u.name, pne.performed_by_name, 'Sistema') as "performerName"
       FROM patient_note_events pne
-      LEFT JOIN users u ON pne.performer_user_id = u.id
+      LEFT JOIN users u ON pne.performed_by_id = u.id
       WHERE pne.patient_id = ${patientId}
-      ORDER BY pne.performed_at DESC
+      ORDER BY pne.created_at DESC
       LIMIT 100
     `);
     
