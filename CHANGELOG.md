@@ -17,6 +17,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.8.1] - 2026-01-30
+
+### Corrigido
+
+- **Resolução de Conflito de Leito no Sync**: Corrigido bug crítico que causava falha na sincronização N8N quando um novo paciente ocupava um leito já em uso por outro paciente
+  - Implementada detecção de conflito de leito antes do upsert
+  - Soft-delete do paciente antigo: leito alterado para `ARCHIVED_{leito}_{timestamp}` e status para `archived`
+  - Preserva integridade referencial com notificações e eventos de auditoria
+  - Adicionado método `getPatientByLeito()` no storage interface
+  - Documentação do fluxo no replit.md
+
 ## [1.5.8] - 2026-01-30
 
 ### Segurança

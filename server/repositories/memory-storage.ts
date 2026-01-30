@@ -116,6 +116,10 @@ export class MemStorage implements IStorage {
     return this.patients.get(id);
   }
 
+  async getPatientByLeito(leito: string): Promise<Patient | undefined> {
+    return Array.from(this.patients.values()).find(p => p.leito === leito);
+  }
+
   async createPatient(insertPatient: InsertPatient): Promise<Patient> {
     const id = randomUUID();
     const patient = { 

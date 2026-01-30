@@ -3,6 +3,34 @@ import { n8nIntegrationService } from "./services/n8n-integration-service";
 import type { Patient } from "@shared/schema";
 
 /**
+ * Resolve bed conflict before upsert
+ * If a different patient occupies the target bed, archive them first
+ */
+async function resolveBedConflict(leito: string, newCodigoAtendimento: string): Promise<void> {
+  try {
+    const existingPatient = await storage.getPatientByLeito(leito);
+    
+    if (existingPatient && existingPatient.codigoAtendimento !== newCodigoAtendimento) {
+      console.log(`[Sync] Bed conflict detected: leito ${leito} occupied by ${existingPatient.nome} (${existingPatient.codigoAtendimento}), new patient has ${newCodigoAtendimento}`);
+      
+      // Archive the old patient as "registro_antigo"
+      await storage.archivePatient(existingPatient, "registro_antigo");
+      
+      // Clear the leito to release the unique constraint, then soft-delete by clearing critical fields
+      // This preserves referential integrity with notifications/events
+      await storage.updatePatient(existingPatient.id, { 
+        leito: `ARCHIVED_${leito}_${Date.now()}`,
+        status: 'archived' 
+      });
+      
+      console.log(`[Sync] Archived and cleared bed for old patient from leito ${leito}: ${existingPatient.nome}`);
+    }
+  } catch (error) {
+    console.error(`[Sync] Error resolving bed conflict for leito ${leito}:`, error);
+  }
+}
+
+/**
  * Sync a patient from external API and store/update in our system
  * Uses n8nIntegrationService for unified integration path
  */
@@ -116,6 +144,12 @@ export async function syncEvolucoesByUnitIds(unitIds: string = "", forceUpdate: 
         const codigoAtendimento = processada.codigoAtendimento?.toString().trim() || '';
         
         try {
+          // STEP 1: Resolve bed conflict before upsert
+          if (codigoAtendimento && leito) {
+            await resolveBedConflict(leito, codigoAtendimento);
+          }
+          
+          // STEP 2: Upsert patient
           let patient: Patient;
           if (codigoAtendimento) {
             patient = await storage.upsertPatientByCodigoAtendimento(processada.dadosProcessados);

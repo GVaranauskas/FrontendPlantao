@@ -101,6 +101,11 @@ export class PostgresStorage implements IStorage {
     return result[0] ? this.decryptPatientData(result[0]) : undefined;
   }
 
+  async getPatientByLeito(leito: string): Promise<Patient | undefined> {
+    const result = await db.select().from(patients).where(eq(patients.leito, leito)).limit(1);
+    return result[0] ? this.decryptPatientData(result[0]) : undefined;
+  }
+
   async createPatient(patient: InsertPatient): Promise<Patient> {
     // PRODUÇÃO: VALIDAÇÃO OBRIGATÓRIA - apenas enfermarias 10A* (unidades 22,23)
     const dsEnfermaria = patient.dsEnfermaria || '';

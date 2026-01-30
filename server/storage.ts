@@ -40,6 +40,7 @@ export interface IStorage {
   getAllPatients(): Promise<Patient[]>;
   getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>>;
   getPatient(id: string): Promise<Patient | undefined>;
+  getPatientByLeito(leito: string): Promise<Patient | undefined>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: string, patient: Partial<InsertPatient>): Promise<Patient | undefined>;
   deletePatient(id: string): Promise<boolean>;
