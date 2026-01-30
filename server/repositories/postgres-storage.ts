@@ -7,7 +7,20 @@ import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encrypt
 
 export class PostgresStorage implements IStorage {
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users).orderBy(desc(users.createdAt));
+    // SECURITY: Never expose password hashes - select only safe fields
+    const result = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      isActive: users.isActive,
+      tokenVersion: users.tokenVersion,
+      firstAccess: users.firstAccess,
+      lastLogin: users.lastLogin,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(desc(users.createdAt));
+    return result as User[];
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -956,6 +969,70 @@ export class PostgresStorage implements IStorage {
       topPages: topPagesResult.map(r => ({ pagePath: r.pagePath || '', views: r.views })),
       topActions: topActionsResult.map(r => ({ actionName: r.actionName || '', count: r.count }))
     };
+  }
+
+  // LGPD Compliance Functions
+  async getPatientsHistory(filters: { codigoAtendimento?: string }): Promise<PaginatedResult<PatientsHistory>> {
+    const conditions = [];
+    
+    if (filters.codigoAtendimento) {
+      conditions.push(eq(patientsHistory.codigoAtendimento, filters.codigoAtendimento));
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const result = await db.select().from(patientsHistory)
+      .where(whereClause)
+      .orderBy(desc(patientsHistory.arquivadoEm));
+    
+    return {
+      data: result,
+      total: result.length,
+      page: 1,
+      limit: result.length,
+      totalPages: 1
+    };
+  }
+
+  async getPatientNoteEvents(patientId: string): Promise<PaginatedResult<{ id: string; action: string; performedAt: Date; performerName: string }>> {
+    const result = await db.execute(sql`
+      SELECT 
+        pne.id,
+        pne.action,
+        pne.performed_at as "performedAt",
+        COALESCE(u.name, 'Sistema') as "performerName"
+      FROM patient_note_events pne
+      LEFT JOIN users u ON pne.performer_user_id = u.id
+      WHERE pne.patient_id = ${patientId}
+      ORDER BY pne.performed_at DESC
+      LIMIT 100
+    `);
+    
+    const rows = result.rows as Array<{ id: string; action: string; performedAt: Date; performerName: string }>;
+    
+    return {
+      data: rows,
+      total: rows.length,
+      page: 1,
+      limit: 100,
+      totalPages: 1
+    };
+  }
+
+  async anonymizePatientHistory(codigoAtendimento: string, reason: string, performedBy?: string): Promise<number> {
+    const anonymizedName = `ANONIMIZADO_${Date.now()}`;
+    const anonymizedRegistro = `ANO_${Date.now()}`;
+    
+    const result = await db.update(patientsHistory)
+      .set({
+        nome: anonymizedName,
+        registro: anonymizedRegistro,
+        notasPaciente: `[Dados anonimizados em ${new Date().toISOString()} por ${performedBy || 'admin'}. Motivo: ${reason}]`,
+        dadosCompletos: { anonimizado: true, motivo: reason, em: new Date().toISOString() },
+      })
+      .where(eq(patientsHistory.codigoAtendimento, codigoAtendimento));
+    
+    return result.rowCount || 0;
   }
 }
 

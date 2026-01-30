@@ -23,7 +23,27 @@ import { patientNotesService } from "./services/patient-notes.service";
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // SECURITY/LGPD: Pagination available with ?page=X&limit=Y
+  // Legacy behavior maintained for frontend compatibility, but limited to authenticated users
   app.get("/api/patients", authWithFirstAccessCheck, asyncHandler(async (req, res, next) => {
+    const page = req.query.page ? parseInt(req.query.page as string) : null;
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string), 500) : null;
+    
+    // If pagination params provided, return paginated response
+    if (page !== null && limit !== null) {
+      const result = await storage.getPatientsPaginated({ page, limit: limit || 100 });
+      const acceptToon = isToonFormat(req.get("accept"));
+      if (acceptToon) {
+        const toonData = stringifyToToon(result);
+        res.type("application/toon").send(toonData);
+      } else {
+        res.json(result);
+      }
+      return;
+    }
+    
+    // Legacy behavior: return all patients (for frontend compatibility)
+    // Access is already protected by authentication
     const patients = await storage.getAllPatients();
     const acceptToon = isToonFormat(req.get("accept"));
     if (acceptToon) {
@@ -1903,6 +1923,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     res.json(events);
+  }));
+
+  // ==========================================
+  // LGPD Compliance Endpoints - Data Subject Rights
+  // ==========================================
+
+  // LGPD: Export personal data for a specific patient (Art. 18 - Portability)
+  app.get("/api/lgpd/export/patient/:id", ...requireRoleWithAuth('admin'), validateUUIDParam('id'), asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    
+    // Get patient data
+    const patient = await storage.getPatient(id);
+    if (!patient) {
+      throw new AppError(404, "Paciente não encontrado");
+    }
+    
+    // Get patient history by codigoAtendimento (the unique patient identifier)
+    const history = await storage.getPatientsHistory({ codigoAtendimento: patient.codigoAtendimento });
+    
+    // Get patient notes audit trail
+    const noteEvents = await storage.getPatientNoteEvents(id);
+    
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      dataSubject: {
+        nome: patient.nome,
+        registro: patient.registro,
+        dataNascimento: patient.dataNascimento,
+        codigoAtendimento: patient.codigoAtendimento,
+      },
+      clinicalData: {
+        diagnostico: patient.diagnostico,
+        alergias: patient.alergias,
+        especialidadeRamal: patient.especialidadeRamal,
+        leito: patient.leito,
+        dsEnfermaria: patient.dsEnfermaria,
+        notes: patient.notes,
+      },
+      auditTrail: {
+        noteEvents: noteEvents.data || [],
+        historyRecords: history.data || [],
+      },
+      metadata: {
+        createdAt: patient.createdAt,
+        updatedAt: patient.updatedAt,
+        lastSyncAt: patient.lastSyncAt,
+      },
+    };
+    
+    logger.info(`[LGPD] Data export requested for patient ${id} by user ${req.user?.username}`);
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="lgpd-export-${patient.registro}-${new Date().toISOString().split('T')[0]}.json"`);
+    res.json(exportData);
+  }));
+
+  // LGPD: Anonymize patient data in history (Art. 18 - Right to deletion/anonymization)
+  // Note: Uses codigoAtendimento to identify patient records across systems
+  app.post("/api/lgpd/anonymize/history/:codigoAtendimento", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
+    const { codigoAtendimento } = req.params;
+    const { confirm, reason } = req.body;
+    
+    if (!codigoAtendimento || codigoAtendimento.length < 3) {
+      throw new AppError(400, 'Código de atendimento inválido');
+    }
+    
+    if (confirm !== 'CONFIRMAR_ANONIMIZACAO') {
+      throw new AppError(400, 'Confirmação necessária: envie {"confirm": "CONFIRMAR_ANONIMIZACAO", "reason": "motivo"}');
+    }
+    
+    if (!reason || reason.length < 10) {
+      throw new AppError(400, 'Motivo obrigatório com no mínimo 10 caracteres');
+    }
+    
+    // Verify history record exists
+    const historyRecords = await storage.getPatientsHistory({ codigoAtendimento });
+    if (!historyRecords.data || historyRecords.data.length === 0) {
+      throw new AppError(404, "Registro de histórico não encontrado para este código de atendimento");
+    }
+    
+    // Anonymize patient data in history (replace PII with anonymous values)
+    const anonymizedCount = await storage.anonymizePatientHistory(codigoAtendimento, reason, req.user?.userId);
+    
+    logger.info(`[LGPD] Anonymization completed for patient history ${codigoAtendimento} by user ${req.user?.username}. Records: ${anonymizedCount}. Reason: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: `${anonymizedCount} registro(s) anonimizado(s) com sucesso`,
+      anonymizedRecords: anonymizedCount,
+      reason,
+      performedBy: req.user?.username,
+      performedAt: new Date().toISOString(),
+    });
+  }));
+
+  // LGPD: Get all personal data categories stored (Art. 9 - Transparency)
+  app.get("/api/lgpd/data-categories", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
+    res.json({
+      categories: [
+        {
+          category: "Dados de Identificação",
+          fields: ["nome", "registro", "dataNascimento", "codigoAtendimento"],
+          purpose: "Identificação do paciente para atendimento hospitalar",
+          retention: "Permanente para fins de histórico médico",
+          encryption: true,
+        },
+        {
+          category: "Dados Clínicos",
+          fields: ["diagnostico", "alergias", "notas de enfermagem", "evolução clínica"],
+          purpose: "Acompanhamento e continuidade do cuidado",
+          retention: "Permanente para fins de histórico médico",
+          encryption: true,
+        },
+        {
+          category: "Dados de Localização Hospitalar",
+          fields: ["leito", "enfermaria", "especialidadeRamal"],
+          purpose: "Organização da assistência hospitalar",
+          retention: "Durante internação",
+          encryption: false,
+        },
+        {
+          category: "Dados de Auditoria",
+          fields: ["logs de acesso", "alterações em notas", "histórico de sincronização"],
+          purpose: "Segurança e rastreabilidade",
+          retention: "90 dias para logs, permanente para audit trail crítico",
+          encryption: false,
+        },
+      ],
+      legalBasis: "Proteção da vida e tutela da saúde (Art. 7, VII e VIII da LGPD)",
+      dataController: "Hospital / Instituição de Saúde",
+      lastUpdated: new Date().toISOString(),
+    });
   }));
 
   // Register authentication routes

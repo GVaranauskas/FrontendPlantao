@@ -8,9 +8,9 @@ import { isProductionEnv } from '../config/env';
 export function setAccessTokenCookie(res: Response, token: string): void {
   res.cookie('accessToken', token, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    secure: isProductionEnv,
+    sameSite: 'strict', // SECURITY: Strict SameSite to prevent CSRF
+    maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT_EXPIRY)
     path: '/',
   });
 }
@@ -21,8 +21,8 @@ export function setAccessTokenCookie(res: Response, token: string): void {
 export function setRefreshTokenCookie(res: Response, token: string): void {
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: isProductionEnv,
+    sameSite: 'strict', // SECURITY: Strict SameSite to prevent CSRF
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
   });

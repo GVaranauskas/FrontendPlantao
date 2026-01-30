@@ -2,19 +2,22 @@ import type { Express } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 /**
  * Configure security headers using helmet
  * Protects against: XSS, Clickjacking, MIME type sniffing, etc.
+ * In development, CSP is relaxed to allow Vite's inline scripts
  */
 export function setupHelmet(app: Express): void {
   app.use(helmet({
-    contentSecurityPolicy: {
+    contentSecurityPolicy: isDev ? false : {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+        styleSrc: ["'self'", "https:"],
+        scriptSrc: ["'self'", "https:"],
         imgSrc: ["'self'", "https:", "data:"],
-        connectSrc: ["'self'", "https:"],
+        connectSrc: ["'self'", "https:", "wss:"],
         fontSrc: ["'self'", "https:"],
         frameSrc: ["'none'"],
       },

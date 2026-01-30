@@ -11,7 +11,7 @@ function getJWTSecret(): string {
 }
 
 const JWT_SECRET = getJWTSecret();
-const JWT_EXPIRY = '24h';
+const JWT_EXPIRY = '15m'; // SECURITY: Short-lived access tokens (15 minutes)
 const REFRESH_EXPIRY = '7d';
 
 const SESSION_VERSION = process.env.SESSION_VERSION || '1';

@@ -13,11 +13,8 @@ function validateEncryptionKey(): { key: Buffer; valid: boolean } {
   const masterKeyBase64 = env.ENCRYPTION_KEY;
   
   if (!masterKeyBase64) {
-    if (isProductionEnv) {
-      throw new Error('ENCRYPTION_KEY must be set in production environment');
-    }
-    console.warn('[Encryption] ENCRYPTION_KEY not set - encryption disabled in development');
-    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+    // SECURITY: Encryption is now REQUIRED in all environments
+    throw new Error('ENCRYPTION_KEY must be set - encryption is mandatory for LGPD compliance');
   }
 
   try {
@@ -29,11 +26,8 @@ function validateEncryptionKey(): { key: Buffer; valid: boolean } {
 
     return { key, valid: true };
   } catch (error) {
-    if (isProductionEnv) {
-      throw error;
-    }
-    console.error('[Encryption] Failed to initialize:', error);
-    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+    // SECURITY: Always throw on encryption failure - no fallback to plaintext
+    throw error;
   }
 }
 

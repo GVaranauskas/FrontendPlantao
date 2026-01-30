@@ -46,9 +46,14 @@ export function registerAuthRoutes(app: Express) {
       });
     }
     
-    // Use environment variables for default passwords, with secure fallbacks
-    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
-    const defaultEnfermeiroPassword = process.env.DEFAULT_ENFERMEIRO_PASSWORD || 'enf123';
+    // SECURITY: Environment variables are REQUIRED - no insecure fallbacks
+    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    const defaultEnfermeiroPassword = process.env.DEFAULT_ENFERMEIRO_PASSWORD;
+    
+    if (!defaultAdminPassword || !defaultEnfermeiroPassword) {
+      logger.error('Setup failed: DEFAULT_ADMIN_PASSWORD and DEFAULT_ENFERMEIRO_PASSWORD must be set in environment variables');
+      throw new AppError(503, 'Setup not available - default passwords not configured in environment');
+    }
     
     const adminPassword = await bcryptjs.hash(defaultAdminPassword, 10);
     await storage.createUser({

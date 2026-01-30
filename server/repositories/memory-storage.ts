@@ -865,4 +865,55 @@ export class MemStorage implements IStorage {
         .slice(0, 5)
     };
   }
+
+  // LGPD Compliance Functions
+  async getPatientsHistory(filters: { codigoAtendimento?: string }): Promise<PaginatedResult<PatientsHistory>> {
+    let result = Array.from(this.patientsHistory.values());
+    
+    if (filters.codigoAtendimento) {
+      result = result.filter(h => h.codigoAtendimento === filters.codigoAtendimento);
+    }
+    
+    result.sort((a, b) => (b.arquivadoEm?.getTime() || 0) - (a.arquivadoEm?.getTime() || 0));
+    
+    return {
+      data: result,
+      total: result.length,
+      page: 1,
+      limit: result.length,
+      totalPages: 1
+    };
+  }
+
+  async getPatientNoteEvents(patientId: string): Promise<PaginatedResult<{ id: string; action: string; performedAt: Date; performerName: string }>> {
+    // MemStorage doesn't track note events, return empty
+    return {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+      totalPages: 0
+    };
+  }
+
+  async anonymizePatientHistory(codigoAtendimento: string, reason: string, performedBy?: string): Promise<number> {
+    let count = 0;
+    const anonymizedName = `ANONIMIZADO_${Date.now()}`;
+    const anonymizedRegistro = `ANO_${Date.now()}`;
+    
+    for (const [id, record] of this.patientsHistory.entries()) {
+      if (record.codigoAtendimento === codigoAtendimento) {
+        this.patientsHistory.set(id, {
+          ...record,
+          nome: anonymizedName,
+          registro: anonymizedRegistro,
+          notasPaciente: `[Dados anonimizados em ${new Date().toISOString()} por ${performedBy || 'admin'}. Motivo: ${reason}]`,
+          dadosCompletos: { anonimizado: true, motivo: reason, em: new Date().toISOString() },
+        });
+        count++;
+      }
+    }
+    
+    return count;
+  }
 }

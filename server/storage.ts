@@ -114,6 +114,11 @@ export interface IStorage {
   getPatientHistoryByLeito(leito: string): Promise<PatientsHistory | undefined>;
   getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigoAtendimento: string): Promise<Patient | undefined>;
   archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean>;
+  
+  // LGPD Compliance
+  getPatientsHistory(filters: { codigoAtendimento?: string }): Promise<PaginatedResult<PatientsHistory>>;
+  getPatientNoteEvents(patientId: string): Promise<PaginatedResult<{ id: string; action: string; performedAt: Date; performerName: string }>>;
+  anonymizePatientHistory(codigoAtendimento: string, reason: string, performedBy?: string): Promise<number>;
 
   // Analytics & Usage Tracking
   createSession(session: InsertUserSession): Promise<UserSession>;
