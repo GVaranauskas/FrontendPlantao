@@ -1,9 +1,10 @@
 import { Express, Request, Response } from 'express';
 import { storage } from '../storage';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../security/jwt';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken, validateTokenVersion } from '../security/jwt';
 import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from '../middleware/cookies';
 import { asyncHandler, AppError } from '../middleware/error-handler';
 import { authMiddleware } from '../middleware/auth';
+import { loginRateLimiter, refreshRateLimiter } from '../middleware/rate-limiter';
 import bcryptjs from 'bcryptjs';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
@@ -87,8 +88,8 @@ export function registerAuthRoutes(app: Express) {
     });
   }));
 
-  // Login endpoint
-  app.post('/api/auth/login', asyncHandler(async (req: Request, res: Response) => {
+  // Login endpoint with rate limiting
+  app.post('/api/auth/login', loginRateLimiter, asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -98,6 +99,11 @@ export function registerAuthRoutes(app: Express) {
     const user = await storage.getUserByUsername(username);
     if (!user) {
       throw new AppError(401, 'Invalid credentials');
+    }
+
+    if (!user.isActive) {
+      logger.warn(`Login attempt for deactivated account: ${username}`);
+      throw new AppError(403, 'Conta desativada. Contate o administrador.');
     }
 
     const passwordValid = await bcryptjs.compare(password, user.password);
@@ -192,8 +198,8 @@ export function registerAuthRoutes(app: Express) {
     res.json({ success: true, message: 'Logged out successfully' });
   });
 
-  // Refresh token endpoint
-  app.post('/api/auth/refresh', asyncHandler(async (req: Request, res: Response) => {
+  // Refresh token endpoint with rate limiting
+  app.post('/api/auth/refresh', refreshRateLimiter, asyncHandler(async (req: Request, res: Response) => {
     const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
     if (!refreshToken) {
@@ -208,6 +214,15 @@ export function registerAuthRoutes(app: Express) {
     const user = await storage.getUser(payload.userId);
     if (!user) {
       throw new AppError(401, 'User not found');
+    }
+
+    if (!user.isActive) {
+      throw new AppError(403, 'Conta desativada. Contate o administrador.');
+    }
+
+    if (!validateTokenVersion(payload.tokenVersion, user.tokenVersion || 1)) {
+      logger.warn(`Token version mismatch for user ${user.username} - token invalidated`);
+      throw new AppError(401, 'Token invalidado. Faça login novamente.');
     }
 
     const newAccessToken = generateAccessToken(user);
@@ -233,6 +248,29 @@ export function registerAuthRoutes(app: Express) {
       name: user.name,
       role: user.role,
       firstAccess: user.firstAccess,
+    });
+  }));
+
+  // Invalidate all sessions endpoint (revoke all tokens)
+  app.post('/api/auth/invalidate-all-sessions', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new AppError(401, 'Not authenticated');
+    }
+
+    const user = await storage.getUser(req.user.userId);
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    const newVersion = await storage.incrementUserTokenVersion(user.id);
+    
+    clearAuthCookies(res);
+    
+    logger.info(`User ${user.username} invalidated all sessions (new tokenVersion: ${newVersion})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Todas as sessões foram encerradas. Faça login novamente.' 
     });
   }));
 }

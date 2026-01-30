@@ -17,6 +17,34 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.7] - 2026-01-30
+
+### Segurança
+
+- **Token Versioning (Revogação de Tokens)**: Implementado sistema de versionamento de tokens JWT
+  - Novo campo `tokenVersion` na tabela de usuários
+  - Tokens JWT agora incluem versão para validação
+  - Endpoint `/api/auth/invalidate-all-sessions` para logout de todas as sessões
+  - Ao incrementar a versão, todos os tokens anteriores são automaticamente invalidados
+  - Útil para logout remoto e reset de segurança
+
+- **Rate Limiting**: Proteção contra ataques de força bruta
+  - Login: máximo 5 tentativas por 15 minutos por IP
+  - Refresh token: máximo 10 tentativas por minuto
+  - Mensagens claras ao usuário quando limite é atingido
+  - Logs de segurança para tentativas bloqueadas
+
+- **Verificação de Conta Ativa**: Contas desativadas não podem mais autenticar
+  - Verificação `isActive` no endpoint de login
+  - Verificação `isActive` no endpoint de refresh token
+  - Verificação `isActive` no middleware de autenticação
+  - Erro 403 com mensagem clara para contas desativadas
+
+### Alterado
+
+- **Auth Middleware melhorado**: Agora valida tokenVersion e isActive em cada requisição autenticada
+- **Refresh Token mais seguro**: Verifica tokenVersion e isActive antes de renovar token
+
 ## [1.5.6] - 2026-01-28
 
 ### Adicionado

@@ -49,6 +49,8 @@ export class MemStorage implements IStorage {
       email: insertUser.email || null,
       role: insertUser.role || "enfermagem",
       isActive: insertUser.isActive ?? true,
+      firstAccess: insertUser.firstAccess ?? true,
+      tokenVersion: insertUser.tokenVersion ?? 1,
       createdAt: new Date(),
       lastLogin: null,
     };

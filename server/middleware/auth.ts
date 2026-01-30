@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { verifyAccessToken, JWTPayload } from '../security/jwt';
+import { verifyAccessToken, JWTPayload, validateTokenVersion } from '../security/jwt';
 import { AppError } from './error-handler';
+import { storage } from '../storage';
 
 declare global {
   namespace Express {
@@ -12,8 +13,9 @@ declare global {
 
 /**
  * Middleware to verify JWT token from Authorization header or cookies
+ * Also validates tokenVersion to ensure token hasn't been revoked
  */
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
     const token = extractToken(req);
 
@@ -26,13 +28,27 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       throw new AppError(401, 'Invalid or expired token');
     }
 
+    const user = await storage.getUser(payload.userId);
+    if (!user) {
+      throw new AppError(401, 'User not found');
+    }
+
+    if (!user.isActive) {
+      throw new AppError(403, 'Conta desativada. Contate o administrador.');
+    }
+
+    if (!validateTokenVersion(payload.tokenVersion, user.tokenVersion || 1)) {
+      throw new AppError(401, 'Token invalidado. Faça login novamente.');
+    }
+
     req.user = payload;
     next();
   } catch (error) {
     if (error instanceof AppError) {
-      throw error;
+      next(error);
+      return;
     }
-    throw new AppError(401, 'Authentication failed');
+    next(new AppError(401, 'Authentication failed'));
   }
 }
 
