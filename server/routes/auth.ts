@@ -46,9 +46,16 @@ export function registerAuthRoutes(app: Express) {
       });
     }
     
-    // Use environment variables for default passwords, with secure fallbacks
-    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
-    const defaultEnfermeiroPassword = process.env.DEFAULT_ENFERMEIRO_PASSWORD || 'enf123';
+    // Use environment variables for default passwords - NO FALLBACKS (security requirement)
+    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    const defaultEnfermeiroPassword = process.env.DEFAULT_ENFERMEIRO_PASSWORD;
+    
+    if (!defaultAdminPassword) {
+      throw new Error('DEFAULT_ADMIN_PASSWORD environment variable is required for setup');
+    }
+    if (!defaultEnfermeiroPassword) {
+      throw new Error('DEFAULT_ENFERMEIRO_PASSWORD environment variable is required for setup');
+    }
     
     const adminPassword = await bcryptjs.hash(defaultAdminPassword, 10);
     await storage.createUser({
@@ -75,16 +82,10 @@ export function registerAuthRoutes(app: Express) {
     
     logger.info('Initial setup completed - admin user created');
     
-    // Only return credentials if not in production (security measure)
-    const isProduction = process.env.NODE_ENV === 'production';
+    // NEVER return passwords in response (security requirement)
     res.json({ 
       success: true, 
-      message: 'Setup completed successfully',
-      credentials: isProduction ? undefined : {
-        admin: { username: 'admin', password: defaultAdminPassword },
-        enfermeiro: { username: 'enfermeiro', password: defaultEnfermeiroPassword }
-      },
-      note: isProduction ? 'Credentials configured via environment variables' : undefined
+      message: 'Setup completed successfully. Credentials configured via environment variables.',
     });
   }));
 

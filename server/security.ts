@@ -12,7 +12,7 @@ export function setupHelmet(app: Express): void {
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+        scriptSrc: ["'self'", "https:"], // Removed 'unsafe-inline' and 'unsafe-eval' for security
         imgSrc: ["'self'", "https:", "data:"],
         connectSrc: ["'self'", "https:"],
         fontSrc: ["'self'", "https:"],

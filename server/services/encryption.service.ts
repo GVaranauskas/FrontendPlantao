@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
-import { env, isProductionEnv } from '../config/env';
+import { env } from '../config/env';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
@@ -9,15 +9,13 @@ const TAG_LENGTH = 16;
 const TAG_POSITION = SALT_LENGTH + IV_LENGTH;
 const ENCRYPTED_POSITION = TAG_POSITION + TAG_LENGTH;
 
+// Encryption is mandatory in all environments - patient data must always be protected
 function validateEncryptionKey(): { key: Buffer; valid: boolean } {
   const masterKeyBase64 = env.ENCRYPTION_KEY;
   
+  // ALWAYS require encryption key - no exceptions for any environment
   if (!masterKeyBase64) {
-    if (isProductionEnv) {
-      throw new Error('ENCRYPTION_KEY must be set in production environment');
-    }
-    console.warn('[Encryption] ENCRYPTION_KEY not set - encryption disabled in development');
-    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+    throw new Error('ENCRYPTION_KEY environment variable is required. Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"');
   }
 
   try {
@@ -29,11 +27,8 @@ function validateEncryptionKey(): { key: Buffer; valid: boolean } {
 
     return { key, valid: true };
   } catch (error) {
-    if (isProductionEnv) {
-      throw error;
-    }
-    console.error('[Encryption] Failed to initialize:', error);
-    return { key: Buffer.alloc(KEY_LENGTH), valid: false };
+    // Always throw - encryption is mandatory
+    throw error;
   }
 }
 
