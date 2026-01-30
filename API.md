@@ -13,6 +13,7 @@ Documentação completa dos endpoints da API REST do **11Care Nursing Platform**
   - [Nursing Units](#nursing-units)
   - [Templates](#templates)
   - [Notes](#notes)
+  - [LGPD](#lgpd)
   - [Analytics](#analytics)
   - [Usage Analytics](#usage-analytics)
   - [Sync & IA](#sync--ia)
@@ -46,6 +47,10 @@ Content-Type: application/json
 - **Rate Limiting**: Login 5/15min, Refresh 10/min, API 100/min (v1.5.7)
 - **Token Versioning**: Revogação de todos os tokens via `/api/auth/invalidate-all-sessions`
 - **Account Validation**: Contas desativadas bloqueadas em login, refresh e auth middleware
+- **JWT Expiry**: 15 minutos (v1.5.8)
+- **Cookies**: SameSite=strict para proteção CSRF adicional (v1.5.8)
+- **CSP**: Content Security Policy restritivo em produção (v1.5.8)
+- **Encryption**: AES-256-GCM obrigatório para dados sensíveis (v1.5.8)
 
 ## 🔐 Autenticação
 
@@ -79,7 +84,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 **Campos**:
 - `tokenVersion`: Versão do token para invalidação em massa (v1.5.7)
 
-**Duração**: 15 minutos
+**Duração**: 15 minutos (v1.5.8 - reduzido de 1 hora para maior segurança)
 
 ### Refresh Token
 
@@ -899,6 +904,131 @@ Remove nota (admin only com motivo).
 {
   "success": true,
   "message": "Note deleted successfully"
+}
+```
+
+---
+
+## LGPD
+
+Endpoints para conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018).
+
+### GET /api/lgpd/export/patient/:id
+
+Exporta todos os dados de um paciente para exercício do direito de acesso/portabilidade.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Parâmetros**:
+- `id` (path) - UUID do paciente ou codigoAtendimento
+
+**Response** (200):
+```json
+{
+  "patient": {
+    "id": "uuid",
+    "nome": "João Silva",
+    "registro": "12345",
+    "leito": "22-101",
+    "codigoAtendimento": "ATD123456",
+    "dataInternacao": "2026-01-15",
+    "diagnostico": "Pneumonia",
+    "notes": "Paciente em recuperação..."
+  },
+  "history": [
+    {
+      "id": "uuid",
+      "codigoAtendimento": "ATD123456",
+      "motivoArquivamento": "alta",
+      "arquivadoEm": "2026-01-20T10:00:00Z"
+    }
+  ],
+  "noteEvents": []
+}
+```
+
+**Errors**:
+- `404` - Paciente não encontrado
+- `403` - Sem permissão
+
+---
+
+### POST /api/lgpd/anonymize/history/:codigoAtendimento
+
+Anonimiza registros de histórico de um paciente. Preserva a integridade do audit log substituindo dados identificáveis por placeholders.
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Parâmetros**:
+- `codigoAtendimento` (path) - Código de atendimento do paciente
+
+**Body**:
+```json
+{
+  "reason": "Solicitação do titular conforme Art. 18 LGPD"
+}
+```
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "message": "2 registros anonimizados com sucesso",
+  "recordsAffected": 2
+}
+```
+
+**Campos Anonimizados**:
+- `nome` → `ANONIMIZADO_<timestamp>`
+- `registro` → `ANO_<timestamp>`
+- `notasPaciente` → Mensagem de anonimização com data/motivo
+- `dadosCompletos` → `{ anonimizado: true, motivo: "...", em: "..." }`
+
+**Errors**:
+- `400` - Motivo não fornecido
+- `404` - Nenhum registro encontrado
+- `403` - Sem permissão
+
+---
+
+### GET /api/lgpd/data-categories
+
+Lista categorias de dados coletados pelo sistema (transparência).
+
+**Auth**: Bearer token
+**Roles**: `admin`
+
+**Response** (200):
+```json
+{
+  "categories": [
+    {
+      "category": "Identificação",
+      "fields": ["nome", "registro", "dataNascimento"],
+      "purpose": "Identificação do paciente para prestação de serviços de saúde",
+      "legalBasis": "Art. 7º, VIII - Tutela da saúde"
+    },
+    {
+      "category": "Dados Clínicos",
+      "fields": ["diagnostico", "alergias", "observacoes", "dsEvolucaoCompleta"],
+      "purpose": "Passagem de plantão e continuidade do cuidado",
+      "legalBasis": "Art. 11, II, f - Tutela da saúde"
+    },
+    {
+      "category": "Dados de Internação",
+      "fields": ["leito", "dataInternacao", "unidadeInternacao", "dsEspecialidade"],
+      "purpose": "Gestão de leitos e organização hospitalar",
+      "legalBasis": "Art. 7º, VIII - Tutela da saúde"
+    },
+    {
+      "category": "Auditoria",
+      "fields": ["createdAt", "updatedAt", "arquivadoEm"],
+      "purpose": "Rastreabilidade e compliance",
+      "legalBasis": "Art. 37 - Relatório de impacto"
+    }
+  ]
 }
 ```
 

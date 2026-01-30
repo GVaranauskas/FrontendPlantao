@@ -81,6 +81,26 @@ Sistema permite exercício dos direitos:
 - ✅ **Portabilidade** - Exportação em formato estruturado (Excel)
 - ✅ **Informação** - Transparência sobre uso dos dados
 
+#### Endpoints LGPD (v1.5.8)
+
+Implementados três endpoints para exercício de direitos:
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/lgpd/export/patient/:id` | GET | Exporta todos os dados do paciente (ativos + histórico) |
+| `/api/lgpd/anonymize/history/:codigoAtendimento` | POST | Anonimiza registros de histórico |
+| `/api/lgpd/data-categories` | GET | Lista categorias de dados coletados |
+
+**Anonimização**:
+- Substitui dados identificáveis por placeholders
+- Campos anonimizados: nome, registro, notasPaciente, dadosCompletos
+- Preserva integridade do audit log
+- Requer motivo documentado
+
+**Transparência**:
+- Endpoint `/api/lgpd/data-categories` lista todos os tipos de dados coletados
+- Facilita respostas a solicitações de titulares
+
 ### HIPAA Considerations (Futuro)
 
 Para expansão internacional (EUA):

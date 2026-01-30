@@ -17,6 +17,55 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.8] - 2026-01-30
+
+### Segurança
+
+- **Senhas Hardcoded Removidas**: Senhas de setup agora são obrigatórias via variáveis de ambiente (SETUP_KEY)
+  - Sistema não inicia sem configuração de credenciais
+  - Maior segurança em ambientes de produção
+
+- **JWT com Expiração Reduzida**: Tokens de acesso agora expiram em 15 minutos (antes era mais longo)
+  - Reduz janela de ataque em caso de token comprometido
+  - Refresh token mantido em 7 dias
+
+- **Cookies SameSite=Strict**: Proteção adicional contra ataques CSRF
+  - Cookies não são enviados em requisições cross-site
+  - Maior segurança para dados de autenticação
+
+- **Password Hashes Filtrados**: API getAllUsers() não retorna mais hashes de senha
+  - Prevenção de vazamento acidental de credenciais
+  - Dados sensíveis nunca expostos via API
+
+- **CSP Endurecido em Produção**: Content Security Policy mais restritivo
+  - Removido unsafe-inline e unsafe-eval
+  - Prevenção de XSS e injeção de código
+  - Modo relaxado apenas em desenvolvimento (para Vite HMR)
+
+- **Criptografia Obrigatória**: AES-256-GCM agora é obrigatório em todos os ambientes
+  - Não é mais possível desabilitar criptografia
+  - Dados sensíveis sempre protegidos
+
+### Adicionado
+
+- **Endpoints LGPD**: Conformidade com Lei Geral de Proteção de Dados
+  - `GET /api/lgpd/export/patient/:id` - Exporta todos os dados de um paciente (ativos + histórico)
+  - `POST /api/lgpd/anonymize/history/:codigoAtendimento` - Anonimiza registros de histórico
+  - `GET /api/lgpd/data-categories` - Lista categorias de dados coletados (transparência)
+  - Todos os endpoints protegidos por RBAC (apenas admin)
+
+- **Paginação Opcional**: Endpoint `/api/patients` agora suporta paginação
+  - Parâmetros: `?page=X&limit=Y`
+  - Compatibilidade mantida com modo legado (sem paginação)
+  - Reduz carga de rede para grandes volumes de dados
+
+### Alterado
+
+- **Anonimização de Histórico**: Função atualizada para corresponder ao schema correto
+  - Campos anonimizados: nome, registro, notasPaciente, dadosCompletos
+  - Preserva integridade do audit log
+  - Identificador consistente: codigoAtendimento
+
 ## [1.5.7] - 2026-01-30
 
 ### Segurança

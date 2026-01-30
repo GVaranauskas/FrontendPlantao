@@ -877,10 +877,20 @@ router.post('/sync', ...requireRoleWithAuth('admin', 'enfermagem'), handler);
 
 ### Headers de Segurança (Helmet)
 
-- Content-Security-Policy
+- Content-Security-Policy (restritivo em produção, relaxado em dev - v1.5.8)
 - X-Frame-Options: DENY
 - X-Content-Type-Options: nosniff
 - Strict-Transport-Security
+
+### Melhorias de Segurança v1.5.8
+
+- **JWT 15 min**: Expiração reduzida para menor janela de ataque
+- **Cookies SameSite=strict**: Proteção CSRF adicional
+- **Senhas Hardcoded Removidas**: Configuração via env vars obrigatória
+- **Password Hashes Filtrados**: Não expostos na API
+- **CSP Endurecido**: unsafe-inline/unsafe-eval removidos em produção
+- **Criptografia Obrigatória**: AES-256-GCM em todos os ambientes
+- **Endpoints LGPD**: Exportação, anonimização e transparência de dados
 
 ### Rate Limiting
 
@@ -1138,4 +1148,4 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 ---
 
-**Última atualização**: 2026-01-28
+**Última atualização**: 2026-01-30 (v1.5.8)
