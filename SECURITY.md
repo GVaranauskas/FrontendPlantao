@@ -358,6 +358,102 @@ export function requireFirstAccessComplete(req, res, next) {
 }
 ```
 
+### Token Versioning e Revogação (v1.5.7)
+
+Sistema de versionamento de tokens para invalidação em massa:
+
+```typescript
+// Campo no banco de dados
+tokenVersion: integer // Versão do token, incrementa para invalidar
+
+// JWT Payload inclui versão
+{
+  userId: 1,
+  username: "admin",
+  role: "admin",
+  tokenVersion: 1,  // Versão no momento da geração
+  iat: 1234567890,
+  exp: 1234568790
+}
+
+// Validação em cada request
+if (payload.tokenVersion !== user.tokenVersion) {
+  throw new AppError(401, 'Token invalidado. Faça login novamente.');
+}
+```
+
+**Endpoint de Invalidação**:
+```
+POST /api/auth/invalidate-all-sessions
+```
+- Incrementa tokenVersion do usuário
+- Invalida TODOS os tokens existentes
+- Útil para logout remoto ou reset de segurança
+- Limpa cookies de refresh token
+
+**Casos de Uso**:
+- Logout de todas as sessões (dispositivos roubados)
+- Mudança de senha pelo admin
+- Detecção de comprometimento de conta
+- Reset de segurança
+
+### Rate Limiting (v1.5.7)
+
+Proteção contra ataques de força bruta:
+
+```typescript
+// Login: 5 tentativas por 15 minutos por IP
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5,
+  message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
+});
+
+// Refresh Token: 10 tentativas por minuto
+const refreshRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 10,
+  message: 'Muitas tentativas. Aguarde um momento.',
+});
+
+// API Geral: 100 requests por minuto
+const apiRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+});
+```
+
+**Comportamento**:
+- Retorna HTTP 429 (Too Many Requests)
+- Log de segurança para tentativas bloqueadas
+- Headers padrão de rate limit incluídos
+
+### Validação de Conta Ativa (v1.5.7)
+
+Contas desativadas são bloqueadas em 3 níveis:
+
+```typescript
+// 1. No login
+if (!user.isActive) {
+  throw new AppError(403, 'Conta desativada. Contate o administrador.');
+}
+
+// 2. No refresh token
+if (!user.isActive) {
+  throw new AppError(403, 'Conta desativada. Contate o administrador.');
+}
+
+// 3. No middleware de autenticação (cada request)
+if (!user.isActive) {
+  throw new AppError(403, 'Conta desativada. Contate o administrador.');
+}
+```
+
+**Benefícios**:
+- Desativação imediata de contas comprometidas
+- Nenhum acesso mesmo com tokens válidos
+- Erro 403 claro para o usuário
+
 ### Autorização (RBAC)
 
 **Role-Based Access Control**:

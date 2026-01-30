@@ -305,15 +305,16 @@ const buttonVariants = cva(
 
 ```
 1. Request → Express
-2. CSRF Middleware → Valida token
-3. Auth Middleware → Valida JWT
-4. RBAC Middleware → Verifica permissões
-5. Input Validation → Valida payload (Zod)
-6. Route Handler → Chama service
-7. Service → Lógica de negócio
-8. Repository → Acessa banco
-9. Response ← Retorna dados
-10. Audit Middleware → Registra log (LGPD)
+2. Rate Limiter → Bloqueia ataques brute-force (v1.5.7)
+3. CSRF Middleware → Valida token
+4. Auth Middleware → Valida JWT + tokenVersion + isActive (v1.5.7)
+5. RBAC Middleware → Verifica permissões
+6. Input Validation → Valida payload (Zod)
+7. Route Handler → Chama service
+8. Service → Lógica de negócio
+9. Repository → Acessa banco
+10. Response ← Retorna dados
+11. Audit Middleware → Registra log (LGPD)
 ```
 
 ### Middleware Stack
@@ -386,6 +387,8 @@ export const users = pgTable('users', {
   role: text('role').notNull(),
   email: text('email').unique(),
   isActive: boolean('is_active').default(true),
+  tokenVersion: integer('token_version').default(1), // v1.5.7 - Token versioning
+  firstAccess: boolean('first_access').default(true),
 });
 
 // Pacientes (dados criptografados)

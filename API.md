@@ -41,9 +41,11 @@ Content-Type: application/json
 ### Segurança
 
 - **HTTPS**: Todas as comunicações devem usar HTTPS em produção
-- **Authentication**: JWT Bearer tokens
+- **Authentication**: JWT Bearer tokens com versionamento (v1.5.7)
 - **CSRF Protection**: Token em header `X-CSRF-Token`
-- **Rate Limiting**: 100 requests/15min por IP
+- **Rate Limiting**: Login 5/15min, Refresh 10/min, API 100/min (v1.5.7)
+- **Token Versioning**: Revogação de todos os tokens via `/api/auth/invalidate-all-sessions`
+- **Account Validation**: Contas desativadas bloqueadas em login, refresh e auth middleware
 
 ## 🔐 Autenticação
 
@@ -68,10 +70,14 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   "userId": 1,
   "username": "admin",
   "role": "admin",
+  "tokenVersion": 1,
   "iat": 1234567890,
   "exp": 1234568790
 }
 ```
+
+**Campos**:
+- `tokenVersion`: Versão do token para invalidação em massa (v1.5.7)
 
 **Duração**: 15 minutos
 
@@ -172,6 +178,8 @@ refreshToken=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
 **Errors**:
 - `400` - Username and password required
 - `401` - Invalid credentials
+- `403` - Account deactivated (v1.5.7)
+- `429` - Too many login attempts (rate limited, v1.5.7)
 
 ---
 
@@ -191,6 +199,9 @@ Obtém novo access token usando refresh token.
 
 **Errors**:
 - `401` - Invalid or expired refresh token
+- `401` - Token version mismatch (token revoked, v1.5.7)
+- `403` - Account deactivated (v1.5.7)
+- `429` - Too many refresh attempts (rate limited, v1.5.7)
 
 ---
 
@@ -207,6 +218,31 @@ Invalida refresh token e limpa cookies.
   "message": "Logged out successfully"
 }
 ```
+
+---
+
+### POST /api/auth/invalidate-all-sessions
+
+Invalida todos os tokens do usuário (logout de todas as sessões).
+
+**Auth**: Bearer token
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "message": "All sessions invalidated successfully"
+}
+```
+
+**Efeitos**:
+- Incrementa `tokenVersion` do usuário no banco
+- Todos os tokens JWT existentes são invalidados
+- Limpa cookies de refresh token
+- Útil para logout remoto ou reset de segurança
+
+**Errors**:
+- `401` - Token inválido ou expirado
 
 ---
 
