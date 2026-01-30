@@ -25,6 +25,7 @@ export interface JWTPayload {
   userId: string;
   username: string;
   role: string;
+  tokenVersion?: number;
   sid?: string;
   iat?: number;
   exp?: number;
@@ -36,6 +37,7 @@ export function generateAccessToken(user: User): string {
       userId: user.id,
       username: user.username,
       role: user.role,
+      tokenVersion: user.tokenVersion || 1,
       sid: STABLE_INSTANCE_ID,
     },
     JWT_SECRET,
@@ -48,6 +50,7 @@ export function generateRefreshToken(user: User): string {
     {
       userId: user.id,
       username: user.username,
+      tokenVersion: user.tokenVersion || 1,
       sid: STABLE_INSTANCE_ID,
     },
     JWT_SECRET,
@@ -83,4 +86,9 @@ export function verifyRefreshToken(token: string): Omit<JWTPayload, 'role'> | nu
   } catch {
     return null;
   }
+}
+
+export function validateTokenVersion(tokenVersion: number | undefined, userTokenVersion: number): boolean {
+  const tokenVer = tokenVersion ?? 1;
+  return tokenVer === userTokenVersion;
 }

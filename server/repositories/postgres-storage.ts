@@ -39,6 +39,16 @@ export class PostgresStorage implements IStorage {
     await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, id));
   }
 
+  async incrementUserTokenVersion(id: string): Promise<number> {
+    const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!user[0]) {
+      throw new Error('User not found');
+    }
+    const newVersion = (user[0].tokenVersion || 1) + 1;
+    await db.update(users).set({ tokenVersion: newVersion }).where(eq(users.id, id));
+    return newVersion;
+  }
+
   private encryptPatientData(patient: InsertPatient): InsertPatient {
     return encryptionService.encryptFields(patient, SENSITIVE_PATIENT_FIELDS as unknown as Array<keyof InsertPatient>);
   }

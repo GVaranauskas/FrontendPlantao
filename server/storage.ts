@@ -35,6 +35,7 @@ export interface IStorage {
   updateUser(id: string, user: UpdateUser): Promise<User | undefined>;
   deactivateUser(id: string): Promise<boolean>;
   updateLastLogin(id: string): Promise<void>;
+  incrementUserTokenVersion(id: string): Promise<number>;
   
   getAllPatients(): Promise<Patient[]>;
   getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>>;

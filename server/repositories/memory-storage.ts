@@ -80,6 +80,17 @@ export class MemStorage implements IStorage {
     }
   }
 
+  async incrementUserTokenVersion(id: string): Promise<number> {
+    const user = this.users.get(id);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const newVersion = (user.tokenVersion || 1) + 1;
+    user.tokenVersion = newVersion;
+    this.users.set(id, user);
+    return newVersion;
+  }
+
   async getAllPatients(): Promise<Patient[]> {
     return Array.from(this.patients.values());
   }
