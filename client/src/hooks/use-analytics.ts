@@ -107,6 +107,8 @@ export function useAnalytics() {
     if (eventQueueRef.current.length === 0) return;
     
     const sessionId = getSessionId();
+    if (!sessionId) return;
+    
     const events = [...eventQueueRef.current];
     eventQueueRef.current = [];
     

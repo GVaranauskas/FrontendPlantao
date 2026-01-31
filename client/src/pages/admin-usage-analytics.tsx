@@ -101,51 +101,19 @@ export default function AdminUsageAnalyticsPage() {
   if (endDate) queryParams.set("endDate", endDate.toISOString());
 
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery<UsageMetrics>({
-    queryKey: ["/api/admin/analytics/metrics", dateRange],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/analytics/metrics?${queryParams.toString()}`, {
-        credentials: "include",
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch metrics");
-      return res.json();
-    },
+    queryKey: [`/api/admin/analytics/metrics?${queryParams.toString()}`],
   });
 
   const { data: sessionStats, isLoading: sessionsLoading } = useQuery<SessionStats>({
-    queryKey: ["/api/admin/analytics/sessions", dateRange],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/analytics/sessions?${queryParams.toString()}`, {
-        credentials: "include",
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch session stats");
-      return res.json();
-    },
+    queryKey: [`/api/admin/analytics/sessions?${queryParams.toString()}`],
   });
 
   const { data: topPages, isLoading: pagesLoading } = useQuery<PageStats[]>({
-    queryKey: ["/api/admin/analytics/top-pages", dateRange],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/analytics/top-pages?limit=10&${queryParams.toString()}`, {
-        credentials: "include",
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch top pages");
-      return res.json();
-    },
+    queryKey: [`/api/admin/analytics/top-pages?limit=10&${queryParams.toString()}`],
   });
 
   const { data: topActions, isLoading: actionsLoading } = useQuery<ActionStats[]>({
-    queryKey: ["/api/admin/analytics/top-actions", dateRange],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/analytics/top-actions?limit=10&${queryParams.toString()}`, {
-        credentials: "include",
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch top actions");
-      return res.json();
-    },
+    queryKey: [`/api/admin/analytics/top-actions?limit=10&${queryParams.toString()}`],
   });
 
   const deviceData = useMemo(() => {

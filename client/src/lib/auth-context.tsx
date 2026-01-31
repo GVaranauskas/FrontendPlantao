@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "./queryClient";
 import { setAccessToken, clearAccessToken } from "./auth-token";
+import { useAnalytics } from "@/hooks/use-analytics";
 import type { User } from "@/types";
 
 interface AuthContextType {
@@ -19,6 +20,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
+  const analytics = useAnalytics();
+  const sessionStartedRef = useRef(false);
 
   const checkAuth = useCallback(async () => {
     setIsLoading(true);
@@ -43,6 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    const isAuthenticated = !!user;
+    if (isAuthenticated && !sessionStartedRef.current) {
+      sessionStartedRef.current = true;
+      analytics.startSession();
+    } else if (!isAuthenticated && sessionStartedRef.current) {
+      sessionStartedRef.current = false;
+      analytics.endSession('logout');
+    }
+  }, [user, analytics]);
 
   const login = async (username: string, password: string) => {
     const response = await fetch("/api/auth/login", {
