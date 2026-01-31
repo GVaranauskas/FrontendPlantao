@@ -4,37 +4,24 @@ import type { Patient } from "@shared/schema";
 
 /**
  * Resolve bed conflict before upsert
- * If a different patient occupies the target bed, archive them first
- * Only archives if the existing patient hasn't already been archived (soft-deleted)
+ * If a different patient occupies the target bed, archive them and delete from active table
  */
 async function resolveBedConflict(leito: string, newCodigoAtendimento: string): Promise<void> {
   try {
-    // Skip if leito is already an archived format
-    if (leito.startsWith('ARCHIVED_')) {
-      return;
-    }
-    
     const existingPatient = await storage.getPatientByLeito(leito);
     
-    // Only process if there's a conflict AND the existing patient is not already archived
-    if (existingPatient && 
-        existingPatient.codigoAtendimento !== newCodigoAtendimento &&
-        !existingPatient.leito.startsWith('ARCHIVED_') &&
-        existingPatient.status !== 'archived') {
+    // Only process if there's a conflict (different patient in the same bed)
+    if (existingPatient && existingPatient.codigoAtendimento !== newCodigoAtendimento) {
       
       console.log(`[Sync] Bed conflict detected: leito ${leito} occupied by ${existingPatient.nome} (${existingPatient.codigoAtendimento}), new patient has ${newCodigoAtendimento}`);
       
-      // Archive the old patient as "registro_antigo"
+      // Archive the old patient as "registro_antigo" (keeps the real leito in history)
       await storage.archivePatient(existingPatient, "registro_antigo");
       
-      // Clear the leito to release the unique constraint, then soft-delete by clearing critical fields
-      // This preserves referential integrity with notifications/events
-      await storage.updatePatient(existingPatient.id, { 
-        leito: `ARCHIVED_${leito}_${Date.now()}`,
-        status: 'archived' 
-      });
+      // Delete the patient from active table (history already has the record)
+      await storage.deletePatient(existingPatient.id);
       
-      console.log(`[Sync] Archived and cleared bed for old patient from leito ${leito}: ${existingPatient.nome}`);
+      console.log(`[Sync] Archived and removed old patient from leito ${leito}: ${existingPatient.nome}`);
     }
   } catch (error) {
     console.error(`[Sync] Error resolving bed conflict for leito ${leito}:`, error);
