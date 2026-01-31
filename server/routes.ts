@@ -1861,9 +1861,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     userAgent?.includes('Firefox') ? 'Firefox' : 
                     userAgent?.includes('Safari') ? 'Safari' : 'Other';
     
+    // Get full user data for name
+    const fullUser = await storage.getUser(user.userId);
+    
     const session = await storage.createSession({
-      userId: user.id,
-      userName: user.name,
+      userId: user.userId,
+      userName: fullUser?.name || user.username,
       userRole: user.role,
       userAgent: userAgent || null,
       ipAddress: ipAddress || req.ip || null,
