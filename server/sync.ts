@@ -5,12 +5,23 @@ import type { Patient } from "@shared/schema";
 /**
  * Resolve bed conflict before upsert
  * If a different patient occupies the target bed, archive them first
+ * Only archives if the existing patient hasn't already been archived (soft-deleted)
  */
 async function resolveBedConflict(leito: string, newCodigoAtendimento: string): Promise<void> {
   try {
+    // Skip if leito is already an archived format
+    if (leito.startsWith('ARCHIVED_')) {
+      return;
+    }
+    
     const existingPatient = await storage.getPatientByLeito(leito);
     
-    if (existingPatient && existingPatient.codigoAtendimento !== newCodigoAtendimento) {
+    // Only process if there's a conflict AND the existing patient is not already archived
+    if (existingPatient && 
+        existingPatient.codigoAtendimento !== newCodigoAtendimento &&
+        !existingPatient.leito.startsWith('ARCHIVED_') &&
+        existingPatient.status !== 'archived') {
+      
       console.log(`[Sync] Bed conflict detected: leito ${leito} occupied by ${existingPatient.nome} (${existingPatient.codigoAtendimento}), new patient has ${newCodigoAtendimento}`);
       
       // Archive the old patient as "registro_antigo"
