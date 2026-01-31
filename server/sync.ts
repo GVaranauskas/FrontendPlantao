@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { n8nIntegrationService } from "./services/n8n-integration-service";
+import { auditService } from "./services/audit.service";
 import type { Patient } from "@shared/schema";
 
 /**
@@ -17,6 +18,21 @@ async function resolveBedConflict(leito: string, newCodigoAtendimento: string): 
       
       // Archive the old patient as "registro_antigo" (keeps the real leito in history)
       await storage.archivePatient(existingPatient, "registro_antigo");
+      
+      // AUDITORIA: Registrar conflito de leito e arquivamento
+      await auditService.logBedConflict(
+        existingPatient.id,
+        existingPatient.nome,
+        newCodigoAtendimento,
+        leito
+      );
+      await auditService.logPatientArchived(
+        existingPatient.id,
+        existingPatient.nome,
+        leito,
+        existingPatient.codigoAtendimento || '',
+        "registro_antigo"
+      );
       
       // Delete the patient from active table (history already has the record)
       await storage.deletePatient(existingPatient.id);

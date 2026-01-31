@@ -65,6 +65,18 @@ export class PatientNotesService {
         ipAddress: ipAddress,
         userAgent: userAgent,
       });
+
+      // AUDITORIA: Registrar evento de CREATE ou UPDATE
+      const action: NoteEventAction = notaAnterior === null ? "create" : "update";
+      await this.createNoteEvent(
+        patientId,
+        action,
+        userId,
+        notaAnterior,
+        notasPaciente,
+        ipAddress,
+        userAgent
+      );
     }
 
     return updatedPatient;

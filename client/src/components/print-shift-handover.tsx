@@ -1,4 +1,5 @@
 import { Patient } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 // HTML escape function to prevent XSS
 function escapeHtml(text: string | null | undefined): string {
@@ -101,12 +102,22 @@ const tableHeader = `
   </thead>
 `;
 
-export function printShiftHandover(patients: Patient[]) {
+export async function printShiftHandover(patients: Patient[], nursingUnit?: string) {
   const printWindow = window.open('', '_blank', 'width=1200,height=800');
   
   if (!printWindow) {
     alert('Por favor, permita popups para imprimir o relatório.');
     return;
+  }
+
+  // AUDITORIA: Registrar impressão de passagem de plantão
+  try {
+    await apiRequest("POST", "/api/shift-handover/print", {
+      nursingUnit: nursingUnit || "22,23",
+      patientCount: patients.length
+    });
+  } catch (error) {
+    console.error("[Audit] Failed to log shift handover print:", error);
   }
 
   const timestamp = new Date().toLocaleString('pt-BR', {

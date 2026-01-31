@@ -3,6 +3,7 @@ import { n8nIntegrationService } from './n8n-integration-service';
 import { changeDetectionService } from './change-detection.service';
 import { unifiedClinicalAnalysisService } from './unified-clinical-analysis.service';
 import { intelligentCache } from './intelligent-cache.service';
+import { auditService } from './audit.service';
 import { storage } from '../storage';
 import type { InsertPatient, Patient, ArchiveReason } from '@shared/schema';
 
@@ -482,6 +483,16 @@ export class AutoSyncSchedulerGPT4o {
       if (shouldArchive) {
         try {
           await storage.archivePatient(patient, archiveReason, leitoDestino);
+          
+          // AUDITORIA: Registrar arquivamento de paciente
+          await auditService.logPatientArchived(
+            patient.id,
+            patient.nome,
+            patient.leito,
+            patient.codigoAtendimento || '',
+            archiveReason
+          );
+          
           console.log(`[AutoSync] 📦 Paciente ${patient.leito} (${patient.nome}) arquivado - ${logMessage}`);
           await storage.deletePatient(patient.id);
           removedCount++;

@@ -18,6 +18,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerUserRoutes } from "./routes/users";
 import syncGPT4oRoutes from "./routes/sync-gpt4o.routes";
 import { patientNotesService } from "./services/patient-notes.service";
+import { auditService } from "./services/audit.service";
 
 // Helper to get formatted timestamp
 const getTimestamp = () => new Date().toLocaleString('pt-BR', { timeZone: 'UTC' }).replace(',', ' UTC');
@@ -1252,6 +1253,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       unchanged,
       total: patients.length
     });
+  }));
+
+  // Shift Handover Audit Routes - PROTECTED
+  app.post("/api/shift-handover/view", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
+    const user = (req as any).user;
+    const { nursingUnit, patientCount } = req.body;
+    
+    if (!nursingUnit) {
+      throw new AppError(400, "Nursing unit is required");
+    }
+    
+    await auditService.logShiftHandoverView(
+      user.id,
+      user.name || user.username,
+      user.role,
+      nursingUnit,
+      patientCount || 0,
+      req
+    );
+    
+    res.json({ success: true, message: "Shift handover view logged" });
+  }));
+
+  app.post("/api/shift-handover/print", authWithFirstAccessCheck, asyncHandler(async (req, res) => {
+    const user = (req as any).user;
+    const { nursingUnit, patientCount } = req.body;
+    
+    if (!nursingUnit) {
+      throw new AppError(400, "Nursing unit is required");
+    }
+    
+    await auditService.logShiftHandoverPrint(
+      user.id,
+      user.name || user.username,
+      user.role,
+      nursingUnit,
+      patientCount || 0,
+      req
+    );
+    
+    res.json({ success: true, message: "Shift handover print logged" });
   }));
 
   // Template Management Routes - PROTECTED
