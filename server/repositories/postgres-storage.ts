@@ -1,4 +1,4 @@
-import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc, isNotNull } from "drizzle-orm";
+import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc, isNotNull, notLike } from "drizzle-orm";
 import { db } from "../lib/database";
 import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory, userSessions, analyticsEvents } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
@@ -71,7 +71,9 @@ export class PostgresStorage implements IStorage {
   }
 
   async getAllPatients(): Promise<Patient[]> {
-    const result = await db.select().from(patients);
+    // Filter out archived patients (soft-deleted with ARCHIVED_ prefix in leito)
+    const result = await db.select().from(patients)
+      .where(notLike(patients.leito, 'ARCHIVED_%'));
     return result.map(p => this.decryptPatientData(p));
   }
 
@@ -80,9 +82,12 @@ export class PostgresStorage implements IStorage {
     const limit = params.limit || 50;
     const offset = (page - 1) * limit;
 
+    // Filter out archived patients (soft-deleted with ARCHIVED_ prefix in leito)
+    const archivedFilter = notLike(patients.leito, 'ARCHIVED_%');
+
     const [countResult, result] = await Promise.all([
-      db.select({ total: count() }).from(patients),
-      db.select().from(patients).orderBy(patients.leito).limit(limit).offset(offset)
+      db.select({ total: count() }).from(patients).where(archivedFilter),
+      db.select().from(patients).where(archivedFilter).orderBy(patients.leito).limit(limit).offset(offset)
     ]);
 
     const total = countResult[0]?.total || 0;

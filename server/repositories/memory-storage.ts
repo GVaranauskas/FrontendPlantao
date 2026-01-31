@@ -94,14 +94,16 @@ export class MemStorage implements IStorage {
   }
 
   async getAllPatients(): Promise<Patient[]> {
-    return Array.from(this.patients.values());
+    // Filter out archived patients (soft-deleted with ARCHIVED_ prefix in leito)
+    return Array.from(this.patients.values()).filter(p => !p.leito.startsWith('ARCHIVED_'));
   }
 
   async getPatientsPaginated(params: PaginationParams): Promise<PaginatedResult<Patient>> {
     const page = params.page || 1;
     const limit = params.limit || 50;
     const offset = (page - 1) * limit;
-    const all = Array.from(this.patients.values());
+    // Filter out archived patients (soft-deleted with ARCHIVED_ prefix in leito)
+    const all = Array.from(this.patients.values()).filter(p => !p.leito.startsWith('ARCHIVED_'));
     const data = all.slice(offset, offset + limit);
     return {
       data,
