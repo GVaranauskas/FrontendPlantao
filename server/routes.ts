@@ -1968,6 +1968,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // ==========================================
+  // Audit Trail Endpoints - ADMIN ONLY
+  // ==========================================
+
+  // Admin: Get audit logs (paginated)
+  app.get("/api/admin/audit", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
+    const { page, limit, action, resource, userId, startDate, endDate } = req.query;
+    
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+    
+    const logs = await storage.getAuditLogs({
+      page: Number(page) || 1,
+      limit: Number(limit) || 50,
+      action: action as string,
+      resource: resource as string,
+      userId: userId as string,
+      startDate: start,
+      endDate: end
+    });
+    
+    res.json(logs);
+  }));
+
+  // ==========================================
   // LGPD Compliance Endpoints - Data Subject Rights
   // ==========================================
 

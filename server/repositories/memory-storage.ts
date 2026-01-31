@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats } from "../storage";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats, AuditLogEntry } from "../storage";
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
@@ -883,6 +883,18 @@ export class MemStorage implements IStorage {
         .map(([actionName, count]) => ({ actionName, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
+    };
+  }
+
+  // Audit Trail Functions
+  async getAuditLogs(params: { page?: number; limit?: number; action?: string; resource?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<PaginatedResult<AuditLogEntry>> {
+    // MemStorage doesn't track audit logs, return empty result
+    return {
+      data: [],
+      total: 0,
+      page: params.page || 1,
+      limit: params.limit || 50,
+      totalPages: 0
     };
   }
 

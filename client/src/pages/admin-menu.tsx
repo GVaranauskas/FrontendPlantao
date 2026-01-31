@@ -93,6 +93,15 @@ const adminModules: AdminModule[] = [
     badgeVariant: "default",
   },
   {
+    id: "audit-trail",
+    title: "Trilhas de Auditoria",
+    description: "Visualize todas as acoes realizadas no sistema com detalhes de usuario, IP, data/hora e alteracoes.",
+    icon: Shield,
+    route: "/admin/audit",
+    badge: "Seguranca",
+    badgeVariant: "default",
+  },
+  {
     id: "dashboard",
     title: "Dashboard de Importações",
     description: "Estatísticas consolidadas, histórico de importações e métricas por enfermaria.",

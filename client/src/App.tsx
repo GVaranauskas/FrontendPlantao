@@ -25,6 +25,7 @@ const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const AdminMenuPage = lazy(() => import("@/pages/admin-menu"));
 const AdminNursingUnitsPage = lazy(() => import("@/pages/admin-nursing-units"));
 const AdminUsageAnalyticsPage = lazy(() => import("@/pages/admin-usage-analytics"));
+const AdminAuditPage = lazy(() => import("@/pages/admin-audit"));
 const ImportLogsPage = lazy(() => import("@/pages/import-logs"));
 const PatientsHistoryPage = lazy(() => import("@/pages/patients-history"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -122,6 +123,9 @@ function Router() {
         </Route>
         <Route path="/admin/usage-analytics">
           <ProtectedRoute component={AdminUsageAnalyticsPage} allowedRoles={["admin"]} />
+        </Route>
+        <Route path="/admin/audit">
+          <ProtectedRoute component={AdminAuditPage} allowedRoles={["admin"]} />
         </Route>
         <Route path="/patients-history">
           <ProtectedRoute component={PatientsHistoryPage} />

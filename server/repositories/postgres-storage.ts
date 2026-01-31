@@ -1,8 +1,8 @@
 import { eq, desc, lt, gte, lte, sql, and, count, ilike, or, ne, asc, isNotNull, notLike, inArray } from "drizzle-orm";
 import { db } from "../lib/database";
-import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory, userSessions, analyticsEvents, userNotifications, patientNoteEvents } from "@shared/schema";
+import { users, patients, alerts, importHistory, nursingUnitTemplates, nursingUnits, nursingUnitChanges, patientsHistory, userSessions, analyticsEvents, userNotifications, patientNoteEvents, auditLog } from "@shared/schema";
 import type { User, InsertUser, UpdateUser, Patient, InsertPatient, Alert, InsertAlert, ImportHistory, InsertImportHistory, NursingUnitTemplate, InsertNursingUnitTemplate, NursingUnit, InsertNursingUnit, UpdateNursingUnit, NursingUnitChange, InsertNursingUnitChange, PatientsHistory, ArchiveReason, UserSession, InsertUserSession, AnalyticsEvent, InsertAnalyticsEvent } from "@shared/schema";
-import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats } from "../storage";
+import type { IStorage, PaginationParams, PaginatedResult, PatientsHistoryFilters, AnalyticsFilters, UsageMetrics, SessionStats, PageStats, ActionStats, UserActivityStats, AuditFilters, AuditLogEntry } from "../storage";
 import { encryptionService, SENSITIVE_PATIENT_FIELDS } from "../services/encryption.service";
 
 export class PostgresStorage implements IStorage {
@@ -1005,6 +1005,45 @@ export class PostgresStorage implements IStorage {
       lastActivityAt: lastActivityResult[0]?.lastActivity || null,
       topPages: topPagesResult.map(r => ({ pagePath: r.pagePath || '', views: r.views })),
       topActions: topActionsResult.map(r => ({ actionName: r.actionName || '', count: r.count }))
+    };
+  }
+
+  // Audit Trail Functions
+  async getAuditLogs(params: AuditFilters & PaginationParams): Promise<PaginatedResult<AuditLogEntry>> {
+    const page = params.page || 1;
+    const limit = params.limit || 50;
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    if (params.action) conditions.push(eq(auditLog.action, params.action));
+    if (params.resource) conditions.push(eq(auditLog.resource, params.resource));
+    if (params.userId) conditions.push(eq(auditLog.userId, params.userId));
+    if (params.startDate) conditions.push(gte(auditLog.timestamp, params.startDate));
+    if (params.endDate) conditions.push(lte(auditLog.timestamp, params.endDate));
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [data, totalResult] = await Promise.all([
+      db.select().from(auditLog)
+        .where(whereClause)
+        .orderBy(desc(auditLog.timestamp))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: count() }).from(auditLog).where(whereClause)
+    ]);
+
+    const total = totalResult[0]?.count || 0;
+
+    return {
+      data: data.map(log => ({
+        ...log,
+        changes: log.changes ? JSON.stringify(log.changes) : null,
+        metadata: log.metadata ? JSON.stringify(log.metadata) : null
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
     };
   }
 

@@ -138,6 +138,9 @@ export interface IStorage {
   getTopPages(limit?: number, startDate?: Date, endDate?: Date): Promise<PageStats[]>;
   getTopActions(limit?: number, startDate?: Date, endDate?: Date): Promise<ActionStats[]>;
   getUserActivity(userId: string, startDate?: Date, endDate?: Date): Promise<UserActivityStats>;
+  
+  // Audit Trail
+  getAuditLogs(params: AuditFilters & PaginationParams): Promise<PaginatedResult<AuditLogEntry>>;
 }
 
 export interface AnalyticsFilters {
@@ -191,6 +194,33 @@ export interface UserActivityStats {
   lastActivityAt: Date | null;
   topPages: Array<{ pagePath: string; views: number }>;
   topActions: Array<{ actionName: string; count: number }>;
+}
+
+export interface AuditFilters {
+  action?: string;
+  resource?: string;
+  userId?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: Date;
+  userId: string | null;
+  userName: string;
+  userRole: string;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  changes: string | null;
+  metadata: string | null;
+  ipAddress: string;
+  userAgent: string | null;
+  endpoint: string;
+  statusCode: number;
+  errorMessage: string | null;
+  duration: number;
 }
 
 // Initialize storage based on environment
