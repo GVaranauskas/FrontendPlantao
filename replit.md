@@ -24,7 +24,12 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API supporting JSON and TOON formats with custom middleware for logging and parsing.
 - **Storage**: PostgreSQL with Drizzle ORM, with automatic fallback to MemStorage.
 - **Data Models**: User, Patient (with 14 normalized N8N fields), ImportHistory, NursingUnitTemplate, NursingUnit, NursingUnitChange, PatientNoteEvent (audit trail), UserNotification, UserSession, AnalyticsEvent.
-- **Patient Notes Audit System**: Full audit trail for patient note actions (create, update, delete) with encrypted previous values, performer/target user tracking, IP address logging, and optional deletion reasons. Admin-only note deletion with automatic notification to original author.
+- **Comprehensive Audit System (v1.5.9)**: Full audit trail using AuditService for all critical operations:
+  - **Patient Notes**: CREATE, UPDATE, DELETE events with AES-256-GCM encrypted previous/new values, performer/target user tracking, IP address, and deletion reasons.
+  - **Patient Lifecycle**: PATIENT_ARCHIVED, PATIENT_REACTIVATED, BED_CONFLICT events logged during N8N sync and bed conflict resolution.
+  - **Shift Handover**: SHIFT_HANDOVER_VIEW and SHIFT_HANDOVER_PRINT events with authenticated user context, nursing unit, and patient count.
+  - **Sync Operations**: SYNC_STARTED and SYNC_COMPLETED events for N8N synchronization tracking.
+  - Admin-only note deletion with automatic notification to original author.
 - **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, WebSocket for import, and analytics (events, sessions, metrics).
 - **Usage Analytics System**: Session-based tracking with 10 REST endpoints: POST /api/analytics/events (single), POST /api/analytics/events/batch, POST /api/analytics/sessions, POST /api/analytics/sessions/:id/end, POST /api/analytics/sessions/:id/heartbeat, GET /api/admin/analytics/* (metrics, sessions, top-pages, top-actions, users/:userId, events). Admin-only endpoints protected by RBAC.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.

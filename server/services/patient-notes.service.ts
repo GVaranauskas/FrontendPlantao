@@ -2,6 +2,7 @@ import { db } from "../lib/database";
 import { patients, patientNotesHistory, users, patientNoteEvents, userNotifications } from "@shared/schema";
 import type { NoteEventAction, PatientNoteEvent } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
+import { encryptionService } from "./encryption.service";
 
 export class PatientNotesService {
   async updatePatientNotes(
@@ -181,6 +182,9 @@ export class PatientNotesService {
       })
       .where(eq(patients.id, patientId));
 
+    // SEGURANÇA: Criptografar valores sensíveis antes de persistir
+    const encryptedPreviousValue = encryptionService.encrypt(previousValue);
+
     const [event] = await db
       .insert(patientNoteEvents)
       .values({
@@ -188,7 +192,7 @@ export class PatientNotesService {
         patientName: currentPatient.nome,
         patientLeito: currentPatient.leito,
         action: "delete",
-        previousValue: previousValue,
+        previousValue: encryptedPreviousValue,
         newValue: null,
         performedById: adminUserId,
         performedByName: adminUser.name,
@@ -255,6 +259,10 @@ export class PatientNotesService {
       throw new Error("Paciente ou usuário não encontrado");
     }
 
+    // SEGURANÇA: Criptografar valores sensíveis antes de persistir
+    const encryptedPreviousValue = encryptionService.encrypt(previousValue);
+    const encryptedNewValue = encryptionService.encrypt(newValue);
+
     const [event] = await db
       .insert(patientNoteEvents)
       .values({
@@ -262,8 +270,8 @@ export class PatientNotesService {
         patientName: patient.nome,
         patientLeito: patient.leito,
         action,
-        previousValue,
-        newValue,
+        previousValue: encryptedPreviousValue,
+        newValue: encryptedNewValue,
         performedById: userId,
         performedByName: user.name,
         performedByRole: user.role,

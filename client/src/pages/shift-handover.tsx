@@ -19,7 +19,7 @@ import {
 import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { patientsService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { printShiftHandover } from "@/components/print-shift-handover";
@@ -236,6 +236,20 @@ export default function ShiftHandoverPage() {
   const { data: templates } = useQuery<NursingTemplate[]>({
     queryKey: ["/api/templates"],
   });
+
+  // AUDITORIA: Registrar visualização de passagem de plantão (apenas uma vez)
+  const hasLoggedViewRef = useRef(false);
+  useEffect(() => {
+    if (!hasLoggedViewRef.current && patients && patients.length > 0) {
+      hasLoggedViewRef.current = true;
+      apiRequest("POST", "/api/shift-handover/view", {
+        nursingUnit: "22,23",
+        patientCount: patients.length
+      }).catch((error) => {
+        console.error("[Audit] Failed to log shift handover view:", error);
+      });
+    }
+  }, [patients]);
 
   const isAICritical = useCallback((patient: Patient): boolean => {
     const insights = patient.clinicalInsights as ClinicalInsights | null;
