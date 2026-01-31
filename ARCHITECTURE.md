@@ -659,25 +659,36 @@ Durante a sincronização com N8N, o sistema verifica automaticamente se pacient
 
 **Ponto Único de Inserção**: Somente `upsertPatientByCodigoAtendimento()` insere/atualiza pacientes. O histórico **NUNCA é deletado** - serve como log permanente de todas as altas e transferências. Os dados do N8N são sempre usados na inserção final.
 
-### Resolução de Conflito de Leito
+### Resolução de Conflito de Leito (v1.5.8.2)
 
-Antes de inserir ou reativar um paciente, o sistema verifica se o leito alvo está ocupado por outro paciente com código de atendimento diferente. Se estiver, o paciente antigo é automaticamente arquivado como "registro_antigo".
+Antes de inserir ou reativar um paciente, o sistema verifica se o leito alvo está ocupado por outro paciente com código de atendimento diferente. Se estiver, o paciente antigo é automaticamente arquivado como "registro_antigo" e **deletado da tabela de pacientes ativos**.
 
-**Problema Resolvido**: Em ambientes DEV, dados manuais/testes acumulam pacientes com leitos que são posteriormente reutilizados por novos pacientes com códigos diferentes, causando erro de "duplicate key constraint" no leito.
+**Lógica Simplificada**:
+1. Sincronizou com N8N → lista pacientes ativos
+2. Paciente não está no N8N ou conflito de leito → arquiva no histórico com **dados reais** (incluindo o leito original) e **deleta** da tabela ativa
+3. Separação limpa: tabela `patients` = ativos, tabela `patients_history` = histórico permanente
+
+**Cascade-Safe Delete**: O método `deletePatient()` limpa automaticamente:
+- Notificações relacionadas (`user_notifications`)
+- Eventos de auditoria (`patient_note_events`)
+- Somente então deleta o paciente
+
+**Idempotência no Arquivamento**: O método `archivePatient()` verifica se já existe um registro com o mesmo `codigoAtendimento` e `motivoArquivamento` nos últimos 5 minutos, evitando duplicatas.
 
 **Estratégia de Busca Dual**:
 - **Primária**: Busca por `codigoAtendimento` (identificador único do atendimento)
 - **Fallback**: Busca por `leito` (quando código ausente ou alterado)
 
-**Deduplicação**: Usa `Set` de IDs já reativados para evitar reativações repetidas no mesmo ciclo de sync.
-
 **Métodos de Storage**:
 ```typescript
-// Verifica se leito está ocupado por paciente com código diferente
-getPatientOccupyingLeitoWithDifferentCodigo(leito: string, codigo: string): Promise<Patient | undefined>
+// Busca paciente por leito (para detectar conflitos)
+getPatientByLeito(leito: string): Promise<Patient | undefined>
 
-// Arquiva e remove paciente (para liberar leito)
-archiveAndRemovePatient(patientId: string, motivo: ArchiveReason, leitoDestino?: string): Promise<boolean>
+// Arquiva paciente no histórico (com idempotência)
+archivePatient(patient: Patient, motivo: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory>
+
+// Deleta paciente (cascade-safe: limpa notificações e eventos primeiro)
+deletePatient(id: string): Promise<boolean>
 
 // Busca paciente arquivado por código de atendimento
 getPatientHistoryByCodigoAtendimento(codigo: string): Promise<PatientsHistory | undefined>

@@ -17,6 +17,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.8.2] - 2026-01-31
+
+### Corrigido
+
+- **Simplificação da Lógica de Sincronização**: Removida complexidade desnecessária do soft-delete com prefixo `ARCHIVED_`
+  - Lógica simplificada: sincronizou com N8N → lista pacientes ativos; paciente não está no N8N → arquiva no histórico com dados reais e deleta da tabela ativa
+  - Conflito de leito: paciente antigo é arquivado com o leito real (não mais `ARCHIVED_{leito}`) e deletado
+  - Implementado cascade-safe delete que limpa notificações e eventos relacionados antes de deletar o paciente
+  - Removidos filtros desnecessários de `ARCHIVED_` dos repositórios
+  - Limpeza do banco de dados: removidos pacientes com leito `ARCHIVED_` remanescentes
+
+- **Idempotência no Arquivamento**: Adicionada verificação de idempotência no `archivePatient()`
+  - Evita duplicatas verificando se já existe registro com mesmo `codigoAtendimento` e `motivoArquivamento` nos últimos 5 minutos
+  - Se já existir, retorna o registro existente em vez de criar duplicata
+  - Implementado em ambos PostgresStorage e MemStorage
+
 ## [1.5.8.1] - 2026-01-30
 
 ### Corrigido
@@ -27,6 +43,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
   - Preserva integridade referencial com notificações e eventos de auditoria
   - Adicionado método `getPatientByLeito()` no storage interface
   - Documentação do fluxo no replit.md
+  - **NOTA**: Esta abordagem foi substituída na v1.5.8.2 por uma lógica mais simples (delete real em vez de soft-delete)
 
 ## [1.5.8] - 2026-01-30
 
