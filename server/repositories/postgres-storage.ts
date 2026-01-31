@@ -448,12 +448,32 @@ export class PostgresStorage implements IStorage {
   async archivePatient(patient: Patient, motivoArquivamento: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory> {
     // Decripta os dados do paciente antes de arquivar
     const decryptedPatient = this.decryptPatientData(patient);
+    
+    const codigoAtendimento = decryptedPatient.codigoAtendimento || `LEITO_${decryptedPatient.leito}`;
+    
+    // IDEMPOTENCY CHECK: Avoid duplicate archives within 5-minute window
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentDuplicate = await db.select({ id: patientsHistory.id })
+      .from(patientsHistory)
+      .where(and(
+        eq(patientsHistory.codigoAtendimento, codigoAtendimento),
+        eq(patientsHistory.motivoArquivamento, motivoArquivamento),
+        gte(patientsHistory.arquivadoEm, fiveMinutesAgo)
+      ))
+      .limit(1);
+    
+    if (recentDuplicate.length > 0) {
+      console.log(`[Archive] Skipping duplicate archive for ${codigoAtendimento} (${motivoArquivamento}) - already archived within 5 minutes`);
+      // Return the existing record to maintain interface contract
+      const existing = await db.select().from(patientsHistory).where(eq(patientsHistory.id, recentDuplicate[0].id)).limit(1);
+      return existing[0];
+    }
 
     // Cria snapshot completo do paciente (sem campos sensíveis criptografados)
     const dadosCompletos = { ...decryptedPatient };
 
     const historyRecord = {
-      codigoAtendimento: decryptedPatient.codigoAtendimento || `LEITO_${decryptedPatient.leito}`,
+      codigoAtendimento,
       registro: decryptedPatient.registro,
       nome: decryptedPatient.nome,
       leito: decryptedPatient.leito,

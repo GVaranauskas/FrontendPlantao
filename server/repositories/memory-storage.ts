@@ -455,10 +455,26 @@ export class MemStorage implements IStorage {
 
   // Patients History Methods
   async archivePatient(patient: Patient, motivoArquivamento: ArchiveReason, leitoDestino?: string): Promise<PatientsHistory> {
+    const codigoAtendimento = patient.codigoAtendimento || `LEITO_${patient.leito}`;
+    
+    // IDEMPOTENCY CHECK: Avoid duplicate archives within 5-minute window
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const existingRecords = Array.from(this.patientsHistory.values());
+    const recentDuplicate = existingRecords.find(r => 
+      r.codigoAtendimento === codigoAtendimento &&
+      r.motivoArquivamento === motivoArquivamento &&
+      r.arquivadoEm >= fiveMinutesAgo
+    );
+    
+    if (recentDuplicate) {
+      console.log(`[Archive] Skipping duplicate archive for ${codigoAtendimento} (${motivoArquivamento}) - already archived within 5 minutes`);
+      return recentDuplicate;
+    }
+    
     const id = randomUUID();
     const record: PatientsHistory = {
       id,
-      codigoAtendimento: patient.codigoAtendimento || `LEITO_${patient.leito}`,
+      codigoAtendimento,
       registro: patient.registro,
       nome: patient.nome,
       leito: patient.leito,
