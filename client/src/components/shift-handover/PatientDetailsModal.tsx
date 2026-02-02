@@ -182,8 +182,8 @@ export function PatientDetailsModal({
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-4">
+        <ScrollArea className="max-h-[calc(90vh-120px)] pr-4 w-full max-w-full">
+          <div className="space-y-4 w-full max-w-full overflow-hidden">
             <Card className="p-4 overflow-hidden">
               <h3 className="font-semibold text-sm mb-3">Informações do Paciente</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -393,7 +393,7 @@ export function PatientDetailsModal({
                     <div className="flex-1">
                       {patient.notasPaciente ? (
                         <div className="bg-background rounded-lg p-4 border border-border">
-                          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{patient.notasPaciente}</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap break-all">{patient.notasPaciente}</p>
                         </div>
                       ) : (
                         <div className="bg-background rounded-lg p-4 border border-dashed border-muted-foreground/30">
@@ -459,16 +459,16 @@ export function PatientDetailsModal({
                                 {new Date(entry.alteradoEm).toLocaleString("pt-BR")}
                               </span>
                             </div>
-                            <div className="space-y-2 text-xs overflow-hidden">
+                            <div className="space-y-2 text-xs overflow-hidden w-full max-w-full">
                               {entry.notaAnterior !== null && (
-                                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-2">
+                                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-2 overflow-hidden">
                                   <span className="text-red-700 dark:text-red-400 font-semibold">Anterior:</span>
-                                  <p className="text-foreground pl-2 break-words">{entry.notaAnterior || "(vazio)"}</p>
+                                  <p className="text-foreground pl-2 break-all whitespace-pre-wrap">{entry.notaAnterior || "(vazio)"}</p>
                                 </div>
                               )}
-                              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2">
+                              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2 overflow-hidden">
                                 <span className="text-green-700 dark:text-green-400 font-semibold">Novo:</span>
-                                <p className="text-foreground pl-2 break-words">{entry.notaNova || "(vazio)"}</p>
+                                <p className="text-foreground pl-2 break-all whitespace-pre-wrap">{entry.notaNova || "(vazio)"}</p>
                               </div>
                             </div>
                           </div>
@@ -480,15 +480,15 @@ export function PatientDetailsModal({
               )}
 
               {isAdmin && noteEvents && noteEvents.length > 0 && (
-                <div className="mt-4 bg-background rounded-lg border border-border">
+                <div className="mt-4 bg-background rounded-lg border border-border overflow-hidden w-full max-w-full">
                   <div className="bg-muted px-4 py-3 border-b border-border rounded-t-lg">
                     <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                       <Activity className="h-4 w-4" />
                       Trilha de Auditoria ({noteEvents.length})
                     </h4>
                   </div>
-                  <div className="p-4">
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  <div className="p-4 overflow-hidden w-full max-w-full">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto overflow-x-hidden">
                       {noteEvents.map((event: { 
                         id: string; 
                         action: string; 
@@ -503,7 +503,7 @@ export function PatientDetailsModal({
                       }) => (
                         <div 
                           key={event.id} 
-                          className={`rounded-lg p-4 border overflow-hidden ${
+                          className={`rounded-lg p-4 border overflow-hidden w-full max-w-full ${
                             event.action === "delete" 
                               ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" 
                               : event.action === "create"
@@ -539,15 +539,15 @@ export function PatientDetailsModal({
                           )}
                           
                           {event.reason && (
-                            <p className="text-xs text-muted-foreground mb-2 break-words">
+                            <p className="text-xs text-muted-foreground mb-2 break-all">
                               <span className="font-medium">Motivo:</span> {event.reason}
                             </p>
                           )}
                           
                           {event.previousValue && (
-                            <div className="text-xs bg-background/50 rounded p-2 mt-2 overflow-hidden">
+                            <div className="text-xs bg-background/50 rounded p-2 mt-2 overflow-hidden w-full max-w-full">
                               <span className="font-medium text-muted-foreground">Conteúdo anterior:</span>
-                              <p className="text-foreground mt-1 break-words">{event.previousValue}</p>
+                              <p className="text-foreground mt-1 break-all whitespace-pre-wrap overflow-hidden">{event.previousValue}</p>
                             </div>
                           )}
                           
