@@ -17,6 +17,33 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.1] - 2026-02-02
+
+### Corrigido
+
+- **Dashboard de Analytics de Uso**: Corrigido bug que impedia a exibição de métricas no dashboard administrativo
+  - Causa raiz: `endDate = new Date()` era criado a cada render, causando mudança constante na queryKey do TanStack Query
+  - A queryKey instável fazia com que as queries fossem canceladas e reiniciadas continuamente
+  - Solução: Implementado `useRef` e `useEffect` para estabilizar a data de fim, e `useMemo` para calcular queryString
+  - Todas as 4 queries de analytics (metrics, sessions, top-pages, top-actions) agora usam queryString memoizada
+  - Dashboard agora exibe corretamente: sessões, page views, usuários únicos, ações, gráficos
+
+### Técnico
+
+- Removidos logs de debug temporários do frontend e backend relacionados à correção
+
+## [1.5.9] - 2026-02-01
+
+### Adicionado
+
+- **Sistema Completo de Auditoria (AuditService)**: Implementação de audit trail completo para todas as operações críticas
+  - Eventos de notas: CREATE, UPDATE, DELETE com valores criptografados (AES-256-GCM)
+  - Eventos de ciclo de vida de pacientes: PATIENT_ARCHIVED, PATIENT_REACTIVATED, BED_CONFLICT
+  - Eventos de passagem de plantão: SHIFT_HANDOVER_VIEW, SHIFT_HANDOVER_PRINT
+  - Eventos de sincronização: SYNC_STARTED, SYNC_COMPLETED
+  - Rastreamento de performer/target user, IP address, e motivos de deleção
+  - Interface administrativa para visualização do histórico de auditoria
+
 ## [1.5.8.2] - 2026-01-31
 
 ### Corrigido

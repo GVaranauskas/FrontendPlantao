@@ -780,6 +780,6 @@ Antes de começar a desenvolver, verifique:
 
 ---
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-02-02
 
 **Dúvidas?** Abra uma issue no GitHub ou consulte a documentação.

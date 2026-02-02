@@ -1092,6 +1092,7 @@ Pagina `/admin/usage-analytics` com 4 abas:
 - **Heartbeat**: Evita sessoes orfas com ping a cada 60s
 - **Cleanup**: Envia eventos pendentes ao fechar aba/navegador
 - **sessionStorage**: Persiste sessionId entre reloads da pagina
+- **QueryKey Estavel (v1.5.9.1)**: Dashboard usa `useMemo`/`useRef` para estabilizar queryString e evitar re-renders infinitos do TanStack Query
 
 ## 📊 Métricas e Performance
 
@@ -1159,4 +1160,4 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 ---
 
-**Última atualização**: 2026-01-30 (v1.5.8)
+**Última atualização**: 2026-02-02 (v1.5.9.1)

@@ -54,3 +54,10 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis across individual and batch flows. Claude Haiku 3.5 as fallback. Cache key strategy uses codigoAtendimento as primary identifier. **Batch Real Paralelo (v1.5.5)**: 4 batches of 10 patients processed in parallel (~14s), combined with parallel database saves (~10s), achieving total sync time of ~30s for 35 patients.
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
 - **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.
+
+## Recent Changes (v1.5.9.1 - 2026-02-02)
+
+- Fixed analytics dashboard display bug where metrics showed zeros despite correct API data
+- Root cause: unstable queryKey due to `new Date()` on every render prevented TanStack Query completion
+- Solution: Implemented useMemo and useRef to stabilize date range calculations and queryString
+- All admin analytics queries now use memoized queryString for stable queryKeys

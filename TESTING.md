@@ -818,6 +818,6 @@ expect(component.state.isLoading).toBe(false);
 
 ---
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-02-02
 
 **Contribua**: Adicione testes ao fazer PRs!
