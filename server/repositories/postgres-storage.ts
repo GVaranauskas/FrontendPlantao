@@ -476,13 +476,46 @@ export class PostgresStorage implements IStorage {
       return existing[0];
     }
 
+    // FALLBACK: Se a descriptografia falhou (dados ainda parecem criptografados),
+    // tentar extrair nome/registro dos dadosBrutosJson do N8N
+    let finalNome = decryptedPatient.nome;
+    let finalRegistro = decryptedPatient.registro;
+    
+    const isEncrypted = (value: string | null | undefined): boolean => {
+      if (!value) return false;
+      // Dados criptografados são base64 longos com caracteres específicos
+      return value.length > 50 && /^[A-Za-z0-9+/=]+$/.test(value);
+    };
+    
+    if (isEncrypted(finalNome) || isEncrypted(finalRegistro)) {
+      console.warn(`[Archive] Dados parecem ainda criptografados para ${codigoAtendimento}, tentando fallback...`);
+      
+      // Tentar extrair dos dadosBrutosJson
+      const dadosBrutos = decryptedPatient.dadosBrutosJson as any;
+      if (dadosBrutos?.nomePaciente) {
+        // Formato: "NOME DO PACIENTE    PT: 1234567 AT: 9876543"
+        const nomeParts = dadosBrutos.nomePaciente.split(/\s{2,}PT:\s*/);
+        if (nomeParts[0]) {
+          finalNome = nomeParts[0].trim();
+          console.log(`[Archive] Fallback nome: ${finalNome}`);
+        }
+        if (nomeParts[1]) {
+          const regMatch = nomeParts[1].match(/^(\d+)/);
+          if (regMatch) {
+            finalRegistro = regMatch[1];
+            console.log(`[Archive] Fallback registro: ${finalRegistro}`);
+          }
+        }
+      }
+    }
+
     // Cria snapshot completo do paciente (sem campos sensíveis criptografados)
     const dadosCompletos = { ...decryptedPatient };
 
     const historyRecord = {
       codigoAtendimento,
-      registro: decryptedPatient.registro,
-      nome: decryptedPatient.nome,
+      registro: finalRegistro,
+      nome: finalNome,
       leito: decryptedPatient.leito,
       dataInternacao: decryptedPatient.dataInternacao,
       dsEnfermaria: decryptedPatient.dsEnfermaria,
