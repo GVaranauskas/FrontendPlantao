@@ -1906,11 +1906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
     
-    console.log('[Analytics Debug] startDate:', startDate, 'endDate:', endDate);
-    console.log('[Analytics Debug] parsed start:', start, 'end:', end);
-    
     const metrics = await storage.getUsageMetrics(start, end);
-    console.log('[Analytics Debug] metrics:', JSON.stringify(metrics));
     res.json(metrics);
   }));
 

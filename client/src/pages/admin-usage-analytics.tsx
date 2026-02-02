@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -71,51 +71,56 @@ export default function AdminUsageAnalyticsPage() {
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
   const [activeTab, setActiveTab] = useState("overview");
 
-  const getDateRange = () => {
-    const endDate = new Date();
-    let startDate: Date | undefined;
+  // Memoize end date to prevent query key changes on every render
+  const endDateRef = useRef(new Date());
+  
+  // Update endDate when dateRange changes
+  useEffect(() => {
+    endDateRef.current = new Date();
+  }, [dateRange]);
+
+  const { startDate, endDate, queryString } = useMemo(() => {
+    const end = endDateRef.current;
+    let start: Date | undefined;
     
     switch (dateRange) {
       case "7d":
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
+        start = new Date(end);
+        start.setDate(start.getDate() - 7);
         break;
       case "30d":
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
+        start = new Date(end);
+        start.setDate(start.getDate() - 30);
         break;
       case "90d":
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 90);
+        start = new Date(end);
+        start.setDate(start.getDate() - 90);
         break;
       default:
-        startDate = undefined;
+        start = undefined;
     }
     
-    return { startDate, endDate };
-  };
-
-  const { startDate, endDate } = getDateRange();
-  const queryParams = new URLSearchParams();
-  if (startDate) queryParams.set("startDate", startDate.toISOString());
-  if (endDate) queryParams.set("endDate", endDate.toISOString());
+    const params = new URLSearchParams();
+    if (start) params.set("startDate", start.toISOString());
+    params.set("endDate", end.toISOString());
+    
+    return { startDate: start, endDate: end, queryString: params.toString() };
+  }, [dateRange]);
 
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery<UsageMetrics>({
-    queryKey: [`/api/admin/analytics/metrics?${queryParams.toString()}`],
+    queryKey: [`/api/admin/analytics/metrics?${queryString}`],
   });
-  
-  console.log('[Analytics Frontend Debug] metrics data:', metrics, 'isLoading:', metricsLoading);
 
   const { data: sessionStats, isLoading: sessionsLoading } = useQuery<SessionStats>({
-    queryKey: [`/api/admin/analytics/sessions?${queryParams.toString()}`],
+    queryKey: [`/api/admin/analytics/sessions?${queryString}`],
   });
 
   const { data: topPages, isLoading: pagesLoading } = useQuery<PageStats[]>({
-    queryKey: [`/api/admin/analytics/top-pages?limit=10&${queryParams.toString()}`],
+    queryKey: [`/api/admin/analytics/top-pages?limit=10&${queryString}`],
   });
 
   const { data: topActions, isLoading: actionsLoading } = useQuery<ActionStats[]>({
-    queryKey: [`/api/admin/analytics/top-actions?limit=10&${queryParams.toString()}`],
+    queryKey: [`/api/admin/analytics/top-actions?limit=10&${queryString}`],
   });
 
   const deviceData = useMemo(() => {
