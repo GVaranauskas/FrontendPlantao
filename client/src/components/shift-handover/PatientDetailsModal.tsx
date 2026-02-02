@@ -172,7 +172,7 @@ export function PatientDetailsModal({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Badge className="bg-primary text-primary-foreground px-3 py-1">
@@ -184,18 +184,18 @@ export function PatientDetailsModal({
         
         <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card className="p-4 overflow-hidden">
               <h3 className="font-semibold text-sm mb-3">Informações do Paciente</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Registro:</span>{" "}
-                  <span className="font-medium">{patient.registro || "-"}</span>
+                  <span className="font-medium break-words">{patient.registro || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Data Nascimento:</span>{" "}
-                  <span className="font-medium">{patient.dataNascimento || "-"}</span>
+                  <span className="font-medium break-words">{patient.dataNascimento || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Idade:</span>{" "}
                   <span className="font-bold text-primary">
                     {patient.idade !== null && patient.idade !== undefined 
@@ -203,30 +203,30 @@ export function PatientDetailsModal({
                       : "-"}
                   </span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Sexo:</span>{" "}
-                  <span className="font-medium">{patient.sexo || "-"}</span>
+                  <span className="font-medium break-words">{patient.sexo || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Data Internação:</span>{" "}
-                  <span className="font-medium">{patient.dataInternacao || "-"}</span>
+                  <span className="font-medium break-words">{patient.dataInternacao || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Enfermaria:</span>{" "}
-                  <span className="font-medium">{patient.dsEnfermaria || "-"}</span>
+                  <span className="font-medium break-words">{patient.dsEnfermaria || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Diagnóstico:</span>{" "}
-                  <span className="font-medium">{patient.diagnostico || "-"}</span>
+                  <span className="font-medium break-words">{patient.diagnostico || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Alergias:</span>{" "}
-                  <span className="font-medium text-red-600">{patient.alergias || "Nenhuma informada"}</span>
+                  <span className="font-medium text-red-600 break-words">{patient.alergias || "Nenhuma informada"}</span>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4 border-primary/30">
+            <Card className="p-4 border-primary/30 overflow-hidden">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <Brain className="w-4 h-4" />
@@ -286,12 +286,12 @@ export function PatientDetailsModal({
                       <h4 className="font-semibold text-xs text-red-500 uppercase mb-2">Alertas Identificados</h4>
                       <ul className="space-y-1">
                         {individualAnalysis.principais_alertas.map((alerta, idx) => (
-                          <li key={idx} className="text-sm flex items-start gap-2">
+                          <li key={idx} className="text-sm flex items-start gap-2 min-w-0">
                             <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
                               alerta.nivel === "VERMELHO" ? "text-red-500" :
                               alerta.nivel === "AMARELO" ? "text-yellow-500" : "text-green-500"
                             }`} />
-                            <span>{alerta.titulo}</span>
+                            <span className="break-words">{alerta.titulo}</span>
                           </li>
                         ))}
                       </ul>
@@ -303,7 +303,7 @@ export function PatientDetailsModal({
                       <h4 className="font-semibold text-xs text-yellow-600 uppercase mb-2">Gaps de Documentação</h4>
                       <ul className="space-y-1">
                         {individualAnalysis.gaps_criticos.map((gap, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground">• {gap}</li>
+                          <li key={idx} className="text-sm text-muted-foreground break-words">• {gap}</li>
                         ))}
                       </ul>
                     </div>
@@ -314,9 +314,9 @@ export function PatientDetailsModal({
                       <h4 className="font-semibold text-xs text-primary uppercase mb-2">Recomendações de Enfermagem</h4>
                       <ul className="space-y-1">
                         {individualAnalysis.recomendacoes_enfermagem.map((rec, idx) => (
-                          <li key={idx} className="text-sm flex items-start gap-2">
+                          <li key={idx} className="text-sm flex items-start gap-2 min-w-0">
                             <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                            <span>{rec}</span>
+                            <span className="break-words">{rec}</span>
                           </li>
                         ))}
                       </ul>
@@ -324,9 +324,9 @@ export function PatientDetailsModal({
                   )}
 
                   {individualAnalysis.prioridade_acao && (
-                    <Card className="p-3 bg-primary/5 border-primary/20">
+                    <Card className="p-3 bg-primary/5 border-primary/20 overflow-hidden">
                       <h4 className="font-semibold text-xs uppercase mb-1">Prioridade de Ação</h4>
-                      <p className="text-sm">{individualAnalysis.prioridade_acao}</p>
+                      <p className="text-sm break-words">{individualAnalysis.prioridade_acao}</p>
                     </Card>
                   )}
 
@@ -337,7 +337,7 @@ export function PatientDetailsModal({
               )}
             </Card>
 
-            <Card className="p-4 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <Card className="p-4 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 overflow-hidden">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                   <Edit2 className="w-4 h-4 text-blue-600" />
@@ -393,7 +393,7 @@ export function PatientDetailsModal({
                     <div className="flex-1">
                       {patient.notasPaciente ? (
                         <div className="bg-background rounded-lg p-4 border border-border">
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{patient.notasPaciente}</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{patient.notasPaciente}</p>
                         </div>
                       ) : (
                         <div className="bg-background rounded-lg p-4 border border-dashed border-muted-foreground/30">
@@ -449,7 +449,7 @@ export function PatientDetailsModal({
                         <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
                       ) : (
                         notesHistory.map((entry: { id: string; alteradoPorNome: string; alteradoEm: string; notaAnterior: string | null; notaNova: string | null }) => (
-                          <div key={entry.id} className="bg-muted/50 rounded-lg p-4 border border-border">
+                          <div key={entry.id} className="bg-muted/50 rounded-lg p-4 border border-border overflow-hidden">
                             <div className="flex items-center justify-between mb-3">
                               <span className="flex items-center gap-2 text-foreground font-medium text-sm">
                                 <User className="h-4 w-4 text-blue-600" />
@@ -459,16 +459,16 @@ export function PatientDetailsModal({
                                 {new Date(entry.alteradoEm).toLocaleString("pt-BR")}
                               </span>
                             </div>
-                            <div className="space-y-2 text-xs">
+                            <div className="space-y-2 text-xs overflow-hidden">
                               {entry.notaAnterior !== null && (
                                 <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-2">
                                   <span className="text-red-700 dark:text-red-400 font-semibold">Anterior:</span>
-                                  <p className="text-foreground pl-2">{entry.notaAnterior || "(vazio)"}</p>
+                                  <p className="text-foreground pl-2 break-words">{entry.notaAnterior || "(vazio)"}</p>
                                 </div>
                               )}
                               <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2">
                                 <span className="text-green-700 dark:text-green-400 font-semibold">Novo:</span>
-                                <p className="text-foreground pl-2">{entry.notaNova || "(vazio)"}</p>
+                                <p className="text-foreground pl-2 break-words">{entry.notaNova || "(vazio)"}</p>
                               </div>
                             </div>
                           </div>
@@ -503,7 +503,7 @@ export function PatientDetailsModal({
                       }) => (
                         <div 
                           key={event.id} 
-                          className={`rounded-lg p-4 border ${
+                          className={`rounded-lg p-4 border overflow-hidden ${
                             event.action === "delete" 
                               ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" 
                               : event.action === "create"
@@ -539,15 +539,15 @@ export function PatientDetailsModal({
                           )}
                           
                           {event.reason && (
-                            <p className="text-xs text-muted-foreground mb-2">
+                            <p className="text-xs text-muted-foreground mb-2 break-words">
                               <span className="font-medium">Motivo:</span> {event.reason}
                             </p>
                           )}
                           
                           {event.previousValue && (
-                            <div className="text-xs bg-background/50 rounded p-2 mt-2">
+                            <div className="text-xs bg-background/50 rounded p-2 mt-2 overflow-hidden">
                               <span className="font-medium text-muted-foreground">Conteúdo anterior:</span>
-                              <p className="text-foreground mt-1">{event.previousValue}</p>
+                              <p className="text-foreground mt-1 break-words">{event.previousValue}</p>
                             </div>
                           )}
                           
@@ -564,46 +564,46 @@ export function PatientDetailsModal({
               )}
             </Card>
 
-            <Card className="p-4">
+            <Card className="p-4 overflow-hidden">
               <h3 className="font-semibold text-sm mb-3">Dados Clínicos</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Braden:</span>{" "}
                   <span className={`font-medium ${parseInt(patient.braden || "0") < 12 ? "text-red-600" : parseInt(patient.braden || "0") < 15 ? "text-yellow-600" : ""}`}>
                     {patient.braden || "-"}
                   </span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Mobilidade:</span>{" "}
-                  <span className="font-medium">{patient.mobilidade || "-"}</span>
+                  <span className="font-medium break-words">{patient.mobilidade || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Dieta:</span>{" "}
-                  <span className="font-medium">{patient.dieta || "-"}</span>
+                  <span className="font-medium break-words">{patient.dieta || "-"}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground">Eliminações:</span>{" "}
-                  <span className="font-medium">{patient.eliminacoes || "-"}</span>
+                  <span className="font-medium break-words">{patient.eliminacoes || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Dispositivos:</span>{" "}
-                  <span className="font-medium">{patient.dispositivos || "-"}</span>
+                  <span className="font-medium break-words">{patient.dispositivos || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">ATB:</span>{" "}
-                  <span className="font-medium">{patient.atb || "-"}</span>
+                  <span className="font-medium break-words">{patient.atb || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Aporte/Saturação:</span>{" "}
-                  <span className="font-medium">{patient.aporteSaturacao || "-"}</span>
+                  <span className="font-medium break-words">{patient.aporteSaturacao || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Curativos:</span>{" "}
-                  <span className="font-medium">{patient.curativos || "-"}</span>
+                  <span className="font-medium break-words">{patient.curativos || "-"}</span>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0">
                   <span className="text-muted-foreground">Observações:</span>{" "}
-                  <span className="font-medium">{patient.observacoes || "-"}</span>
+                  <span className="font-medium break-words">{patient.observacoes || "-"}</span>
                 </div>
               </div>
             </Card>
