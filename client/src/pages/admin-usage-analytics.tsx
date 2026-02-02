@@ -103,6 +103,8 @@ export default function AdminUsageAnalyticsPage() {
   const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery<UsageMetrics>({
     queryKey: [`/api/admin/analytics/metrics?${queryParams.toString()}`],
   });
+  
+  console.log('[Analytics Frontend Debug] metrics data:', metrics, 'isLoading:', metricsLoading);
 
   const { data: sessionStats, isLoading: sessionsLoading } = useQuery<SessionStats>({
     queryKey: [`/api/admin/analytics/sessions?${queryParams.toString()}`],
