@@ -22,17 +22,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Melhorado
 
 - **Rate Limit Flexível v2**: Implementação de rate limit híbrido que resolve problemas de ambientes corporativos
-  - **Identificação por Usuário**: Endpoints autenticados agora usam `userId` em vez de IP para identificação
-  - **Fallback IP**: Endpoints não autenticados (login/registro) continuam usando IP para proteção contra brute force
+  - **Middleware `extractUserForRateLimit`**: Novo middleware que extrai `userId` do JWT antes dos rate limiters executarem
+    - Popula `req.rateLimitUser.userId` para uso pelo key generator híbrido
+    - Aplicado globalmente em `/api/` antes do `apiRateLimiter`
+  - **Key Generator Híbrido**: Usa `userId` para autenticados, IP normalizado para não autenticados
+  - **Refresh Token Limiter**: Extrai `userId` diretamente do refresh token no keyGenerator (independente do middleware)
+  - **Normalização IPv6**: Implementado agrupamento por /64 subnet para prevenir bypass via rotação de endereços
   - **Novos Limites**:
-    - Login: 10 tentativas/15min por IP (dobrado de 5)
+    - Login/Registro: 10 tentativas/15min por IP (dobrado de 5)
     - API Geral: 300 requisições/min por usuário (triplicado de 100)
     - Sync/Import: 30 requisições/min por usuário (triplicado de 10)
-    - IA: 20 requisições/min por usuário (quadruplicado de 5)
+    - IA (OpenAI): 20 requisições/min por usuário (quadruplicado de 5)
     - Refresh Token: 30 requisições/min por usuário (triplicado de 10)
   - **Benefícios**: Equipes na mesma rede corporativa (NAT) não compartilham mais limites de requisição
   - Refatoração centralizada de rate limiters em `server/middleware/rate-limiter.ts`
   - Remoção de duplicação entre `security.ts` e `rate-limiter.ts`
+  - Configuração `validate: { keyGeneratorIpFallback: false }` para evitar warnings de validação IPv6
 
 ### Corrigido
 

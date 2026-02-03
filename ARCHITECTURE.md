@@ -903,14 +903,69 @@ router.post('/sync', ...requireRoleWithAuth('admin', 'enfermagem'), handler);
 - **Criptografia Obrigatória**: AES-256-GCM em todos os ambientes
 - **Endpoints LGPD**: Exportação, anonimização e transparência de dados
 
-### Rate Limiting
+### Rate Limiting (v1.5.9.2 - Flexível)
 
-```typescript
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 requests por IP
-});
+Sistema híbrido que resolve problemas de ambientes corporativos com NAT compartilhado.
+
+**Arquitetura**:
 ```
+┌─────────────────────────────────────────────────────────┐
+│                    Request Flow                          │
+├─────────────────────────────────────────────────────────┤
+│  1. extractUserForRateLimit (extrai userId do JWT)      │
+│  2. Rate Limiter (usa userId ou IP como chave)          │
+│  3. Auth Middleware (valida JWT completo)               │
+│  4. Route Handler                                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Limites por Tipo de Endpoint**:
+
+| Endpoint | Limite | Identificação | Janela |
+|----------|--------|---------------|--------|
+| Login/Registro | 10 req | IP | 15 min |
+| API Geral | 300 req | userId | 1 min |
+| Sync/Import | 30 req | userId | 1 min |
+| IA (OpenAI) | 20 req | userId | 1 min |
+| Refresh Token | 30 req | userId | 1 min |
+
+**Implementação**:
+```typescript
+// server/middleware/rate-limiter.ts
+
+// Middleware leve que extrai userId antes do rate limiter
+export function extractUserForRateLimit(req, res, next) {
+  const accessToken = req.cookies?.accessToken;
+  if (accessToken) {
+    const decoded = jwt.verify(accessToken, secret);
+    req.rateLimitUser = { userId: decoded.userId };
+  }
+  next();
+}
+
+// Key generator híbrido
+export function createHybridKeyGenerator(prefix: string) {
+  return (req) => {
+    const userId = req.rateLimitUser?.userId || req.user?.userId;
+    if (userId) return `${prefix}user:${userId}`;
+    return `${prefix}ip:${normalizeIp(req.ip)}`;
+  };
+}
+
+// Normalização IPv6 para /64 subnet
+function normalizeIp(ip: string): string {
+  if (ip.includes(':') && !ip.includes('.')) {
+    const parts = ip.split(':');
+    return parts.slice(0, 4).join(':') + '::'; // /64 prefix
+  }
+  return ip;
+}
+```
+
+**Benefícios**:
+- Usuários na mesma rede corporativa (NAT) não compartilham limites
+- Proteção contra brute force mantida para endpoints públicos
+- IPv6 normalizado para prevenir bypass via rotação de endereços
 
 ## 🎯 Decisões Arquiteturais
 

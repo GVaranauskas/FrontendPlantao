@@ -57,9 +57,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (v1.5.9.2 - 2026-02-03)
 
-- Implemented Flexible Rate Limiting v2 with hybrid key generator
-- Authenticated endpoints now use userId for rate limiting instead of IP
-- Solves corporate NAT issue where multiple users shared the same IP rate limit
-- Login/register endpoints still use IP-based limiting for brute force protection
-- New limits: Login 10/15min IP, API 300/min user, Sync 30/min user, AI 20/min user
+### Rate Limiting Flexível v2
+- **Middleware `extractUserForRateLimit`**: Extrai `userId` do JWT antes dos rate limiters executarem
+  - Popula `req.rateLimitUser.userId` para uso pelo key generator híbrido
+  - Aplicado globalmente em `/api/` antes do `apiRateLimiter`
+- **Key Generator Híbrido**: Usa `userId` para autenticados, IP normalizado para não autenticados
+- **Refresh Token Limiter**: Extrai `userId` diretamente do refresh token no keyGenerator
+- **Normalização IPv6**: Agrupa por /64 subnet para prevenir bypass via rotação de endereços
+- **Solução NAT Corporativo**: Usuários na mesma rede não compartilham mais limites
+- **Novos Limites**:
+  - Login/Registro: 10 tentativas/15min por IP
+  - API Geral: 300 req/min por usuário
+  - Sync/Import: 30 req/min por usuário
+  - IA (OpenAI): 20 req/min por usuário
+  - Refresh Token: 30 req/min por usuário
+
+### Correções
 - Fixed patient modal overflow with break-all CSS for long continuous text
