@@ -17,6 +17,29 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.2] - 2026-02-03
+
+### Melhorado
+
+- **Rate Limit Flexível v2**: Implementação de rate limit híbrido que resolve problemas de ambientes corporativos
+  - **Identificação por Usuário**: Endpoints autenticados agora usam `userId` em vez de IP para identificação
+  - **Fallback IP**: Endpoints não autenticados (login/registro) continuam usando IP para proteção contra brute force
+  - **Novos Limites**:
+    - Login: 10 tentativas/15min por IP (dobrado de 5)
+    - API Geral: 300 requisições/min por usuário (triplicado de 100)
+    - Sync/Import: 30 requisições/min por usuário (triplicado de 10)
+    - IA: 20 requisições/min por usuário (quadruplicado de 5)
+    - Refresh Token: 30 requisições/min por usuário (triplicado de 10)
+  - **Benefícios**: Equipes na mesma rede corporativa (NAT) não compartilham mais limites de requisição
+  - Refatoração centralizada de rate limiters em `server/middleware/rate-limiter.ts`
+  - Remoção de duplicação entre `security.ts` e `rate-limiter.ts`
+
+### Corrigido
+
+- **Modal de Detalhes do Paciente**: Corrigido overflow horizontal em textos muito longos
+  - Aplicado `break-all` para forçar quebra de texto em todas as seções do modal
+  - Textos longos contínuos (como dados JSON ou observações extensas) agora quebram corretamente
+
 ## [1.5.9.1] - 2026-02-02
 
 ### Corrigido

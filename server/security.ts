@@ -1,6 +1,13 @@
 import type { Express } from "express";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { 
+  extractUserForRateLimit,
+  apiRateLimiter, 
+  loginRateLimiter, 
+  registerRateLimiter,
+  syncRateLimiter, 
+  aiRateLimiter 
+} from "./middleware/rate-limiter";
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -47,50 +54,35 @@ export function setupHelmet(app: Express): void {
 
 /**
  * Configure rate limiting to prevent abuse
- * Limits: 100 requests per 15 minutes per IP
+ * Uses hybrid key generation: userId for authenticated users, IP for unauthenticated
+ * 
+ * Limits (v2 - Flexible Rate Limits):
+ * - General API: 300/min per user (or IP if not authenticated)
+ * - Login/Register: 10/15min per IP (pre-authentication protection)
+ * - Sync/Import: 30/min per user
+ * - AI: 20/min per user
+ * 
+ * The extractUserForRateLimit middleware runs first to extract userId from JWT
+ * before rate limiters execute, enabling user-based rate limiting even when
+ * auth middleware hasn't run yet.
  */
 export function setupRateLimit(app: Express): void {
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: "Too many requests from this IP, please try again later.",
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    skip: (req) => {
-      // Don't count static assets and health checks
-      return req.path.startsWith("/static") || req.path === "/health";
-    },
-  });
-
-  // Apply to all API routes
-  app.use("/api/", limiter);
+  // Extract user from JWT before rate limiting (enables user-based limits)
+  app.use("/api/", extractUserForRateLimit);
   
-  // More restrictive limit for auth endpoints to prevent brute force attacks
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs
-    message: "Too many login attempts, please try again later.",
-    skipSuccessfulRequests: true, // Don't count successful requests
-  });
-  app.use("/api/auth/login", authLimiter);
-  app.use("/api/auth/register", authLimiter);
+  // General API limiter - user-based after authentication
+  app.use("/api/", apiRateLimiter);
   
-  // Stricter limit for sync/import endpoints (expensive operations)
-  const syncLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 10, // limit each IP to 10 sync requests per minute
-    message: "Too many sync requests, please wait before syncing again.",
-  });
-  app.use("/api/sync/", syncLimiter);
-  app.use("/api/import/evolucoes", syncLimiter);
+  // Auth endpoints - IP based (pre-authentication)
+  app.use("/api/auth/login", loginRateLimiter);
+  app.use("/api/auth/register", registerRateLimiter);
   
-  // Stricter limit for AI endpoints (expensive operations)
-  const aiLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 5, // limit each IP to 5 AI requests per minute
-    message: "Too many AI analysis requests, please wait before trying again.",
-  });
-  app.use("/api/ai/", aiLimiter);
+  // Sync/Import endpoints - user-based
+  app.use("/api/sync/", syncRateLimiter);
+  app.use("/api/import/evolucoes", syncRateLimiter);
+  
+  // AI endpoints - user-based
+  app.use("/api/ai/", aiRateLimiter);
 }
 
 /**
