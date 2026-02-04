@@ -54,6 +54,8 @@ export const patients = pgTable("patients", {
   dsEspecialidade: text("ds_especialidade"),
   codigoAtendimento: text("codigo_atendimento").unique(),
   dsEvolucaoCompleta: text("ds_evolucao_completa"),
+  dsEvolucaoMedica: text("ds_evolucao_medica"),
+  dsAnotacaoEnfermagem: text("ds_anotacao_enfermagem"),
   dhCriacaoEvolucao: timestamp("dh_criacao_evolucao"),
   fonteDados: text("fonte_dados").default("N8N_IAMSPE"),
   dadosBrutosJson: jsonb("dados_brutos_json"),

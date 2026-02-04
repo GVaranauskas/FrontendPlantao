@@ -175,6 +175,8 @@ export class N8NIntegrationService {
         dsLeitoCompleto: dadosBrutos.dsLeito || "",
         dsEspecialidade: dadosBrutos.dsEpecialid || "",
         dsEvolucaoCompleta: "",
+        dsEvolucaoMedica: dadosBrutos.dsEvolucaoMedica || "",
+        dsAnotacaoEnfermagem: dadosBrutos.dsAnotacaoEnfermagem || "",
         dhCriacaoEvolucao: this.parseTimestamp(dadosBrutos.dhCriacao),
         fonteDados: "N8N_IAMSPE",
         dadosBrutosJson: dadosBrutos,

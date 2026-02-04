@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  Brain, AlertTriangle, Activity, CheckCircle, Loader2, Edit2, Save, X, Clock, User, History, Trash2
+  Brain, AlertTriangle, Activity, CheckCircle, Loader2, Edit2, Save, X, Clock, User, History, Trash2, ChevronDown, ChevronUp, Stethoscope, FileText
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,6 +42,8 @@ export function PatientDetailsModal({
   const [notesValue, setNotesValue] = useState(patient?.notasPaciente || "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  const [isEvolucaoMedicaExpanded, setIsEvolucaoMedicaExpanded] = useState(false);
+  const [isAnotacaoEnfermagemExpanded, setIsAnotacaoEnfermagemExpanded] = useState(false);
   const maxLength = 200;
   const isAdmin = user?.role === "admin";
 
@@ -225,6 +227,70 @@ export function PatientDetailsModal({
                 </div>
               </div>
             </Card>
+
+            {patient.dsEvolucaoMedica && (
+              <Card className="p-4 border-emerald-200 dark:border-emerald-800 overflow-hidden">
+                <button
+                  onClick={() => setIsEvolucaoMedicaExpanded(!isEvolucaoMedicaExpanded)}
+                  className="w-full flex items-center justify-between text-left"
+                  data-testid="button-toggle-evolucao-medica"
+                >
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4 text-emerald-600" />
+                    Evolução Médica
+                  </h3>
+                  {isEvolucaoMedicaExpanded ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+                {isEvolucaoMedicaExpanded && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                      <p className="text-sm whitespace-pre-wrap break-words">{patient.dsEvolucaoMedica}</p>
+                    </div>
+                  </div>
+                )}
+                {!isEvolucaoMedicaExpanded && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Clique para expandir ({patient.dsEvolucaoMedica.length} caracteres)
+                  </p>
+                )}
+              </Card>
+            )}
+
+            {patient.dsAnotacaoEnfermagem && (
+              <Card className="p-4 border-blue-200 dark:border-blue-800 overflow-hidden">
+                <button
+                  onClick={() => setIsAnotacaoEnfermagemExpanded(!isAnotacaoEnfermagemExpanded)}
+                  className="w-full flex items-center justify-between text-left"
+                  data-testid="button-toggle-anotacao-enfermagem"
+                >
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    Anotações de Enfermagem
+                  </h3>
+                  {isAnotacaoEnfermagemExpanded ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+                {isAnotacaoEnfermagemExpanded && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                      <p className="text-sm whitespace-pre-wrap break-words">{patient.dsAnotacaoEnfermagem}</p>
+                    </div>
+                  </div>
+                )}
+                {!isAnotacaoEnfermagemExpanded && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Clique para expandir ({patient.dsAnotacaoEnfermagem.length} caracteres)
+                  </p>
+                )}
+              </Card>
+            )}
 
             <Card className="p-4 border-primary/30 overflow-hidden">
               <div className="flex items-center justify-between mb-3">

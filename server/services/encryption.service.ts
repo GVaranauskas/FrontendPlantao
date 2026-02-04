@@ -148,6 +148,8 @@ export const SENSITIVE_PATIENT_FIELDS = [
   'alergias',
   'observacoes',
   'dsEvolucaoCompleta',
-  'dadosBrutosJson',      // Dados brutos do N8N
-  'clinicalInsights'       // Análise clínica da IA
+  'dsEvolucaoMedica',       // Evolução médica do N8N
+  'dsAnotacaoEnfermagem',   // Anotações de enfermagem do N8N
+  'dadosBrutosJson',        // Dados brutos do N8N
+  'clinicalInsights'        // Análise clínica da IA
 ] as const;
