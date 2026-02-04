@@ -55,7 +55,16 @@ Preferred communication style: Simple, everyday language.
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
 - **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.
 
-## Recent Changes (v1.5.9.2 - 2026-02-03)
+## Recent Changes (v1.5.9.3 - 2026-02-04)
+
+### New N8N Integration Fields
+- **dsEvolucaoMedica**: Medical evolution text field from N8N
+- **dsAnotacaoEnfermagem**: Nursing notes text field from N8N
+- Both fields encrypted with AES-256-GCM (added to SENSITIVE_PATIENT_FIELDS)
+- UI displays fields in collapsible Card sections with character count indicators
+- N8N mapping: `dadosBrutos.dsEvolucaoMedica` and `dadosBrutos.dsAnotacaoEnfermagem`
+
+## Previous Changes (v1.5.9.2 - 2026-02-03)
 
 ### Rate Limiting Flexível v2
 - **Middleware `extractUserForRateLimit`**: Extrai `userId` do JWT antes dos rate limiters executarem
