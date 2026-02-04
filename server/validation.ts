@@ -177,6 +177,20 @@ export interface PatientSecurityResult {
 }
 
 /**
+ * Fields that should skip SQL injection checks
+ * These are free-text clinical fields from trusted N8N source that may contain
+ * text patterns that look like SQL but are legitimate medical/nursing notes
+ */
+const SQL_CHECK_SKIP_FIELDS = [
+  'dsEvolucaoMedica',
+  'dsAnotacaoEnfermagem', 
+  'dsEvolucaoCompleta',
+  'observacoes',
+  'diagnostico',
+  'dadosBrutosJson',
+];
+
+/**
  * Validates and sanitizes patient data with SQL injection protection
  * Returns null if data contains malicious patterns
  */
@@ -186,7 +200,8 @@ export const validateAndSanitizePatient = (patient: InsertPatient): PatientSecur
 
   for (const [key, value] of Object.entries(patient)) {
     if (typeof value === "string") {
-      if (containsSqlInjection(value)) {
+      const shouldSkipSqlCheck = SQL_CHECK_SKIP_FIELDS.includes(key);
+      if (!shouldSkipSqlCheck && containsSqlInjection(value)) {
         console.error(`[SECURITY] SQL injection detected in field "${key}": ${value.substring(0, 100)}...`);
         return {
           isValid: false,
