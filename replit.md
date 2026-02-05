@@ -65,6 +65,12 @@ Preferred communication style: Simple, everyday language.
 - **Analytics Integration**: `flushEvents` and `sendHeartbeat` check `isAuthFailed()` and `getAccessToken()` before making network calls; event queue cleared on auth failure
 - **SQL Injection Fix**: `SQL_CHECK_SKIP_FIELDS` array in server/validation.ts excludes clinical text fields (dsEvolucaoMedica, dsAnotacaoEnfermagem, dsEvolucaoCompleta, observacoes, diagnostico, dadosBrutosJson) from SQL injection checks to prevent false positives
 
+### Foreign Key Constraint Fix
+- **Bug Fixed**: Nursing unit approval was passing literal string "admin" instead of user UUID for `reviewerId`
+- **Solution**: Admin page now uses `user?.id` from `useAuth()` hook for all approval/rejection mutations
+- **Documentation**: New skill `11care-frontend-backend-integration` created to prevent similar issues
+- **Security Review Updated**: Added Foreign Key validation to security checklist
+
 ## Previous Changes (v1.5.9.3 - 2026-02-04)
 
 ### New N8N Integration Fields
