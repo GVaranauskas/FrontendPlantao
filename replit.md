@@ -8,6 +8,18 @@ The 11Care Nursing Platform is a healthcare management system designed for hospi
 
 Preferred communication style: Simple, everyday language.
 
+## Development Workflow Rules
+
+1. **Describe Before Coding**: Before writing any code, describe your approach and wait for approval. Always ask clarifying questions before writing any code if requirements are ambiguous.
+
+2. **Break Down Large Tasks**: If a task requires changes to more than 3 files, stop and break it into smaller tasks first.
+
+3. **List What Could Break**: After writing code, list what could break and suggest tests to cover it.
+
+4. **Test-First Bug Fixing**: When there's a bug, start by writing a test that reproduces it, then fix it until the test passes.
+
+5. **Learn From Corrections**: Every time I correct you, add a new rule to this replit.md file so it never happens again.
+
 ## System Architecture
 
 ### Frontend Architecture
