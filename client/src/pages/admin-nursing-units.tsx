@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +77,7 @@ interface SyncResult {
 export default function AdminNursingUnitsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<NursingUnit | null>(null);
@@ -142,7 +144,7 @@ export default function AdminNursingUnitsPage() {
   const approveChangeMutation = useMutation({
     mutationFn: async (changeId: string) => {
       const response = await apiRequest("POST", `/api/nursing-unit-changes/${changeId}/approve`, {
-        reviewerId: "admin",
+        reviewerId: user?.id,
       });
       return response.json();
     },
@@ -164,7 +166,7 @@ export default function AdminNursingUnitsPage() {
   const rejectChangeMutation = useMutation({
     mutationFn: async (changeId: string) => {
       const response = await apiRequest("POST", `/api/nursing-unit-changes/${changeId}/reject`, {
-        reviewerId: "admin",
+        reviewerId: user?.id,
       });
       return response.json();
     },
@@ -185,7 +187,7 @@ export default function AdminNursingUnitsPage() {
   const approveAllMutation = useMutation({
     mutationFn: async (): Promise<{ approved: number; errors: number }> => {
       const response = await apiRequest("POST", "/api/nursing-unit-changes/approve-all", {
-        reviewerId: "admin",
+        reviewerId: user?.id,
       });
       return response.json();
     },
