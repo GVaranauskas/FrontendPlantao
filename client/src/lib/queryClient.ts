@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getAccessToken } from "./auth-token";
+import { fetchWithAutoRefresh } from "./token-refresh";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -19,16 +19,10 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
   
-  const token = getAccessToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  
-  const res = await fetch(url, {
+  const res = await fetchWithAutoRefresh(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -41,20 +35,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const headers: Record<string, string> = {};
-    const token = getAccessToken();
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    
-    // Handle queryKey as string (single element) or array of path segments
     const url = typeof queryKey[0] === 'string' && queryKey.length === 1 
       ? queryKey[0] 
       : queryKey.join("/");
     
-    const res = await fetch(url, {
-      credentials: "include",
-      headers,
+    const res = await fetchWithAutoRefresh(url, {
+      method: "GET",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

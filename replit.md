@@ -55,7 +55,17 @@ Preferred communication style: Simple, everyday language.
 - **Scheduled Tasks**: Daily automatic sync of nursing units with change detection and admin approval workflow.
 - **Database Schema Check**: Automatic verification on startup that all required tables exist. In production, missing tables cause a fatal error with clear instructions on how to resolve (copy dev database or run migrations). In development, missing tables generate a warning but allow the app to continue.
 
-## Recent Changes (v1.5.9.3 - 2026-02-04)
+## Recent Changes (v1.5.9.4 - 2026-02-05)
+
+### Aggressive Token Auto-Refresh System
+- **Proactive Refresh**: Auto-refresh timer runs every 10 minutes to prevent session expiration during long operations
+- **401 Interceptor**: Automatic token refresh and request retry on 401 responses
+- **Debouncing**: 5-second debounce prevents multiple simultaneous refresh attempts
+- **Auth Failure Handling**: Centralized `authFailureTriggered` flag stops all network activity on auth failure; `isAuthFailed()` export for checking state; `resetAuthFailure()` called on successful login
+- **Analytics Integration**: `flushEvents` and `sendHeartbeat` check `isAuthFailed()` and `getAccessToken()` before making network calls; event queue cleared on auth failure
+- **SQL Injection Fix**: `SQL_CHECK_SKIP_FIELDS` array in server/validation.ts excludes clinical text fields (dsEvolucaoMedica, dsAnotacaoEnfermagem, dsEvolucaoCompleta, observacoes, diagnostico, dadosBrutosJson) from SQL injection checks to prevent false positives
+
+## Previous Changes (v1.5.9.3 - 2026-02-04)
 
 ### New N8N Integration Fields
 - **dsEvolucaoMedica**: Medical evolution text field from N8N

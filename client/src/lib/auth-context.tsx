@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "./queryClient";
-import { setAccessToken, clearAccessToken } from "./auth-token";
+import { setAccessToken, clearAccessToken, getAccessToken } from "./auth-token";
+import { startAutoRefresh, stopAutoRefresh, refreshAccessToken, setOnAuthFailure, resetAuthFailure } from "./token-refresh";
 import { useAnalytics } from "@/hooks/use-analytics";
 import type { User } from "@/types";
 
@@ -23,20 +24,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const analytics = useAnalytics();
   const sessionStartedRef = useRef(false);
 
+  const handleAuthFailure = useCallback(() => {
+    console.log("[Auth] Auth failure detected, clearing user state");
+    setUser(null);
+    setLocation("/");
+  }, [setLocation]);
+
+  useEffect(() => {
+    setOnAuthFailure(handleAuthFailure);
+    return () => setOnAuthFailure(() => {});
+  }, [handleAuthFailure]);
+
   const checkAuth = useCallback(async () => {
     setIsLoading(true);
     try {
+      const existingToken = getAccessToken();
+      if (!existingToken) {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      const token = getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch("/api/auth/me", {
         credentials: "include",
+        headers,
       });
       
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        startAutoRefresh();
       } else {
+        stopAutoRefresh();
         setUser(null);
       }
     } catch {
+      stopAutoRefresh();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -72,9 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await response.json();
     setAccessToken(data.accessToken);
     setUser(data.user);
+    resetAuthFailure();
+    startAutoRefresh();
   };
 
   const logout = async () => {
+    stopAutoRefresh();
     try {
       await apiRequest("POST", "/api/auth/logout");
     } catch {

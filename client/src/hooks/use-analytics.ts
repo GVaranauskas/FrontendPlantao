@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { isAuthFailed } from "@/lib/token-refresh";
+import { getAccessToken } from "@/lib/auth-token";
 
 interface AnalyticsEvent {
   eventType: 'page_view' | 'action';
@@ -93,6 +95,8 @@ export function useAnalytics() {
   }, [getSessionId]);
 
   const sendHeartbeat = useCallback(async () => {
+    if (isAuthFailed() || !getAccessToken()) return;
+    
     const sessionId = getSessionId();
     if (!sessionId) return;
     
@@ -106,6 +110,11 @@ export function useAnalytics() {
   const flushEvents = useCallback(async () => {
     if (eventQueueRef.current.length === 0) return;
     
+    if (isAuthFailed() || !getAccessToken()) {
+      eventQueueRef.current = [];
+      return;
+    }
+    
     const sessionId = getSessionId();
     if (!sessionId) return;
     
@@ -115,8 +124,10 @@ export function useAnalytics() {
     try {
       await apiRequest('POST', '/api/analytics/events/batch', { events, sessionId });
     } catch (error) {
-      console.error('[Analytics] Failed to send events batch:', error);
-      eventQueueRef.current = [...events.slice(0, MAX_BATCH_SIZE), ...eventQueueRef.current].slice(0, MAX_BATCH_SIZE * 2);
+      if (!isAuthFailed()) {
+        console.error('[Analytics] Failed to send events batch:', error);
+        eventQueueRef.current = [...events.slice(0, MAX_BATCH_SIZE), ...eventQueueRef.current].slice(0, MAX_BATCH_SIZE * 2);
+      }
     }
   }, [getSessionId]);
 
