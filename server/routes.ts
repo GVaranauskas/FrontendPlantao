@@ -1225,13 +1225,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     for (const patient of patients) {
       // Calcula o status baseado nos campos preenchidos
-      const hasLeito = !!patient.leito && patient.leito.trim() !== "";
-      const hasNome = !!patient.nome && patient.nome.trim() !== "";
-      const hasDataInternacao = !!patient.dataInternacao && patient.dataInternacao.trim() !== "";
-      const hasDiagnostico = !!patient.diagnostico && patient.diagnostico.trim() !== "";
-      const hasObservacoes = !!patient.observacoes && patient.observacoes.trim() !== "";
+      const safeStr = (v: any) => (typeof v === "string" ? v.trim() : Array.isArray(v) ? v.filter(Boolean).join("; ").trim() : v ? String(v).trim() : "");
+      const hasLeito = safeStr(patient.leito) !== "";
+      const hasNome = safeStr(patient.nome) !== "";
+      const hasDataInternacao = safeStr(patient.dataInternacao) !== "";
+      const hasDiagnostico = safeStr(patient.diagnostico) !== "";
+      const hasObservacoes = safeStr(patient.observacoes) !== "";
       const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
-      const hasMobilidade = !!patient.mobilidade && patient.mobilidade.trim() !== "";
+      const hasMobilidade = safeStr(patient.mobilidade) !== "";
       
       const newStatus = (hasLeito && hasNome && hasDataInternacao && hasDadosClinicosRelevantes && hasMobilidade) 
         ? "complete" 

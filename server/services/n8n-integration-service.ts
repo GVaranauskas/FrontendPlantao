@@ -26,6 +26,13 @@ interface ProcessedEvolucao {
 // N8N API URL - configurável via variável de ambiente
 const N8N_API_URL = process.env.N8N_API_URL || "https://dev-n8n.7care.com.br/webhook/evolucoes";
 
+function ensureString(value: any): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter(Boolean).join("; ");
+  return String(value);
+}
+
 export class N8NIntegrationService {
   /**
    * Busca dados de evolução da API N8N
@@ -152,20 +159,20 @@ export class N8NIntegrationService {
         sexo: dadosBrutos.sexo || "",
         dataInternacao: dadosBrutos.dataInternacao || this.getTodayDate(),
 
-        braden: dadosBrutos.braden || "",
-        diagnostico: dadosBrutos.diagnostico || "",
-        alergias: dadosBrutos.alergias || "",
-        mobilidade: dadosBrutos.mobilidade || "",
-        dieta: dadosBrutos.dieta || "",
-        eliminacoes: dadosBrutos.eliminacoes || "",
-        dispositivos: dadosBrutos.dispositivos || "",
-        atb: dadosBrutos.atb || "",
-        curativos: dadosBrutos.curativos || "",
-        aporteSaturacao: dadosBrutos.aporteSaturacao || "",
-        exames: dadosBrutos.exames || "",
-        cirurgia: dadosBrutos.cirurgia || "",
-        observacoes: dadosBrutos.observacoes || "",
-        previsaoAlta: dadosBrutos.previsaoAlta || "",
+        braden: ensureString(dadosBrutos.braden),
+        diagnostico: ensureString(dadosBrutos.diagnostico),
+        alergias: ensureString(dadosBrutos.alergias),
+        mobilidade: ensureString(dadosBrutos.mobilidade),
+        dieta: ensureString(dadosBrutos.dieta),
+        eliminacoes: ensureString(dadosBrutos.eliminacoes),
+        dispositivos: ensureString(dadosBrutos.dispositivos),
+        atb: ensureString(dadosBrutos.atb),
+        curativos: ensureString(dadosBrutos.curativos),
+        aporteSaturacao: ensureString(dadosBrutos.aporteSaturacao),
+        exames: ensureString(dadosBrutos.exames),
+        cirurgia: ensureString(dadosBrutos.cirurgia),
+        observacoes: ensureString(dadosBrutos.observacoes),
+        previsaoAlta: ensureString(dadosBrutos.previsaoAlta),
         idade: this.calculateAge(dadosBrutos.dataNascimento),
         alerta: null,
         status: "pending",
@@ -268,15 +275,16 @@ export class N8NIntegrationService {
    * Calculates patient status based on filled fields
    */
   private calculatePatientStatus(dados: InsertPatient): "complete" | "pending" {
-    const hasLeito = !!dados.leito && dados.leito.trim() !== "";
-    const hasNome = !!dados.nome && dados.nome.trim() !== "";
-    const hasDataInternacao = !!dados.dataInternacao && dados.dataInternacao.trim() !== "";
+    const safeStr = (v: any) => ensureString(v).trim();
+    const hasLeito = safeStr(dados.leito) !== "";
+    const hasNome = safeStr(dados.nome) !== "";
+    const hasDataInternacao = safeStr(dados.dataInternacao) !== "";
 
-    const hasDiagnostico = !!dados.diagnostico && dados.diagnostico.trim() !== "";
-    const hasObservacoes = !!dados.observacoes && dados.observacoes.trim() !== "";
+    const hasDiagnostico = safeStr(dados.diagnostico) !== "";
+    const hasObservacoes = safeStr(dados.observacoes) !== "";
     const hasDadosClinicosRelevantes = hasDiagnostico || hasObservacoes;
 
-    const hasMobilidade = !!dados.mobilidade && dados.mobilidade.trim() !== "";
+    const hasMobilidade = safeStr(dados.mobilidade) !== "";
 
     if (hasLeito && hasNome && hasDataInternacao && hasDadosClinicosRelevantes && hasMobilidade) {
       return "complete";
