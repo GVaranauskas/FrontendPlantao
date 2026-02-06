@@ -247,6 +247,9 @@ export class AutoSyncSchedulerGPT4o {
       
       const patientsToProcess: InsertPatient[] = [];
       let skippedCount = 0;
+      const seenCodigos = new Map<string, string>();
+      const seenLeitos = new Map<string, string>();
+      let duplicateCount = 0;
 
       for (const rawPatient of (rawData || [])) {
         const leito = rawPatient.leito || 'DESCONHECIDO';
@@ -268,6 +271,22 @@ export class AutoSyncSchedulerGPT4o {
             continue;
           }
           
+          // DETECÇÃO DE DUPLICATAS: Identificar quando o N8N envia mais de um registro para o mesmo paciente
+          const codigoDup = processed.dadosProcessados.codigoAtendimento;
+          const leitoDup = processed.dadosProcessados.leito;
+          if (codigoDup && seenCodigos.has(codigoDup)) {
+            duplicateCount++;
+            console.log(`[AutoSync] ⚠️  DUPLICATA DETECTADA: codigoAtendimento "${codigoDup}" já apareceu no leito ${seenCodigos.get(codigoDup)}, agora aparece no leito ${leitoDup || leito}. O registro anterior será sobrescrito pelo UPSERT.`);
+          }
+          if (leitoDup && seenLeitos.has(leitoDup)) {
+            const prevCodigo = seenLeitos.get(leitoDup);
+            if (prevCodigo !== codigoDup) {
+              console.log(`[AutoSync] ⚠️  CONFLITO DE LEITO: leito "${leitoDup}" apareceu com codigoAtendimento "${prevCodigo}" e agora com "${codigoDup}".`);
+            }
+          }
+          if (codigoDup) seenCodigos.set(codigoDup, leitoDup || leito);
+          if (leitoDup) seenLeitos.set(leitoDup, codigoDup || '');
+
           // COLETAR IDENTIFICADORES após processamento bem-sucedido e validação de enfermaria
           // Isso garante que usamos exatamente os mesmos dados que serão salvos no banco
           const codigo = processed.dadosProcessados.codigoAtendimento;
@@ -337,6 +356,7 @@ export class AutoSyncSchedulerGPT4o {
       console.log(`   - Recebidos: ${rawData?.length || 0}`);
       console.log(`   - Filtrados (outras enfermarias): ${skippedCount}`);
       console.log(`   - Válidos (10A*): ${result.stats.totalRecords}`);
+      console.log(`   - Duplicatas N8N: ${duplicateCount} (${duplicateCount > 0 ? 'N8N enviou registros repetidos para o mesmo paciente' : 'nenhuma'})`);
       console.log(`   - Novos: ${result.stats.newRecords}`);
       console.log(`   - Alterados: ${result.stats.changedRecords}`);
       console.log(`   - Sem mudança: ${result.stats.unchangedRecords}`);
