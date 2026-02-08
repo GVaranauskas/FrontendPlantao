@@ -622,6 +622,25 @@ Server compara → Detecta mudanças → Cria pending changes
 Admin aprova → Sincroniza
 ```
 
+### Tratamento de Tipos de Dados N8N
+
+O N8N pode enviar campos clínicos como **arrays** em vez de strings (ex: `diagnostico: ["valor1", "valor2"]`). Para evitar falhas silenciosas, todos os campos vindos do N8N devem usar o helper `ensureString()`:
+
+```typescript
+// server/services/n8n-integration-service.ts
+function ensureString(value: any): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter(Boolean).join("; ");
+  return String(value);
+}
+
+// Uso em processEvolucao:
+diagnostico: ensureString(dadosBrutos.diagnostico),  // NUNCA usar || ""
+```
+
+**Por que não usar `|| ""`?** Arrays são truthy, então `["valor"] || ""` retorna o array. Ao chamar `.trim()` no array, lança exceção que é capturada silenciosamente, excluindo o paciente do sync sem erro visível.
+
 ### Segurança
 
 - **Secret token** validado em header `x-n8n-secret`

@@ -606,6 +606,50 @@ grep -rn "innerHTML" client/ --include="*.tsx"
 
 ---
 
+## 10. Validação de Tipos de Dados N8N (ALTA)
+
+### Problema
+
+Campos vindos do N8N podem chegar como **arrays** em vez de strings (ex: `["valor1", "valor2"]`). O padrão `|| ""` não detecta arrays (são truthy), causando exceções silenciosas ao chamar `.trim()` e excluindo pacientes do sync.
+
+### Comandos de Verificação
+
+```bash
+# Buscar padrões || "" que deveriam usar ensureString()
+grep -rn '|| ""' server/services/n8n-integration-service.ts
+grep -rn '|| ""' server/routes.ts | grep -i "braden\|diagnostico\|alergias\|mobilidade\|dieta\|eliminacoes\|dispositivos\|atb\|curativos\|aporteSaturacao\|exames\|cirurgia\|observacoes\|previsaoAlta"
+```
+
+### Padrão Correto
+
+```typescript
+// ❌ ERRADO - Não detecta arrays (truthy)
+diagnostico: dadosBrutos.diagnostico || "",
+
+// ✅ CORRETO - Converte arrays para string separada por "; "
+diagnostico: ensureString(dadosBrutos.diagnostico),
+```
+
+### Helper `ensureString()`
+
+```typescript
+function ensureString(value: any): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter(Boolean).join("; ");
+  return String(value);
+}
+```
+
+### Checklist
+
+- [ ] Todos os 14 campos clínicos em `processEvolucao` usam `ensureString()`?
+- [ ] `calculatePatientStatus` está protegido contra arrays?
+- [ ] Recálculo de status em `routes.ts` usa `ensureString()`?
+- [ ] Não existem padrões `|| ""` para campos N8N?
+
+---
+
 ## Roteiro de Execução
 
 ### Passo 1: Verificação Automatizada
@@ -659,5 +703,6 @@ Após executar todos os passos:
 - [ ] Ações críticas são auditadas com AuditActions válidas
 - [ ] Logs não expõem dados pessoais
 - [ ] Headers de segurança configurados
+- [ ] Campos N8N usam `ensureString()` em vez de `|| ""`
 
 **Se todas as verificações passaram, a implementação está segura!**

@@ -118,6 +118,16 @@ throw new AppError('Usuário não encontrado', 404);
 throw new Error('User not found');
 ```
 
+- **Campos N8N** - Sempre use `ensureString()` para campos vindos do N8N, **nunca** `|| ""`:
+
+```typescript
+// ❌ ERRADO - Arrays são truthy, || "" não os detecta
+diagnostico: dadosBrutos.diagnostico || "",
+
+// ✅ CORRETO - Converte arrays para string, trata null/undefined
+diagnostico: ensureString(dadosBrutos.diagnostico),
+```
+
 - **Validação** - Use Zod para validação de entrada:
 
 ```typescript

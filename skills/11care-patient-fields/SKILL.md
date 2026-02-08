@@ -92,15 +92,27 @@ export const patientsHistory = pgTable("patients_history", {
 
 O mapeamento acontece no método `processEvolucao()` (linha ~130):
 
+> **ATENÇÃO**: Campos N8N podem chegar como **arrays** em vez de strings (ex: `["valor1", "valor2"]`).
+> O fallback `|| ""` NÃO detecta arrays (são truthy) e causa exceção ao chamar `.trim()`.
+> **SEMPRE** use `ensureString()` em vez de `|| ""` para campos vindos do N8N.
+
 ```typescript
+// Helper disponível em n8n-integration-service.ts
+function ensureString(value: any): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter(Boolean).join("; ");
+  return String(value);
+}
+
 // Dentro do método processEvolucao(dadosBrutos: N8NRawData)
 // Encontre o objeto dadosProcessados (~linha 140)
 let dadosProcessados: InsertPatient = {
   // ... campos existentes ...
   
   // ADICIONE O MAPEAMENTO
-  // Use o nome do campo como vem do N8N (dadosBrutos.nomeCampoN8N)
-  novoNomeCampo: dadosBrutos.nomeCampoN8N || "",
+  // Use ensureString() para campos N8N (NUNCA use || "")
+  novoNomeCampo: ensureString(dadosBrutos.nomeCampoN8N),
   
   // Se precisar de transformação:
   campoTransformado: this.transformarCampo(dadosBrutos.campoOriginal),
@@ -361,3 +373,10 @@ npm run db:push
 ### Campo sensível não está sendo criptografado
 - Adicione o nome do campo ao array `SENSITIVE_PATIENT_FIELDS` em `encryption.service.ts`
 - A criptografia é automática após adicionar ao array
+
+### Campo N8N vem como array em vez de string
+- **Sintoma**: Paciente é excluído silenciosamente do sync (0 chaves no objeto processado)
+- **Causa**: N8N envia campo como array (ex: `["valor1", "valor2"]`) em vez de string
+- **Diagnóstico**: Adicione log antes do processamento: `console.log(typeof dadosBrutos.nomeCampo, dadosBrutos.nomeCampo)`
+- **Solução**: Use `ensureString(dadosBrutos.nomeCampo)` em vez de `dadosBrutos.nomeCampo || ""`
+- **Referência**: Bug corrigido em v1.5.9.5 - ver `ensureString()` em `n8n-integration-service.ts`

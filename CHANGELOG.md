@@ -17,6 +17,21 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.5] - 2026-02-08
+
+### Corrigido
+
+- **Bug Crítico: Campos N8N como Array**: Corrigido bug que excluía pacientes da sincronização silenciosamente
+  - **Causa raiz**: N8N envia alguns campos clínicos (ex: `diagnostico`) como arrays em vez de strings: `["Síndrome consumptiva A/E", "Síndrome disabsortiva A/E", ...]`
+  - O fallback `|| ""` não detecta arrays (são truthy), e ao chamar `.trim()` em um array, lança exceção
+  - O `catch` em `processEvolucao` retornava silenciosamente `{} as InsertPatient` (0 chaves), excluindo o paciente do sync sem reportar erro
+  - Aplicado `ensureString()` nos 14 campos clínicos em `processEvolucao`, `calculatePatientStatus` e recálculo de status em `routes.ts`
+  - **Resultado**: 36/36 pacientes processados corretamente (era 35/36)
+
+### Técnico
+
+- **Helper `ensureString()`**: Nova função utilitária em `n8n-integration-service.ts` que converte arrays em strings separadas por "; ", trata null/undefined, e converte outros tipos via `String()`
+
 ## [1.5.9.2] - 2026-02-03
 
 ### Melhorado
