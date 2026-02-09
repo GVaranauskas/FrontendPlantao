@@ -819,10 +819,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(error.statusCode).json({ success: false, error: error.message });
       }
       logger.error(`[${getTimestamp()}] [Import] Fatal error: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ 
-        success: false, 
-        message: "Erro fatal ao importar evolucoes",
-        erro: error instanceof Error ? error.message : String(error)
+      res.status(500).json({
+        success: false,
+        message: "Erro fatal ao importar evolucoes"
       });
     }
   });
@@ -889,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         latency: `${latency}ms`,
         timestamp: new Date().toISOString(),
         api_url: apiUrl,
-        erro: error instanceof Error ? error.message : "Connection timeout"
+        erro: "Falha na conexão com API N8N"
       });
     }
   });
@@ -1708,7 +1707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
         logger.warn(`[${getTimestamp()}] [AI] Failed to analyze patient ${patient.leito}: ${errorMsg}`);
-        return { id: patient.id, leito: patient.leito, nome: patient.nome, insights: null, cached: false, error: errorMsg };
+        return { id: patient.id, leito: patient.leito, nome: patient.nome, insights: null, cached: false, error: "Falha na análise clínica" };
       }
     };
 

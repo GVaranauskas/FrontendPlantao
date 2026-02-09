@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -138,31 +138,38 @@ export const nursingUnitChanges = pgTable("nursing_unit_changes", {
   reviewedBy: varchar("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_nursing_unit_changes_status").on(table.status),
+  index("idx_nursing_unit_changes_external_id").on(table.externalId),
+]);
 
 export const auditLog = pgTable("audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-  
+
   userId: varchar("user_id").references(() => users.id),
   userName: text("user_name").notNull(),
   userRole: text("user_role").notNull(),
-  
+
   action: text("action").notNull(),
   resource: text("resource").notNull(),
   resourceId: varchar("resource_id"),
-  
+
   changes: jsonb("changes"),
   metadata: jsonb("metadata"),
-  
+
   ipAddress: text("ip_address").notNull(),
   userAgent: text("user_agent"),
   endpoint: text("endpoint").notNull(),
-  
+
   statusCode: integer("status_code").notNull(),
   errorMessage: text("error_message"),
   duration: integer("duration"),
-});
+}, (table) => [
+  index("idx_audit_log_timestamp").on(table.timestamp),
+  index("idx_audit_log_user_id").on(table.userId),
+  index("idx_audit_log_action_resource").on(table.action, table.resource),
+]);
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -294,7 +301,10 @@ export const patientNoteEvents = pgTable("patient_note_events", {
   
   // Timestamps
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_patient_note_events_patient_id").on(table.patientId),
+  index("idx_patient_note_events_performed_by").on(table.performedById),
+]);
 
 export const insertPatientNoteEventSchema = createInsertSchema(patientNoteEvents).omit({
   id: true,
@@ -375,7 +385,11 @@ export const userSessions = pgTable("user_sessions", {
   // Status
   logoutReason: text("logout_reason"), // manual, timeout, forced
   isActive: boolean("is_active").notNull().default(true),
-});
+}, (table) => [
+  index("idx_user_sessions_user_id").on(table.userId),
+  index("idx_user_sessions_started_at").on(table.startedAt),
+  index("idx_user_sessions_active").on(table.isActive),
+]);
 
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
   id: true,
@@ -416,7 +430,13 @@ export const analyticsEvents = pgTable("analytics_events", {
   
   // Timestamp
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_analytics_events_session_id").on(table.sessionId),
+  index("idx_analytics_events_user_id").on(table.userId),
+  index("idx_analytics_events_event_type").on(table.eventType),
+  index("idx_analytics_events_created_at").on(table.createdAt),
+  index("idx_analytics_events_page_path").on(table.pagePath),
+]);
 
 export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
   id: true,
@@ -457,7 +477,12 @@ export const patientsHistory = pgTable("patients_history", {
 
   // Metadados de arquivamento
   arquivadoEm: timestamp("arquivado_em").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_patients_history_codigo").on(table.codigoAtendimento),
+  index("idx_patients_history_leito").on(table.leito),
+  index("idx_patients_history_arquivado_em").on(table.arquivadoEm),
+  index("idx_patients_history_enfermaria").on(table.dsEnfermaria),
+]);
 
 export const insertPatientsHistorySchema = createInsertSchema(patientsHistory).omit({
   id: true,

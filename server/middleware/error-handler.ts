@@ -36,10 +36,17 @@ export function registerErrorHandler(app: Express) {
       logger.warn(message, logContext);
     }
 
+    // In production, sanitize internal error messages for 500+ errors
+    // Only expose the raw message for known AppErrors (4xx) or in development
+    const isAppError = err instanceof AppError;
+    const safeMessage = (!isDevelopment && statusCode >= 500 && !isAppError)
+      ? 'Erro interno do servidor. Tente novamente mais tarde.'
+      : message;
+
     // Respond to client (IMPORTANT: do NOT throw after responding)
     res.status(statusCode).json({
       error: {
-        message,
+        message: safeMessage,
         status: statusCode,
         ...(isDevelopment && { stack: err.stack }),
       },

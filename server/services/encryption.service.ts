@@ -150,11 +150,12 @@ export const encryptionService = new EncryptionService();
 
 export const SENSITIVE_PATIENT_FIELDS = [
   'nome',
-  'registro', 
+  'registro',
   'dataNascimento',
   'diagnostico',
   'alergias',
   'observacoes',
+  'notasPaciente',            // Notas de enfermagem - dado sensível LGPD
   'dsEvolucaoCompleta',
   'dsEvolucaoMedica',       // Evolução médica do N8N
   'dsAnotacaoEnfermagem',   // Anotações de enfermagem do N8N
