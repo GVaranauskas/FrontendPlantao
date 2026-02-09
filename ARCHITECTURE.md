@@ -851,7 +851,11 @@ const decrypted = Buffer.concat([
 **Campos criptografados**:
 - nome, registro, dataNascimento
 - diagnostico, alergias, observacoes
-- dsEvolucaoCompleta
+- dsEvolucaoCompleta, notasPaciente (v1.6.0)
+- dsEvolucaoMedica, dsAnotacaoEnfermagem
+- dadosBrutosJson, clinicalInsights, notasPaciente (v1.6.0)
+- dsEvolucaoMedica, dsAnotacaoEnfermagem
+- dadosBrutosJson, clinicalInsights
 
 ### Autenticação
 
@@ -1175,12 +1179,12 @@ Pagina `/admin/usage-analytics` com 4 abas:
 | Operação | Tempo |
 |----------|-------|
 | N8N Fetch | ~700ms |
-| IA Batch (4 paralelos) | ~14s |
+| IA Batch (4 sequenciais) | ~56s |
 | Database UPSERT (10 paralelos) | ~10s |
 | **Total** | **~30s** |
 
 **Otimizações aplicadas:**
-- 4 batches de IA processados em paralelo via `Promise.all()`
+- 4 batches de IA processados sequencialmente (v1.6.0: alterado de paralelo para sequencial para respeitar rate limits da API)
 - 10 operações de banco simultâneas com `CONCURRENCY_LIMIT`
 - Redução de ~62% vs versão anterior (78s → 30s)
 
@@ -1193,7 +1197,7 @@ Pagina `/admin/usage-analytics` com 4 abas:
 ### Database
 
 - **Conexões**: Pool de 10 conexões (Neon DB)
-- **Queries**: Indexadas por leito, registro, unidadeInternacao
+- **Queries**: Indexadas por leito, registro, unidadeInternacao + 17 índices adicionais (v1.6.0: auditLog, analyticsEvents, userSessions, patientNoteEvents, patientsHistory, nursingUnitChanges)
 - **UPSERT Paralelo**: 10 operações simultâneas
 
 ### API
@@ -1234,4 +1238,4 @@ Pagina `/admin/usage-analytics` com 4 abas:
 
 ---
 
-**Última atualização**: 2026-02-02 (v1.5.9.1)
+**Última atualização**: 2026-02-09 (v1.6.0)

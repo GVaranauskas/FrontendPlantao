@@ -38,6 +38,11 @@
 | alergias | Texto | ✅ Criptografado |
 | observacoes | Texto | ✅ Criptografado |
 | dsEvolucaoCompleta | Texto | ✅ Criptografado |
+| notasPaciente | Texto | ✅ Criptografado (v1.6.0) |
+| dsEvolucaoMedica | Texto | ✅ Criptografado |
+| dsAnotacaoEnfermagem | Texto | ✅ Criptografado |
+| dadosBrutosJson | Texto | ✅ Criptografado |
+| clinicalInsights | Texto | ✅ Criptografado |
 
 **Caracteristicas:**
 - Algoritmo: AES-256-GCM (Galois/Counter Mode)
@@ -218,4 +223,4 @@ rbac.ts            - Controle de acesso baseado em papeis
 
 ---
 
-*Documento gerado automaticamente em 2025-12-09*
+*Documento atualizado em 2026-02-09*

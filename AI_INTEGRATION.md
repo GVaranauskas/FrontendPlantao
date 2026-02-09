@@ -91,7 +91,14 @@ async callGPT4oMiniBatch(patients: PatientData[]): Promise<ClinicalInsights[]> {
       { role: 'user', content: prompt }
     ]
   });
-  return JSON.parse(response.choices[0].message.content);
+  let analysis;
+  try {
+    analysis = JSON.parse(response.choices[0].message.content);
+  } catch (parseError) {
+    console.error('[GPT-4o-mini] Invalid JSON response');
+    throw new Error('GPT-4o-mini returned invalid JSON');
+  }
+  return analysis;
 }
 ```
 
@@ -107,17 +114,23 @@ DEPOIS (v1.5.5 - Paralelo):
   35 pacientes = 4 chamadas API em paralelo = ~14 segundos
   + Salvamento paralelo no banco = ~10 segundos
   = TOTAL: ~30 segundos
-  
-REDUÇÃO TOTAL: ~71% vs v1.5.4, ~95% vs v1.5.3
+
+DEPOIS (v1.6.0 - Sequencial para rate limits):
+  35 pacientes = 4 chamadas API sequenciais = ~56 segundos
+  + Salvamento paralelo no banco = ~10 segundos
+  = TOTAL: ~66 segundos (mais estável, sem erros 429)
+
+REDUÇÃO TOTAL: ~37% vs v1.5.4, ~93% vs v1.5.3
 ```
 
-**Como funciona (v1.5.5):**
+**Como funciona (v1.6.0):**
 1. Separar pacientes em cache vs não-cache
 2. Agrupar pacientes não-cache em lotes de 10
-3. Enviar TODOS os lotes em paralelo via `Promise.all()`
-4. Salvar resultados no cache
-5. Salvar pacientes no banco em paralelo (CONCURRENCY_LIMIT=10)
-6. Retornar todos na ordem correta
+3. Enviar lotes **sequencialmente** (alterado de paralelo para evitar rate limits 429)
+4. JSON.parse com try/catch para resiliência a respostas inválidas
+5. Cache key usa hash do conteúdo (evita colisões para pacientes sem ID)
+6. Salvar pacientes no banco em paralelo (CONCURRENCY_LIMIT=10)
+7. Retornar todos na ordem correta
 
 ## 🏗️ Arquitetura Multi-Camada
 
@@ -987,6 +1000,6 @@ temperature: 0.1, // Mais determinístico
 
 ---
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-02-09
 
 **Contato**: ai-support@11care.com

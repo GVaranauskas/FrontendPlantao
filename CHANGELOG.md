@@ -17,6 +17,39 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.6.0] - 2026-02-09
+
+### Segurança
+
+- **LGPD: Campo `notasPaciente` adicionado à criptografia** - Notas de enfermagem agora são criptografadas em repouso com AES-256-GCM (compliance LGPD Art. 46)
+- **Sanitização de erros em produção** - Erros 500 não expõem mais `error.message` interno; retornam mensagem genérica ao cliente
+- **Política de senha unificada** - `updateUserSchema` agora exige mesma complexidade do `insertUserSchema` (mín. 8 chars, maiúscula, minúscula, número)
+- **Decrypt seguro** - `encryption.service.ts` não retorna mais ciphertext quando decriptação falha; distingue plaintext legado de dados corrompidos
+
+### Corrigido
+
+- **Token refresh: debounce falso-negativo** - Requests concorrentes não causam mais falha de autenticação; debounce verifica token existente antes de retornar false
+- **Auth context: re-renders excessivos** - `login`/`logout` memoizados com `useCallback`, context value estabilizado com `useMemo`
+- **Analytics: beforeunload confiável** - Trocado `fetch` assíncrono por `navigator.sendBeacon` para entrega confiável durante unload
+- **Audit logging: campos JWT corretos** - Corrigido `user.id` → `user.userId` e `user.name` → `user.username` nos endpoints de auditoria
+- **Cache invalidation: regex wildcard** - Pattern `*` agora convertido para `.*` no regex de invalidação (antes nunca matchava)
+- **AI JSON.parse: tratamento de erro** - `ai-service-gpt4o-mini.ts` agora trata JSON inválido com try/catch em vez de crash
+- **AI cache key: colisão para pacientes sem ID** - Usa hash do conteúdo em vez de `Date.now()` para evitar colisões
+- **AI batch: rate limits** - Batches de análise clínica agora processados sequencialmente (era paralelo, causava rate limit)
+- **Change detection: divisão por zero** - Guard adicionado quando `currentData` é vazio
+- **Cost monitor: divisão por zero** - Guard no dashboard quando `totalCalls` é 0
+- **Postgres storage: race condition TOCTOU** - Incremento de token version agora usa SQL atômico
+- **Postgres storage: Neon rowCount null** - Todas as verificações usam `(rowCount || 0) > 0`
+- **TOON parser: limite de corpo** - Adicionado limite de 1MB para prevenir OOM
+- **queryClient: staleTime Infinity** - Alterado para 5 minutos; `refetchOnWindowFocus` habilitado
+
+### Otimizado
+
+- **17 índices de banco de dados adicionados** - Cobertura para `auditLog`, `analyticsEvents`, `userSessions`, `patientNoteEvents`, `patientsHistory`, `nursingUnitChanges`
+- **Limpeza automática de cache** - `intelligentCache.cleanupExpired()` adicionado ao ciclo de limpeza de 6 horas
+- **Remoção de código morto** - `shift-handover.tsx`: imports não utilizados, `useSyncPatient`, `selectedTemplate`, `pollTimerRef`
+- **Memória otimizada** - `changeDetectionService.getStats()` e `createSnapshot()` sem serialização completa
+
 ## [1.5.9.5] - 2026-02-08
 
 ### Corrigido

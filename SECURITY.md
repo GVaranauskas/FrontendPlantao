@@ -154,6 +154,11 @@ const encryptedFields = [
   'alergias',                // Alergias conhecidas
   'observacoes',             // Observações clínicas
   'dsEvolucaoCompleta',      // Evolução completa do paciente
+  'notasPaciente',           // Notas de enfermagem (adicionado v1.6.0)
+  'dsEvolucaoMedica',        // Evolução médica do N8N
+  'dsAnotacaoEnfermagem',    // Anotações de enfermagem do N8N
+  'dadosBrutosJson',         // Dados brutos do N8N
+  'clinicalInsights',        // Análise clínica da IA
 ];
 
 // NÃO criptografados (metadados para busca)
@@ -991,7 +996,7 @@ Pesquisadores de segurança que reportarem vulnerabilidades receberão crédito 
 - [ ] CSRF protection habilitado
 - [ ] Rate limiting configurado
 - [ ] Audit log implementado
-- [ ] Error handling sem expor stack traces
+- [x] Error handling sem expor stack traces (sanitizado v1.6.0)
 
 ### Deploy
 
@@ -1050,7 +1055,7 @@ Pesquisadores de segurança que reportarem vulnerabilidades receberão crédito 
 
 ---
 
-**Última atualização**: 2026-01-15
+**Última atualização**: 2026-02-09
 
 **Contato de Segurança**: security@11care.com
 
