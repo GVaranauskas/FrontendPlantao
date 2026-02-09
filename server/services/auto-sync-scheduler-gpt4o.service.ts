@@ -11,13 +11,13 @@ import type { InsertPatient, Patient, ArchiveReason } from '@shared/schema';
  * AUTO SYNC SCHEDULER - GPT-4o-mini
  * 
  * Sincroniza N8N automaticamente com intervalo configurável:
- * - Padrão: 1 hora (configurável via env AUTO_SYNC_CRON)
+ * - Padrão: 5 minutos (configurável via env AUTO_SYNC_CRON)
  * - Change Detection (processa apenas o que mudou)
  * - IA com GPT-4o-mini (R$ 0,03/análise)
  * - Cache inteligente
  * 
  * Variáveis de ambiente:
- * - AUTO_SYNC_CRON: Expressão cron (padrão: '0 * * * *' = a cada hora)
+ * - AUTO_SYNC_CRON: Expressão cron (padrão: a cada 5 minutos)
  * - AUTO_SYNC_ENABLED: 'true' ou 'false' (padrão: 'true')
  * - N8N_UNIT_IDS: IDs das unidades (padrão: '22,23')
  * 
@@ -76,7 +76,7 @@ export class AutoSyncSchedulerGPT4o {
   
   // Configurações via variáveis de ambiente
   private static readonly DEFAULT_UNITS = process.env.N8N_UNIT_IDS || '22,23';
-  private static readonly DEFAULT_CRON = process.env.AUTO_SYNC_CRON || '0 * * * *'; // A cada hora (padrão)
+  private static readonly DEFAULT_CRON = process.env.AUTO_SYNC_CRON || '*/5 * * * *'; // A cada 5 minutos (padrão)
   private static readonly AUTO_SYNC_ENABLED = process.env.AUTO_SYNC_ENABLED !== 'false';
   
   private config: SchedulerConfig = {

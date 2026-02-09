@@ -158,7 +158,7 @@ REDUÇÃO TOTAL: ~71% vs v1.5.4, ~95% vs v1.5.3
 ┌──────────────────────────────────────────────────────┐
 │  CAMADA 4: Auto Sync Scheduler                       │
 │  └─ Sincronização periódica (não real-time)          │
-│     • Cron job a cada 1 hora (configurável)          │
+│     • Cron job a cada 5 minutos (configurável)        │
 │     • Batch processing                               │
 │     • Economia: 95%+ vs real-time                    │
 └──────────────────────────────────────────────────────┘
@@ -455,8 +455,8 @@ export class AutoSyncSchedulerGPT4o {
 ### Cron Expressions
 
 ```bash
-# A cada 1 hora (padrão)
-0 * * * *
+# A cada 5 minutos (padrão)
+*/5 * * * *
 
 # A cada 30 minutos
 */30 * * * *
@@ -852,7 +852,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Auto Sync
-AUTO_SYNC_CRON=0 * * * *  # A cada 1 hora
+AUTO_SYNC_CRON=*/5 * * * *  # A cada 5 minutos
 AUTO_SYNC_ENABLED=true
 
 # Cache
@@ -884,7 +884,7 @@ const CACHE_TTL = {
 // Auto Sync - Frequência
 const CRON_EXPRESSIONS = {
   highFrequency: '*/30 * * * *',  // 30 minutos
-  normal: '0 * * * *',            // 1 hora
+  normal: '*/5 * * * *',           // 5 minutos
   lowFrequency: '0 */6 * * *',    // 6 horas
 };
 ```

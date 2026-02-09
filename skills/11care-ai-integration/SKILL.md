@@ -64,7 +64,7 @@ O sistema de IA do 11Care analisa dados clínicos de pacientes para gerar:
 ┌──────────────────────────────────────────────────────┐
 │  CAMADA 4: Auto Sync Scheduler                       │
 │  └─ Sincronização periódica (não real-time)          │
-│     • Cron job a cada 1 hora (configurável)          │
+│     • Cron job a cada 5 minutos (configurável)        │
 │     • Batch processing paralelo                      │
 │     • Economia: 95%+ vs real-time                    │
 └──────────────────────────────────────────────────────┘
@@ -380,8 +380,8 @@ export class AutoSyncSchedulerGPT4o {
 ### Cron Expressions
 
 ```bash
-# A cada 1 hora (padrão)
-0 * * * *
+# A cada 5 minutos (padrão)
+*/5 * * * *
 
 # A cada 30 minutos
 */30 * * * *
@@ -400,7 +400,7 @@ export class AutoSyncSchedulerGPT4o {
 
 ```bash
 # .env
-AUTO_SYNC_CRON=0 * * * *  # A cada 1 hora
+AUTO_SYNC_CRON=*/5 * * * *  # A cada 5 minutos
 ```
 
 ---
@@ -646,5 +646,5 @@ OPENAI_API_KEY=sk-...          # GPT-4o-mini (principal)
 ANTHROPIC_API_KEY=sk-ant-...   # Claude Haiku 4.5 (fallback com prompt caching)
 
 # Auto Sync
-AUTO_SYNC_CRON=0 * * * *       # Cron expression (default: a cada hora)
+AUTO_SYNC_CRON=*/5 * * * *     # Cron expression (default: a cada 5 minutos)
 ```

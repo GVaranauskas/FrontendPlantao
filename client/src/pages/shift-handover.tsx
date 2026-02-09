@@ -17,6 +17,7 @@ import {
   Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight, History
 } from "lucide-react";
 import { useSyncPatient } from "@/hooks/use-sync-patient";
+import { useAutoSync } from "@/hooks/use-auto-sync";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -61,6 +62,10 @@ export default function ShiftHandoverPage() {
   const [filterEspecialidade, setFilterEspecialidade] = useState<string>("");
   const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
+
+  const { isSyncing: isAutoSyncing, lastSyncTimeAgo } = useAutoSync({
+    enabled: true,
+  });
 
   const analyzePatientsMutation = useMutation({
     mutationFn: () => patientsService.analyzeAll(),

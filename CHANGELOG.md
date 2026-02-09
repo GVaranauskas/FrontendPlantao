@@ -17,6 +17,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.8] - 2026-02-09
+
+### Alterado
+
+- **Auto Sync 5 minutos**: Frequência de sincronização automática alterada de 1 hora para 5 minutos (`*/5 * * * *`)
+  - Dados de pacientes atualizados com muito mais frequência sem intervenção do usuário
+  - Change Detection garante que apenas alterações reais são processadas (economia mantida)
+- **Sync ao abrir Passagem de Plantão**: Hook `useAutoSync` integrado na página de passagem de plantão
+  - Sincronização automática disparada ao abrir a página, sem necessidade de ação do usuário
+  - Dados sempre frescos para o enfermeiro no momento da passagem de plantão
+
 ## [1.5.9.7] - 2026-02-09
 
 ### Atualizado

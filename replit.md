@@ -34,7 +34,7 @@ Development Workflow Rules:
 - **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, WebSocket for import, and analytics.
 - **Usage Analytics System**: Session-based tracking with dedicated REST endpoints for events, sessions, and admin metrics.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.
-- **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system (change detection, intelligent cache, GPT-4o-mini, hourly auto-sync). Includes validation to block patients from non-approved wards and deterministic archiving.
+- **Auto Sync Scheduler**: Cron-based automation (default 5 minutes) with a 4-layer cost-saving system (change detection, intelligent cache, GPT-4o-mini, auto-sync). Frontend triggers additional sync on shift-handover page load for immediate data freshness. Includes validation to block patients from non-approved wards and deterministic archiving.
 - **Automatic Patient Reactivation**: Patients appearing in N8N data are automatically reactivated, preserving historical records.
 - **Bed Conflict Resolution**: When a new patient occupies an existing bed, the old patient is archived and then deleted from the active patient table.
 - **Idempotent Archive**: `archivePatient()` method includes a 5-minute idempotency check to prevent duplicate history records.
