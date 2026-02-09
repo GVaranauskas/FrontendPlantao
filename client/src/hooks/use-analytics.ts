@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { isAuthFailed } from "@/lib/token-refresh";
@@ -205,34 +205,52 @@ export function useAnalytics() {
   }, [flushEvents]);
 
   // Handle page visibility change (track session end on tab close)
+  // Use sendBeacon for reliable delivery during page unload
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        flushEvents();
+    const flushWithBeacon = () => {
+      if (eventQueueRef.current.length === 0) return;
+      if (isAuthFailed() || !getAccessToken()) {
+        eventQueueRef.current = [];
+        return;
+      }
+      const sessionId = sessionIdRef.current || sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!sessionId) return;
+      const events = [...eventQueueRef.current];
+      eventQueueRef.current = [];
+      // Use sendBeacon for reliable delivery during page transitions
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify({ events, sessionId })], { type: 'application/json' });
+        navigator.sendBeacon('/api/analytics/events/batch', blob);
       }
     };
-    
-    const handleBeforeUnload = () => {
-      flushEvents();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushWithBeacon();
+      }
     };
-    
+
+    const handleBeforeUnload = () => {
+      flushWithBeacon();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [flushEvents]);
+  }, []);
 
-  return {
+  return useMemo(() => ({
     startSession,
     endSession,
     trackPageView,
     trackAction,
     getSessionId,
     flushEvents
-  };
+  }), [startSession, endSession, trackPageView, trackAction, getSessionId, flushEvents]);
 }
 
 // Higher-level hook for automatic tracking in authenticated context

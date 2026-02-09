@@ -63,7 +63,8 @@ export class ChangeDetectionService {
     }
 
     const changedFields = this.identifyChangedFields(previous.data, currentData);
-    const changePercentage = (changedFields.length / Object.keys(currentData).length) * 100;
+    const totalKeys = Object.keys(currentData).length;
+    const changePercentage = totalKeys > 0 ? (changedFields.length / totalKeys) * 100 : 0;
 
     console.log(`[ChangeDetection] ${patientId}: ${changedFields.length} campos mudaram (${changePercentage.toFixed(1)}%)`);
 
@@ -81,11 +82,13 @@ export class ChangeDetectionService {
   private createSnapshot(patientId: string, data: Partial<InsertPatient>): PatientSnapshot {
     const hash = this.calculateDataHash(data);
     const fieldsHash = this.calculateFieldsHash(data);
-    
+    // Store only the normalized relevant data (not the full patient object) to save memory
+    const relevantData = this.extractRelevantData(data);
+
     const snapshot: PatientSnapshot = {
       patientId,
       hash,
-      data,
+      data: relevantData as Partial<InsertPatient>,
       timestamp: new Date(),
       fieldsHash
     };
@@ -175,10 +178,16 @@ export class ChangeDetectionService {
   }
 
   getStats() {
+    // Estimate memory without expensive full serialization
+    let estimatedMemory = 0;
+    for (const snapshot of this.snapshots.values()) {
+      estimatedMemory += snapshot.patientId.length + snapshot.hash.length +
+        Object.keys(snapshot.fieldsHash).length * 40 + 200;
+    }
     return {
       totalSnapshots: this.snapshots.size,
       criticalFields: this.criticalFields.length,
-      memoryUsage: JSON.stringify(Array.from(this.snapshots.values())).length
+      memoryUsage: estimatedMemory
     };
   }
 

@@ -107,9 +107,17 @@ class EncryptionService {
       
       return decrypted.toString('utf8');
     } catch (error) {
-      console.warn('[Encryption] Decrypt failed - data may be encrypted with different key:', 
-        ciphertext?.substring(0, 30) + '...');
-      return ciphertext;
+      // Log the failure but do NOT leak ciphertext to callers
+      console.warn('[Encryption] Decrypt failed - data may be unencrypted plaintext or encrypted with different key');
+      // If the data doesn't look like base64-encoded ciphertext, it may be plaintext
+      // (e.g., data stored before encryption was enabled)
+      const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
+      if (!base64Pattern.test(ciphertext) || ciphertext.length < ENCRYPTED_POSITION * 1.33) {
+        // Likely plaintext data stored before encryption was enabled
+        return ciphertext;
+      }
+      // Otherwise it's likely corrupted ciphertext - return null to prevent showing garbled data
+      return null;
     }
   }
 

@@ -286,7 +286,7 @@ export class CostMonitorService {
     console.log('');
     console.log('📊 RESUMO MENSAL:');
     console.log(`   Total de chamadas: ${month.totalCalls.toLocaleString()}`);
-    console.log(`   Chamadas em cache: ${month.cachedCalls.toLocaleString()} (${((month.cachedCalls / month.totalCalls) * 100).toFixed(1)}%)`);
+    console.log(`   Chamadas em cache: ${month.cachedCalls.toLocaleString()} (${month.totalCalls > 0 ? ((month.cachedCalls / month.totalCalls) * 100).toFixed(1) : '0.0'}%)`);
     console.log(`   Tokens processados: ${(month.tokensInput + month.tokensOutput).toLocaleString()}`);
     console.log(`   Tokens em cache: ${month.tokensCached.toLocaleString()}`);
     console.log(`   Custo real: R$ ${month.totalCost.toFixed(2)}`);
@@ -350,7 +350,7 @@ export class CostMonitorService {
     alerts: BudgetAlert[];
   } {
     return {
-      calls: this.calls,
+      calls: [...this.calls],
       summaries: {
         today: this.getSummary('today'),
         week: this.getSummary('week'),

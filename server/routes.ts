@@ -27,8 +27,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SECURITY/LGPD: Pagination available with ?page=X&limit=Y
   // Legacy behavior maintained for frontend compatibility, but limited to authenticated users
   app.get("/api/patients", authWithFirstAccessCheck, asyncHandler(async (req, res, next) => {
-    const page = req.query.page ? parseInt(req.query.page as string) : null;
-    const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string), 500) : null;
+    const parsedPage = req.query.page ? parseInt(req.query.page as string, 10) : null;
+    const parsedLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : null;
+    const page = parsedPage !== null && !isNaN(parsedPage) ? parsedPage : null;
+    const limit = parsedLimit !== null && !isNaN(parsedLimit) ? Math.min(parsedLimit, 500) : null;
     
     // If pagination params provided, return paginated response
     if (page !== null && limit !== null) {
@@ -1266,8 +1268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     await auditService.logShiftHandoverView(
-      user.id,
-      user.name || user.username,
+      user.userId,
+      user.username,
       user.role,
       nursingUnit,
       patientCount || 0,
@@ -1286,8 +1288,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     await auditService.logShiftHandoverPrint(
-      user.id,
-      user.name || user.username,
+      user.userId,
+      user.username,
       user.role,
       nursingUnit,
       patientCount || 0,

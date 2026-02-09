@@ -53,13 +53,15 @@ export class PostgresStorage implements IStorage {
   }
 
   async incrementUserTokenVersion(id: string): Promise<number> {
-    const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    if (!user[0]) {
+    // Use atomic increment to prevent TOCTOU race condition
+    const result = await db.update(users)
+      .set({ tokenVersion: sql`COALESCE(${users.tokenVersion}, 1) + 1` })
+      .where(eq(users.id, id))
+      .returning({ tokenVersion: users.tokenVersion });
+    if (!result[0]) {
       throw new Error('User not found');
     }
-    const newVersion = (user[0].tokenVersion || 1) + 1;
-    await db.update(users).set({ tokenVersion: newVersion }).where(eq(users.id, id));
-    return newVersion;
+    return result[0].tokenVersion;
   }
 
   private encryptPatientData(patient: InsertPatient): InsertPatient {
@@ -150,7 +152,7 @@ export class PostgresStorage implements IStorage {
     
     // 3. Now delete the patient
     const result = await db.delete(patients).where(eq(patients.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async upsertPatientByCodigoAtendimento(patient: InsertPatient): Promise<Patient> {
@@ -207,7 +209,7 @@ export class PostgresStorage implements IStorage {
 
   async deleteAlert(id: string): Promise<boolean> {
     const result = await db.delete(alerts).where(eq(alerts.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async getAllImportHistory(): Promise<ImportHistory[]> {
@@ -322,7 +324,7 @@ export class PostgresStorage implements IStorage {
 
   async deleteTemplate(id: string): Promise<boolean> {
     const result = await db.delete(nursingUnitTemplates).where(eq(nursingUnitTemplates.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Nursing Units CRUD

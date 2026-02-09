@@ -182,7 +182,7 @@ export class IntelligentCacheService {
    * Calcula hash MD5 do conteúdo
    */
   private calculateHash(value: any): string {
-    const jsonString = JSON.stringify(value, null, 2);
+    const jsonString = JSON.stringify(value);
     return createHash('md5').update(jsonString).digest('hex');
   }
 
@@ -191,7 +191,9 @@ export class IntelligentCacheService {
    */
   invalidate(pattern: string): number {
     let invalidated = 0;
-    const regex = new RegExp(pattern);
+    // Convert glob-style pattern to regex: escape special chars, then convert * to .*
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    const regex = new RegExp(`^${escaped}$`);
 
     for (const [key] of this.cache.entries()) {
       if (regex.test(key)) {
@@ -205,6 +207,21 @@ export class IntelligentCacheService {
     }
 
     return invalidated;
+  }
+
+  /**
+   * Remove all expired entries from cache
+   */
+  cleanupExpired(): number {
+    let removed = 0;
+    const now = new Date();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now > entry.expiresAt) {
+        this.cache.delete(key);
+        removed++;
+      }
+    }
+    return removed;
   }
 
   /**
@@ -237,7 +254,11 @@ export class IntelligentCacheService {
       }
     }
 
-    const memoryUsage = JSON.stringify(Array.from(this.cache.values())).length;
+    // Estimate memory usage without expensive full serialization
+    let memoryUsage = 0;
+    for (const entry of this.cache.values()) {
+      memoryUsage += entry.key.length + entry.contentHash.length + 200; // overhead estimate
+    }
 
     return {
       totalEntries: this.cache.size,

@@ -40,11 +40,19 @@ declare module 'http' {
   }
 }
 
-// Custom TOON body parser middleware
+// Custom TOON body parser middleware (with size limit)
+const TOON_MAX_BODY_SIZE = 1024 * 1024; // 1MB limit
 app.use((req, res, next) => {
   if (isToonFormat(req.get("content-type"))) {
     let data = "";
+    let bodySize = 0;
     req.on("data", chunk => {
+      bodySize += chunk.length;
+      if (bodySize > TOON_MAX_BODY_SIZE) {
+        req.destroy();
+        res.status(413).json({ error: { message: "Request body too large", status: 413 } });
+        return;
+      }
       data += chunk;
     });
     req.on("end", () => {
@@ -154,6 +162,7 @@ app.use((req, res, next) => {
       setInterval(() => {
         changeDetectionService.cleanupOldSnapshots(24);
         costMonitorService.cleanup(90);
+        intelligentCache.cleanupExpired();
       }, 6 * 60 * 60 * 1000);
 
       // Dashboard de custos (a cada hora)

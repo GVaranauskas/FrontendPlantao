@@ -8,15 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import * as SelectPrimitive from "@radix-ui/react-select";
 import { useAuth } from "@/lib/auth-context";
 import {
-  Menu, Home, RefreshCcw, Filter, Bell, Printer,
-  Loader2, Cloud, Download, FileSpreadsheet, ChevronDown, Brain,
+  Home, RefreshCcw, Bell, Printer,
+  Loader2, FileSpreadsheet, Brain,
   AlertTriangle, CheckCircle, Activity, Shield, Bug, Wind, Utensils, Heart,
   Clock, FileText, Stethoscope, Users, Pill, Bed, TrendingUp, ChevronRight, History
 } from "lucide-react";
-import { useSyncPatient } from "@/hooks/use-sync-patient";
 import { ImportEvolucoes } from "@/components/ImportEvolucoes";
 import { exportPatientsToExcel } from "@/lib/export-to-excel";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -49,7 +47,6 @@ export default function ShiftHandoverPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [clinicalBatchResult, setClinicalBatchResult] = useState<ClinicalBatchResult | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
   const [individualAnalysis, setIndividualAnalysis] = useState<ClinicalInsights | null>(null);
@@ -57,7 +54,6 @@ export default function ShiftHandoverPage() {
   const [filterCritical, setFilterCritical] = useState(false);
   const [filterPending, setFilterPending] = useState(false);
   const [filterEspecialidade, setFilterEspecialidade] = useState<string>("");
-  const { syncSinglePatient, syncMultiplePatients } = useSyncPatient();
   const { toast } = useToast();
 
   const analyzePatientsMutation = useMutation({
@@ -122,25 +118,10 @@ export default function ShiftHandoverPage() {
     setPatientDetailsOpen(true);
   }, []);
   
-  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  useEffect(() => {
-    return () => {
-      if (pollTimerRef.current) {
-        clearTimeout(pollTimerRef.current);
-      }
-    };
-  }, []);
-
   const manualSyncMutation = useMutation({
     mutationFn: async () => {
       setIsSyncing(true);
-      
-      if (pollTimerRef.current) {
-        clearTimeout(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-      
+
       const initResponse = await patientsService.syncManualWithAI("22,23", false);
       const { syncId } = initResponse;
       

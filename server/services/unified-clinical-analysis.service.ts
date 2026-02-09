@@ -152,7 +152,9 @@ Cada análise deve seguir o schema fornecido. Seja objetivo e técnico.`;
     } else if (leito) {
       primaryKey = `unified-clinical:leito:${leito}`;
     } else {
-      primaryKey = `unified-clinical:unknown:${Date.now()}`;
+      // Use content hash for stable cache key instead of non-deterministic Date.now()
+      const hash = this.generateContentHash(patient);
+      primaryKey = `unified-clinical:unknown:${hash}`;
     }
 
     return {
@@ -556,27 +558,29 @@ Retorne JSON com array "analises" contendo ${patients.length} objetos NA MESMA O
         batches.push(patientsToAnalyze.slice(batchStart, batchEnd));
       }
       
-      console.log(`[UnifiedClinicalAnalysis] 🚀 Processando ${totalBatches} lotes EM PARALELO...`);
-      
-      const batchPromises = batches.map(async (currentBatch, batchIndex) => {
+      // Process batches sequentially to respect API rate limits
+      console.log(`[UnifiedClinicalAnalysis] 🚀 Processando ${totalBatches} lotes sequencialmente...`);
+
+      const batchResults: Array<{ batchIndex: number; currentBatch: typeof patientsToAnalyze; batchInsights: ClinicalInsights[]; success: boolean }> = [];
+
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const currentBatch = batches[batchIndex];
         const batchStartTime = Date.now();
         console.log(`[UnifiedClinicalAnalysis] 🔄 Lote ${batchIndex + 1}/${totalBatches} iniciando (${currentBatch.length} pacientes)...`);
-        
+
         try {
           const batchPatients = currentBatch.map(item => item.patient);
           const batchInsights = await this.callGPT4oMiniBatch(batchPatients);
-          
+
           const batchDuration = Date.now() - batchStartTime;
           console.log(`[UnifiedClinicalAnalysis] ✅ Lote ${batchIndex + 1} concluído em ${batchDuration}ms`);
-          
-          return { batchIndex, currentBatch, batchInsights, success: true };
+
+          batchResults.push({ batchIndex, currentBatch, batchInsights, success: true });
         } catch (error) {
           console.error(`[UnifiedClinicalAnalysis] ❌ Erro no lote ${batchIndex + 1}:`, error);
-          return { batchIndex, currentBatch, batchInsights: [] as ClinicalInsights[], success: false };
+          batchResults.push({ batchIndex, currentBatch, batchInsights: [] as ClinicalInsights[], success: false });
         }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
+      }
       
       for (const { currentBatch, batchInsights, success } of batchResults) {
         this.metrics.actualAPICalls++;

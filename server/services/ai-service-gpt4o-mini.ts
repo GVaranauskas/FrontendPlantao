@@ -203,7 +203,13 @@ Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
         throw new Error('Resposta vazia do GPT-4o-mini');
       }
 
-      const analysis = JSON.parse(content);
+      let analysis: any;
+      try {
+        analysis = JSON.parse(content);
+      } catch (parseError) {
+        console.error('[GPT-4o-mini] Invalid JSON response:', content?.substring(0, 200));
+        throw new Error('GPT-4o-mini returned invalid JSON');
+      }
       return this.transformToInsights(analysis, patient);
 
     } catch (error) {
@@ -255,7 +261,7 @@ JSON:
     
     const alertasVermelho = alertas.filter((a: any) => a.nivel === 'VERMELHO').length;
     const alertasAmarelo = alertas.filter((a: any) => a.nivel === 'AMARELO').length;
-    const alertasVerde = alertas.length - alertasVermelho - alertasAmarelo;
+    const alertasVerde = Math.max(0, alertas.length - alertasVermelho - alertasAmarelo);
 
     const nivelAlerta = alertasVermelho > 0 
       ? 'VERMELHO' 
@@ -290,7 +296,11 @@ JSON:
    * Gera chave de cache
    */
   private generateCacheKey(patient: PatientData): string {
-    const id = patient.id || patient.leito || 'unknown';
+    const id = patient.id || patient.leito;
+    if (!id) {
+      // Use content hash as key for patients without stable identifiers
+      return `gpt4o-mini:patient:anon:${this.generateContentHash(patient)}`;
+    }
     return `gpt4o-mini:patient:${id}:analysis`;
   }
 

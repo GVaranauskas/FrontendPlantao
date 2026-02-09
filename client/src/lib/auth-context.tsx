@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "./queryClient";
 import { setAccessToken, clearAccessToken, getAccessToken } from "./auth-token";
@@ -79,18 +79,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
+  const analyticsRef = useRef(analytics);
+  analyticsRef.current = analytics;
+
   useEffect(() => {
     const isAuthenticated = !!user;
     if (isAuthenticated && !sessionStartedRef.current) {
       sessionStartedRef.current = true;
-      analytics.startSession();
+      analyticsRef.current.startSession();
     } else if (!isAuthenticated && sessionStartedRef.current) {
       sessionStartedRef.current = false;
-      analytics.endSession('logout');
+      analyticsRef.current.endSession('logout');
     }
-  }, [user, analytics]);
+  }, [user]);
 
-  const login = async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -106,9 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
     resetAuthFailure();
     startAutoRefresh();
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     stopAutoRefresh();
     try {
       await apiRequest("POST", "/api/auth/logout");
@@ -118,19 +121,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAccessToken();
     setUser(null);
     setLocation("/");
-  };
+  }, [setLocation]);
+
+  const contextValue = useMemo<AuthContextType>(() => ({
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    checkAuth,
+  }), [user, isLoading, login, logout, checkAuth]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        checkAuth,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

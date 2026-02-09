@@ -74,14 +74,20 @@ export async function refreshAccessToken(): Promise<boolean> {
     return false;
   }
   
+  // If a refresh is already in flight, piggyback on the existing promise
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
   const now = Date.now();
   if (now - lastRefreshAttempt < REFRESH_DEBOUNCE_MS) {
     console.log("[TokenRefresh] Debouncing refresh attempt");
+    // Check if we already have a valid token from a recent refresh
+    const currentToken = getAccessToken();
+    if (currentToken && !isTokenExpired(currentToken)) {
+      return true;
+    }
     return false;
-  }
-  
-  if (isRefreshing && refreshPromise) {
-    return refreshPromise;
   }
   
   isRefreshing = true;
@@ -215,30 +221,45 @@ export async function fetchWithAutoRefresh(
   
   if (response.status === 401 && !authFailureTriggered) {
     console.log("[TokenRefresh] Got 401, attempting refresh and retry...");
-    
+
     const refreshed = await refreshAccessToken();
-    
+
     if (refreshed) {
       const newToken = getAccessToken();
       if (newToken) {
         headers.set("Authorization", `Bearer ${newToken}`);
       }
-      
+
       response = await fetch(url, {
         ...options,
         headers,
         credentials: "include",
       });
-      
+
       console.log("[TokenRefresh] Retry response status:", response.status);
-      
+
       if (response.status === 401) {
         console.warn("[TokenRefresh] Still 401 after refresh, triggering auth failure");
         handleAuthFailure();
       }
     } else {
-      console.warn("[TokenRefresh] Could not refresh, triggering auth failure");
-      handleAuthFailure();
+      // Only trigger auth failure if the token is truly invalid/missing
+      const currentToken = getAccessToken();
+      if (!currentToken || isTokenExpired(currentToken)) {
+        console.warn("[TokenRefresh] Could not refresh and no valid token, triggering auth failure");
+        handleAuthFailure();
+      } else {
+        // Token exists and is valid - retry with it (debounce may have returned false)
+        headers.set("Authorization", `Bearer ${currentToken}`);
+        response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: "include",
+        });
+        if (response.status === 401) {
+          handleAuthFailure();
+        }
+      }
     }
   }
   
