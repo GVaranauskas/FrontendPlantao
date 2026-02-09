@@ -17,6 +17,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.6] - 2026-02-09
+
+### Adicionado
+
+- **Página Visão Geral do Plantão** (`/shift-overview`): Nova página modular para exibição de indicadores e classificação por nível
+  - Reutiliza componentes e dados existentes da Análise Clínica por Leito
+  - Endpoint `GET /api/shift-summary` que calcula indicadores a partir dos dados já armazenados (sem chamadas de IA)
+  - Página sem navegação visível (forma de acesso será definida posteriormente)
+  - Estrutura modular preparada para inclusão de novos itens futuramente
+
+### Refatorado
+
+- **Componentes extraídos**: `ShiftIndicators` e `LevelClassification` extraídos do shift-handover para reuso em múltiplas páginas
+
 ## [1.5.9.5] - 2026-02-08
 
 ### Corrigido

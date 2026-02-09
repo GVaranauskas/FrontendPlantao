@@ -21,7 +21,8 @@ Development Workflow Rules:
 - **State Management**: TanStack Query for server state, React Hook Form with Zod for form handling. Manual sync uses syncId-based polling.
 - **Services Layer**: Centralized API abstraction with `ApiService` for CRUD operations and specific services.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
-- **Key Features**: Login with mandatory first-access password change, module selection dashboard, SBAR shift handover with optimized patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality, admin menu for nursing unit management with approval workflows, patient history viewing, usage analytics dashboard, interactive table filtering by patient status and Specialty/Branch.
+- **Key Features**: Login with mandatory first-access password change, module selection dashboard, SBAR shift handover with optimized patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality, admin menu for nursing unit management with approval workflows, patient history viewing, usage analytics dashboard, interactive table filtering by patient status and Specialty/Branch, shift overview page (hidden, modular, `/shift-overview`).
+- **Reusable Components**: `ShiftIndicators` and `LevelClassification` extracted from shift-handover for reuse across pages.
 - **Usage Analytics**: Automatic tracking of user sessions, page views, and actions via `useAnalytics` hook with event batching and session heartbeats.
 
 ### Backend Architecture

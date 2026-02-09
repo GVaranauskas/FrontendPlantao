@@ -250,6 +250,97 @@ export interface IndicadoresPlantao {
   pacientes_lesao_pressao: number;
 }
 
+export interface ShiftSummaryResult {
+  summary: { vermelho: number; amarelo: number; verde: number; semAnalise: number };
+  indicadores: IndicadoresPlantao;
+}
+
+export function computeShiftSummary(
+  patients: Array<{
+    braden?: string | null;
+    dataInternacao?: string | null;
+    dispositivos?: string | null;
+    atb?: string | null;
+    mobilidade?: string | null;
+    clinicalInsights?: unknown;
+  }>
+): ShiftSummaryResult {
+  const summaryStats = { vermelho: 0, amarelo: 0, verde: 0, semAnalise: 0 };
+  let totalBraden = 0;
+  let bradenCount = 0;
+  let totalDiasInternacao = 0;
+  let totalScoreQualidade = 0;
+  let scoreCount = 0;
+  let pacientesComDispositivos = 0;
+  let pacientesComAtb = 0;
+  let pacientesAcamados = 0;
+  let pacientesRiscoQuedaAlto = 0;
+  let pacientesLesaoPressao = 0;
+
+  for (const patient of patients) {
+    const insights = patient.clinicalInsights as any;
+    if (!insights?.nivel_alerta) {
+      summaryStats.semAnalise++;
+      continue;
+    }
+
+    if (insights.nivel_alerta === "VERMELHO") summaryStats.vermelho++;
+    else if (insights.nivel_alerta === "AMARELO") summaryStats.amarelo++;
+    else summaryStats.verde++;
+
+    const bradenValue = parseInt(patient.braden || "0");
+    if (bradenValue > 0) {
+      totalBraden += bradenValue;
+      bradenCount++;
+      if (bradenValue <= 12) pacientesLesaoPressao++;
+    }
+
+    if (patient.dataInternacao) {
+      const dataInt = new Date(patient.dataInternacao.split("/").reverse().join("-"));
+      if (!isNaN(dataInt.getTime())) {
+        totalDiasInternacao += Math.floor((Date.now() - dataInt.getTime()) / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    if (insights.score_qualidade) {
+      totalScoreQualidade += insights.score_qualidade;
+      scoreCount++;
+    }
+
+    if (patient.dispositivos && patient.dispositivos.trim() !== "" && patient.dispositivos !== "-") {
+      pacientesComDispositivos++;
+    }
+    if (patient.atb && patient.atb.trim() !== "" && patient.atb !== "-") {
+      pacientesComAtb++;
+    }
+    if (patient.mobilidade?.toLowerCase().includes("acamado") || patient.mobilidade === "A") {
+      pacientesAcamados++;
+    }
+
+    for (const alerta of insights.principais_alertas || []) {
+      if (alerta.tipo === "RISCO_QUEDA" && (alerta.nivel === "VERMELHO" || alerta.nivel === "AMARELO")) {
+        pacientesRiscoQuedaAlto++;
+        break;
+      }
+    }
+  }
+
+  const indicadores: IndicadoresPlantao = {
+    total_pacientes: patients.length,
+    media_braden: bradenCount > 0 ? Math.round((totalBraden / bradenCount) * 10) / 10 : 0,
+    media_dias_internacao: patients.length > 0 ? Math.round(totalDiasInternacao / patients.length) : 0,
+    taxa_completude_documentacao: scoreCount > 0 ? Math.round(totalScoreQualidade / scoreCount) : 0,
+    pacientes_alta_complexidade: summaryStats.vermelho + summaryStats.amarelo,
+    pacientes_com_dispositivos: pacientesComDispositivos,
+    pacientes_com_atb: pacientesComAtb,
+    pacientes_acamados: pacientesAcamados,
+    pacientes_risco_queda_alto: pacientesRiscoQuedaAlto,
+    pacientes_lesao_pressao: pacientesLesaoPressao,
+  };
+
+  return { summary: summaryStats, indicadores };
+}
+
 export interface AnaliseGeralMelhorada {
   timestamp: string;
   resumo_executivo: string;
@@ -725,54 +816,27 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       por_tipo_risco: {} as Record<string, number>,
     };
 
-    // Indicadores avançados
-    let totalBraden = 0;
-    let bradenCount = 0;
-    let totalDiasInternacao = 0;
-    let totalScoreQualidade = 0;
-    let pacientesComDispositivos = 0;
-    let pacientesComAtb = 0;
-    let pacientesAcamados = 0;
-    let pacientesRiscoQuedaAlto = 0;
-    let pacientesLesaoPressao = 0;
+    const patientsWithInsights = patients.map(p => ({
+      ...p,
+      clinicalInsights: patientInsights.get(p.id || "") || null,
+    }));
+    const shiftResult = computeShiftSummary(patientsWithInsights);
+    const indicadores = shiftResult.indicadores;
 
     for (const patient of patients) {
       const insights = patientInsights.get(patient.id || "");
       if (!insights) continue;
 
-      // Contar por nível
       if (insights.nivel_alerta === "VERMELHO") stats.vermelho++;
       else if (insights.nivel_alerta === "AMARELO") stats.amarelo++;
       else stats.verde++;
 
-      // Calcular indicadores
-      const bradenValue = parseInt(patient.braden || "0");
-      if (bradenValue > 0) {
-        totalBraden += bradenValue;
-        bradenCount++;
-        if (bradenValue <= 12) pacientesLesaoPressao++;
-      }
-
-      // Calcular dias de internação
       let diasInternacao = 0;
       if (patient.dataInternacao) {
         const dataInt = new Date(patient.dataInternacao.split("/").reverse().join("-"));
         if (!isNaN(dataInt.getTime())) {
           diasInternacao = Math.floor((Date.now() - dataInt.getTime()) / (1000 * 60 * 60 * 24));
-          totalDiasInternacao += diasInternacao;
         }
-      }
-
-      totalScoreQualidade += insights.score_qualidade || 0;
-
-      if (patient.dispositivos && patient.dispositivos.trim() !== "" && patient.dispositivos !== "-") {
-        pacientesComDispositivos++;
-      }
-      if (patient.atb && patient.atb.trim() !== "" && patient.atb !== "-") {
-        pacientesComAtb++;
-      }
-      if (patient.mobilidade?.toLowerCase().includes("acamado") || patient.mobilidade === "A") {
-        pacientesAcamados++;
       }
 
       // Detectar tipo de enfermidade baseado no diagnóstico
@@ -821,9 +885,6 @@ Gere 3-5 recomendações de cuidados prioritários.`;
           leitoDetalhado.protocolos_ativos.push(protocolo);
         }
 
-        if (tipo === "RISCO_QUEDA" && (alerta.nivel === "VERMELHO" || alerta.nivel === "AMARELO")) {
-          pacientesRiscoQuedaAlto++;
-        }
       }
 
       leitosDetalhados.push(leitoDetalhado);
@@ -862,20 +923,6 @@ Gere 3-5 recomendações de cuidados prioritários.`;
         leitosPrioridadeMaxima.push(leitoInfo);
       }
     }
-
-    // Calcular indicadores
-    const indicadores: IndicadoresPlantao = {
-      total_pacientes: patients.length,
-      media_braden: bradenCount > 0 ? Math.round((totalBraden / bradenCount) * 10) / 10 : 0,
-      media_dias_internacao: patients.length > 0 ? Math.round(totalDiasInternacao / patients.length) : 0,
-      taxa_completude_documentacao: patients.length > 0 ? Math.round(totalScoreQualidade / patients.length) : 0,
-      pacientes_alta_complexidade: stats.vermelho + stats.amarelo,
-      pacientes_com_dispositivos: pacientesComDispositivos,
-      pacientes_com_atb: pacientesComAtb,
-      pacientes_acamados: pacientesAcamados,
-      pacientes_risco_queda_alto: pacientesRiscoQuedaAlto,
-      pacientes_lesao_pressao: pacientesLesaoPressao,
-    };
 
     // Gerar protocolos de enfermagem consolidados
     const protocolosEnfermagem: ProtocoloEnfermagem[] = this.gerarProtocolosConsolidados(classificacao);
@@ -922,12 +969,12 @@ Gere 3-5 recomendações de cuidados prioritários.`;
       recomendacoesGerais.push(`Revisar técnica asséptica e troca de dispositivos em ${classificacao.risco_infeccao.length} paciente(s)`);
     }
 
-    if (pacientesAcamados > 0) {
-      recomendacoesGerais.push(`${pacientesAcamados} paciente(s) acamado(s) - Atenção à mudança de decúbito e prevenção de lesões`);
+    if (indicadores.pacientes_acamados > 0) {
+      recomendacoesGerais.push(`${indicadores.pacientes_acamados} paciente(s) acamado(s) - Atenção à mudança de decúbito e prevenção de lesões`);
     }
 
-    if (pacientesComAtb > 0) {
-      recomendacoesGerais.push(`${pacientesComAtb} paciente(s) em uso de ATB - Verificar horários e observar reações`);
+    if (indicadores.pacientes_com_atb > 0) {
+      recomendacoesGerais.push(`${indicadores.pacientes_com_atb} paciente(s) em uso de ATB - Verificar horários e observar reações`);
     }
 
     // Resumo executivo

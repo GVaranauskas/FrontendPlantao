@@ -30,6 +30,8 @@ import {
   PatientTable,
   PatientDetailsModal,
   PatientHistorySheet,
+  ShiftIndicators,
+  LevelClassification,
   type AIAnalysisResult,
   type ClinicalBatchResult,
   type ClinicalInsights,
@@ -576,87 +578,15 @@ export default function ShiftHandoverPage() {
                     {clinicalBatchResult && (
                       <div className="space-y-4">
                         {clinicalBatchResult.analiseGeral?.indicadores && (
-                          <Card className="p-4">
-                            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-primary" />
-                              Indicadores do Plantão
-                            </h3>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
-                                <Users className="w-4 h-4 text-primary" />
-                                <div>
-                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.total_pacientes}</div>
-                                  <div className="text-[10px] text-muted-foreground">Total Pacientes</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
-                                <Clock className="w-4 h-4 text-orange-500" />
-                                <div>
-                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.media_dias_internacao}d</div>
-                                  <div className="text-[10px] text-muted-foreground">Média Internação</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
-                                <FileText className="w-4 h-4 text-green-500" />
-                                <div>
-                                  <div className="text-lg font-bold">{clinicalBatchResult.analiseGeral.indicadores.taxa_completude_documentacao}%</div>
-                                  <div className="text-[10px] text-muted-foreground">Completude Doc.</div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 mt-2">
-                              <div className="text-center p-2 bg-red-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-red-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_alta_complexidade}</div>
-                                <div className="text-[9px] text-muted-foreground">Alta Complex.</div>
-                              </div>
-                              <div className="text-center p-2 bg-purple-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-purple-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_com_dispositivos}</div>
-                                <div className="text-[9px] text-muted-foreground">C/ Dispositivos</div>
-                              </div>
-                              <div className="text-center p-2 bg-orange-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-orange-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_com_atb}</div>
-                                <div className="text-[9px] text-muted-foreground">Em ATB</div>
-                              </div>
-                              <div className="text-center p-2 bg-blue-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-blue-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_acamados}</div>
-                                <div className="text-[9px] text-muted-foreground">Acamados</div>
-                              </div>
-                              <div className="text-center p-2 bg-yellow-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-yellow-600">{clinicalBatchResult.analiseGeral.indicadores.pacientes_risco_queda_alto}</div>
-                                <div className="text-[9px] text-muted-foreground">Risco Queda</div>
-                              </div>
-                              <div className="text-center p-2 bg-pink-500/10 rounded-lg">
-                                <div className="text-sm font-bold text-pink-500">{clinicalBatchResult.analiseGeral.indicadores.pacientes_lesao_pressao}</div>
-                                <div className="text-[9px] text-muted-foreground">Risco LPP</div>
-                              </div>
-                            </div>
-                          </Card>
+                          <ShiftIndicators indicadores={clinicalBatchResult.analiseGeral.indicadores} />
                         )}
 
-                        <Card className="p-4">
-                          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                            <Activity className="w-4 h-4" />
-                            Classificação por Nível
-                          </h3>
-                          <div className="grid grid-cols-4 gap-2 text-center">
-                            <div className="bg-red-500/20 rounded-lg p-2">
-                              <div className="text-xl font-bold text-red-500">{clinicalBatchResult.summary.vermelho}</div>
-                              <div className="text-[10px] text-muted-foreground">Críticos</div>
-                            </div>
-                            <div className="bg-yellow-500/20 rounded-lg p-2">
-                              <div className="text-xl font-bold text-yellow-600">{clinicalBatchResult.summary.amarelo}</div>
-                              <div className="text-[10px] text-muted-foreground">Alertas</div>
-                            </div>
-                            <div className="bg-green-500/20 rounded-lg p-2">
-                              <div className="text-xl font-bold text-green-500">{clinicalBatchResult.summary.verde}</div>
-                              <div className="text-[10px] text-muted-foreground">OK</div>
-                            </div>
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xl font-bold">{clinicalBatchResult.total}</div>
-                              <div className="text-[10px] text-muted-foreground">Total</div>
-                            </div>
-                          </div>
-                        </Card>
+                        <LevelClassification
+                          vermelho={clinicalBatchResult.summary.vermelho}
+                          amarelo={clinicalBatchResult.summary.amarelo}
+                          verde={clinicalBatchResult.summary.verde}
+                          total={clinicalBatchResult.total}
+                        />
 
                         {clinicalBatchResult.analiseGeral?.alertas_criticos_enfermagem && 
                          clinicalBatchResult.analiseGeral.alertas_criticos_enfermagem.length > 0 && (

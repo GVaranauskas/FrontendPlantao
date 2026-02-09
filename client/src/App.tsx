@@ -28,6 +28,7 @@ const AdminUsageAnalyticsPage = lazy(() => import("@/pages/admin-usage-analytics
 const AdminAuditPage = lazy(() => import("@/pages/admin-audit"));
 const ImportLogsPage = lazy(() => import("@/pages/import-logs"));
 const PatientsHistoryPage = lazy(() => import("@/pages/patients-history"));
+const ShiftOverviewPage = lazy(() => import("@/pages/shift-overview"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const TestValidationReport = lazy(() => import("@/pages/TestValidationReport"));
 
@@ -129,6 +130,9 @@ function Router() {
         </Route>
         <Route path="/patients-history">
           <ProtectedRoute component={PatientsHistoryPage} />
+        </Route>
+        <Route path="/shift-overview">
+          <ProtectedRoute component={ShiftOverviewPage} />
         </Route>
         <Route path="/reports/test-validation">
           <LazyRoute component={TestValidationReport} />

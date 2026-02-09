@@ -1763,6 +1763,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
 
+  app.get("/api/shift-summary", ...requireRoleWithAuth('admin', 'enfermagem'), asyncHandler(async (req, res) => {
+    const { computeShiftSummary } = await import("./services/ai-service");
+    const patients = await storage.getAllPatients();
+
+    if (patients.length === 0) {
+      return res.json({
+        total: 0,
+        summary: { vermelho: 0, amarelo: 0, verde: 0, semAnalise: 0 },
+        indicadores: null,
+        hasAnalysis: false,
+      });
+    }
+
+    const { summary, indicadores } = computeShiftSummary(patients);
+    const hasAnalysis = (summary.vermelho + summary.amarelo + summary.verde) > 0;
+
+    res.json({
+      total: patients.length,
+      summary,
+      indicadores: hasAnalysis ? indicadores : null,
+      hasAnalysis,
+    });
+  }));
+
   // Cache monitoring endpoint (admin only)
   app.get("/api/admin/cache-stats", ...requireRoleWithAuth('admin'), asyncHandler(async (req, res) => {
     const { intelligentCache } = await import("./services/intelligent-cache.service");
