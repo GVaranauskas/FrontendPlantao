@@ -166,7 +166,7 @@ DEFAULT_ENFERMEIRO_PASSWORD=Enf@123
 # OpenAI (GPT-4o-mini)
 OPENAI_API_KEY=sk-your-openai-key-here
 
-# Anthropic (Claude Haiku - fallback)
+# Anthropic (Claude Haiku 4.5 - fallback com prompt caching)
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 
 # ============================================

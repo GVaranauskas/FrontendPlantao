@@ -17,6 +17,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Redis para cache persistente
 - GraphQL como alternativa REST
 
+## [1.5.9.7] - 2026-02-09
+
+### Atualizado
+
+- **Claude Haiku 4.5**: Migração do modelo Anthropic de Claude Haiku 3.5 (`claude-3-5-haiku-20241022`) para Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
+  - Haiku 3.5 foi descontinuado pela Anthropic
+  - Haiku 4.5 possui contexto de 200K tokens, suporte a Extended Thinking e performance equivalente ao Sonnet 4
+  - Mantido como fallback do GPT-4o-mini (OpenAI)
+- **Prompt Caching**: Implementado `cache_control: { type: "ephemeral" }` em todas as 4 chamadas ao Claude
+  - System prompts marcados para caching automático pela API da Anthropic
+  - Economia de até 90% nos tokens de entrada quando prompts atingem o mínimo de 1024 tokens
+  - Função helper `buildCachedSystemPrompt()` centraliza a construção de prompts com cache
+- **Cost Monitor**: Adicionado pricing do Claude Haiku 4.5 ($1/M input, $5/M output, cached: 10% do input)
+
 ## [1.5.9.6] - 2026-02-09
 
 ### Adicionado
@@ -604,7 +618,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 - **IA**
   - OpenAI GPT-4o-mini
-  - Anthropic Claude Haiku 3.5 (fallback)
+  - Anthropic Claude Haiku 4.5 (fallback com prompt caching)
 
 - **Segurança**
   - Helmet 8.1.0

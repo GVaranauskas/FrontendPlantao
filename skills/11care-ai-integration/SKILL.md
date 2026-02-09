@@ -22,7 +22,7 @@ O sistema de IA do 11Care analisa dados clínicos de pacientes para gerar:
 | Modelo | Uso | Custo | Latência |
 |--------|-----|-------|----------|
 | **GPT-4o-mini** | Principal | R$ 0,03/análise | 2-3s |
-| **Claude Haiku 3.5** | Fallback | R$ 0,03/análise | 2-3s |
+| **Claude Haiku 4.5** | Fallback (com prompt caching) | R$ 0,03/análise | 2-3s |
 
 ---
 
@@ -643,7 +643,7 @@ const CONCURRENCY_LIMIT = 10; // Salvamento paralelo
 ```bash
 # API Keys
 OPENAI_API_KEY=sk-...          # GPT-4o-mini (principal)
-ANTHROPIC_API_KEY=sk-ant-...   # Claude Haiku (fallback)
+ANTHROPIC_API_KEY=sk-ant-...   # Claude Haiku 4.5 (fallback com prompt caching)
 
 # Auto Sync
 AUTO_SYNC_CRON=0 * * * *       # Cron expression (default: a cada hora)

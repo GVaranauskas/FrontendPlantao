@@ -16,6 +16,16 @@ const CLAUDE_MODEL = env.ANTHROPIC_MODEL;
 const OPENAI_MODEL = env.OPENAI_MODEL;
 const HAS_CLAUDE = !!env.ANTHROPIC_API_KEY;
 
+function buildCachedSystemPrompt(systemText: string): Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> {
+  return [
+    {
+      type: "text" as const,
+      text: systemText,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
+
 interface PatientAnalysisResult {
   resumo: string;
   alertas: string[];
@@ -502,7 +512,7 @@ export class AIService {
               content: userPrompt,
             },
           ],
-          system: SYSTEM_PROMPT_PATIENT,
+          system: buildCachedSystemPrompt(SYSTEM_PROMPT_PATIENT),
         });
 
         const content = response.content[0];
@@ -568,7 +578,7 @@ export class AIService {
               content: userPrompt,
             },
           ],
-          system: SYSTEM_PROMPT_MULTIPLE,
+          system: buildCachedSystemPrompt(SYSTEM_PROMPT_MULTIPLE),
         });
 
         const content = response.content[0];
@@ -633,7 +643,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
                 content: userPrompt,
               },
             ],
-            system: SYSTEM_PROMPT_CARE,
+            system: buildCachedSystemPrompt(SYSTEM_PROMPT_CARE),
           });
 
           const content = response.content[0];
@@ -689,7 +699,7 @@ Gere 3-5 recomendações de cuidados prioritários.`;
           max_tokens: 4000,
           temperature: 0,
           messages: [{ role: "user", content: userPrompt }],
-          system: CLINICAL_ANALYSIS_PROMPT,
+          system: buildCachedSystemPrompt(CLINICAL_ANALYSIS_PROMPT),
         });
 
         const content = response.content[0];

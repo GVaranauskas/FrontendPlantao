@@ -61,12 +61,22 @@ export class CostMonitorService {
       'claude-sonnet-4': { 
         input: 0.0180, 
         output: 0.0900,
-        cached: 0.00108 // 90% desconto no cache
+        cached: 0.00108
       },
       'claude-sonnet-3.5': {
         input: 0.0180,
         output: 0.0900,
         cached: 0.00108
+      },
+      'claude-haiku-4-5-20251001': {
+        input: 0.0060,
+        output: 0.0300,
+        cached: 0.00060
+      },
+      'claude-haiku-4-5': {
+        input: 0.0060,
+        output: 0.0300,
+        cached: 0.00060
       }
     }
   };

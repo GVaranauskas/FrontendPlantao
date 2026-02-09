@@ -45,9 +45,10 @@ Vs. abordagem naive: R$ 1,50 por análise
 - Performance: Suficiente para análises estruturadas
 - Latência: ~2-3s por análise
 
-**Fallback**: Claude Haiku 3.5 (Anthropic)
+**Fallback**: Claude Haiku 4.5 (Anthropic)
 - Usado se GPT-4o-mini falhar
 - Similar custo e performance
+- Prompt caching habilitado (cache_control: ephemeral) para economia de até 90% em tokens de entrada
 
 ### Serviço Unificado (v1.4.1)
 
@@ -330,12 +331,13 @@ Com Cache (TTL 1h):
 
 ### Por que GPT-4o-mini?
 
-| Feature | GPT-4 | GPT-4o-mini | Claude Haiku |
-|---------|-------|-------------|--------------|
+| Feature | GPT-4 | GPT-4o-mini | Claude Haiku 4.5 |
+|---------|-------|-------------|------------------|
 | Custo | R$ 0,06 | R$ 0,03 | R$ 0,03 |
 | Latência | 5-7s | 2-3s | 2-3s |
 | Qualidade | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
 | Contexto | 128K | 128K | 200K |
+| Cache | N/A | N/A | Prompt Caching |
 
 **Decisão**: GPT-4o-mini oferece melhor custo-benefício para análises estruturadas.
 
@@ -646,7 +648,7 @@ Análise geral + indicadores (JSON):
 |--------|---------------------|----------------|---------------|
 | GPT-4 | R$ 0,12 | ~500 tokens | R$ 0,06 |
 | **GPT-4o-mini** | R$ 0,06 | ~500 tokens | **R$ 0,03** |
-| Claude Haiku | R$ 0,06 | ~500 tokens | R$ 0,03 |
+| Claude Haiku 4.5 | R$ 0,06 | ~500 tokens | R$ 0,03 (com cache: R$ 0,006) |
 
 ### Economia por Camada
 
@@ -846,7 +848,7 @@ await autoSyncSchedulerGPT4o.syncAll({ forceRefresh: true });
 # OpenAI (GPT-4o-mini)
 OPENAI_API_KEY=sk-...
 
-# Anthropic (Claude Haiku - fallback)
+# Anthropic (Claude Haiku 4.5 - fallback com prompt caching)
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Auto Sync

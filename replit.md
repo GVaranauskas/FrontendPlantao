@@ -51,6 +51,6 @@ Development Workflow Rules:
 - **Security**: jsonwebtoken, bcryptjs, csurf, cookie-parser.
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data and nursing units.
-- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis, with Claude Haiku 3.5 as fallback.
+- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis, with Claude Haiku 4.5 as fallback (prompt caching enabled via cache_control for cost optimization).
 - **Scheduled Tasks**: Daily automatic sync of nursing units.
 - **Database Schema Check**: Automatic verification on startup.

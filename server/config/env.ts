@@ -27,7 +27,7 @@ const envSchema = z.object({
     : z.string().optional(),
   
   ANTHROPIC_API_KEY: z.string().optional(),
-  ANTHROPIC_MODEL: z.string().default('claude-3-5-haiku-20241022'),
+  ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
   
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
