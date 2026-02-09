@@ -18,11 +18,12 @@ Development Workflow Rules:
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript, Vite, Wouter for routing.
 - **UI/UX**: shadcn/ui (New York style), Radix UI primitives, Tailwind CSS, custom 11Care brand design system.
-- **State Management**: TanStack Query for server state, React Hook Form with Zod for form handling. Manual sync uses syncId-based polling.
+- **State Management**: TanStack Query for server state (staleTime: 5min, refetchOnWindowFocus enabled), React Hook Form with Zod for form handling. Manual sync uses syncId-based polling.
 - **Services Layer**: Centralized API abstraction with `ApiService` for CRUD operations and specific services.
 - **Type Organization**: AI/clinical analysis types centralized to prevent circular dependencies.
 - **Key Features**: Login with mandatory first-access password change, module selection dashboard, SBAR shift handover with optimized patient table, real-time API status, automatic patient data refresh and auto-sync, print functionality, admin menu for nursing unit management with approval workflows, patient history viewing, usage analytics dashboard, interactive table filtering by patient status and Specialty/Branch.
-- **Usage Analytics**: Automatic tracking of user sessions, page views, and actions via `useAnalytics` hook with event batching and session heartbeats.
+- **Usage Analytics**: Automatic tracking of user sessions, page views, and actions via `useAnalytics` hook with event batching, session heartbeats, and `navigator.sendBeacon` for reliable delivery during page unload.
+- **Auth Optimization**: `login`/`logout` memoized with `useCallback`, context value stabilized with `useMemo`. Token refresh debounce checks existing valid token before returning false.
 
 ### Backend Architecture
 - **Server**: Express.js with TypeScript on Node.js (ESM).
@@ -33,13 +34,13 @@ Development Workflow Rules:
 - **API Endpoints**: Standard CRUD for patients and alerts, N8N sync, template management, authentication, user management, WebSocket for import, and analytics.
 - **Usage Analytics System**: Session-based tracking with dedicated REST endpoints for events, sessions, and admin metrics.
 - **N8N Integration Service**: Direct 1:1 mapping from N8N webhook responses to patient fields.
-- **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system (change detection, intelligent cache, GPT-4o-mini, hourly auto-sync). Includes validation to block patients from non-approved wards and deterministic archiving.
+- **Auto Sync Scheduler**: Cron-based automation (default 1 hour) with a 4-layer cost-saving system (change detection, intelligent cache, GPT-4o-mini, hourly auto-sync). AI batches processed sequentially to respect rate limits. Includes validation to block patients from non-approved wards and deterministic archiving.
 - **Automatic Patient Reactivation**: Patients appearing in N8N data are automatically reactivated, preserving historical records.
 - **Bed Conflict Resolution**: When a new patient occupies an existing bed, the old patient is archived and then deleted from the active patient table.
 - **Idempotent Archive**: `archivePatient()` method includes a 5-minute idempotency check to prevent duplicate history records.
 - **Single Insertion Point**: All patient insertions/updates go through `upsertPatientByCodigoAtendimento()`. The 3-step sync process involves bed conflict resolution, marking reactivated patients, and UPSERTing with N8N data, utilizing parallel processing.
-- **Global Error Handling**: Structured JSON logging for production and human-readable logs for development.
-- **Security**: JWT authentication with mandatory password change, Role-Based Access Control (admin, enfermagem, visualizador) via `requireRoleWithAuth()` middleware. Input validation, CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption. JWT token versioning for remote logout. Flexible rate limiting using hybrid key generator (userId for authenticated, IP for unauthenticated) and specific limits for different endpoints. `isActive` validation for deactivated accounts. Hardened security with environmental variables for secrets, reduced JWT expiry, and strict CSP.
+- **Global Error Handling**: Structured JSON logging for production and human-readable logs for development. Production 500 errors return generic messages (no internal error.message leak).
+- **Security**: JWT authentication with mandatory password change, Role-Based Access Control (admin, enfermagem, visualizador) via `requireRoleWithAuth()` middleware. Input validation, CSRF protection, secure cookie handling, N8N webhook validation, and AES-256-GCM data encryption (fields: nome, registro, dataNascimento, diagnostico, alergias, observacoes, dsEvolucaoCompleta, notasPaciente, dsEvolucaoMedica, dsAnotacaoEnfermagem, dadosBrutosJson, clinicalInsights). JWT token versioning for remote logout with atomic SQL increment. Flexible rate limiting using hybrid key generator (userId for authenticated, IP for unauthenticated) and specific limits for different endpoints. `isActive` validation for deactivated accounts. Hardened security with environmental variables for secrets, reduced JWT expiry, strict CSP, and unified strong password policy (min 8 chars, uppercase, lowercase, number) for both create and update.
 - **LGPD Compliance**: Admin-only endpoints for patient data export, history anonymization, and data category transparency. Anonymization affects only sensitive patient history records while preserving audit integrity.
 
 ## External Dependencies
@@ -50,6 +51,7 @@ Development Workflow Rules:
 - **Security**: jsonwebtoken, bcryptjs, csurf, cookie-parser.
 - **Utilities**: date-fns, clsx, tailwind-merge, nanoid.
 - **External API**: N8N API for patient evolution data and nursing units.
-- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis, with Claude Haiku 3.5 as fallback.
+- **AI Integration**: GPT-4o-mini (primary) via UnifiedClinicalAnalysisService for consistent analysis, with Claude Haiku 3.5 as fallback. JSON.parse wrapped in try/catch, cache keys use content hash for unknown patients.
+- **Database Indexes**: 17 indexes across auditLog (timestamp, userId, action+resource), analyticsEvents (sessionId, userId, eventType, createdAt, pagePath), userSessions (userId, startedAt, isActive), patientNoteEvents (patientId, performedById), patientsHistory (codigoAtendimento, leito, arquivadoEm, dsEnfermaria), nursingUnitChanges (status, externalId).
 - **Scheduled Tasks**: Daily automatic sync of nursing units.
 - **Database Schema Check**: Automatic verification on startup.
