@@ -369,10 +369,10 @@ export default function ShiftHandoverPage() {
                 <h1 className="text-xl sm:text-[22px] font-bold text-primary leading-tight">
                   Passagem de Plantão (SBAR)
                 </h1>
-                {(manualSyncMutation.isPending || isSyncing) && (
+                {(manualSyncMutation.isPending || isSyncing || isAutoSyncing) && (
                   <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded text-xs font-medium text-primary mt-1 w-fit">
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    Sincronizando com IA...
+                    {isAutoSyncing && !isSyncing ? "Sincronização automática..." : "Sincronizando com IA..."}
                   </div>
                 )}
               </div>
@@ -384,15 +384,15 @@ export default function ShiftHandoverPage() {
                   variant="default"
                   size="sm"
                   onClick={() => manualSyncMutation.mutate()}
-                  disabled={manualSyncMutation.isPending || isSyncing}
+                  disabled={manualSyncMutation.isPending || isSyncing || isAutoSyncing}
                   data-testid="button-manual-n8n-sync"
-                  title="Sincronizar dados do N8N com análise de IA"
+                  title={isAutoSyncing ? "Sincronização automática em andamento..." : "Sincronizar dados do N8N com análise de IA"}
                   className="bg-chart-3 hover:bg-chart-3/90 text-white"
                 >
-                  {(manualSyncMutation.isPending || isSyncing) ? (
+                  {(manualSyncMutation.isPending || isSyncing || isAutoSyncing) ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sincronizando...
+                      {isAutoSyncing && !isSyncing ? "Sync automático..." : "Sincronizando..."}
                     </>
                   ) : (
                     <>
