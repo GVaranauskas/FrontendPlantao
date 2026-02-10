@@ -24,6 +24,7 @@ import {
   RefreshCcw,
   Loader2,
   Activity,
+  Eye,
 } from "lucide-react";
 
 interface AdminModule {
@@ -123,6 +124,13 @@ const adminModules: AdminModule[] = [
     description: "Visualize textos longos extraídos das evoluções, diagnósticos e observações dos pacientes.",
     icon: Code,
     route: "/text-viewer",
+  },
+  {
+    id: "shift-overview",
+    title: "Visão Geral do Plantão",
+    description: "Painel consolidado com visão geral de todos os pacientes, indicadores e classificações por turno.",
+    icon: Eye,
+    route: "/shift-overview",
   },
 ];
 
