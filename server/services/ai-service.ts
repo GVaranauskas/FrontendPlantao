@@ -54,6 +54,17 @@ interface PatientData {
   exames?: string | null;
   cirurgia?: string | null;
   previsaoAlta?: string | null;
+  // Campos clínicos textuais (fontes primárias para Fugulin + Escalas)
+  dsEvolucaoCompleta?: string | null;
+  dsEvolucaoMedica?: string | null;
+  dsAnotacaoEnfermagem?: string | null;
+  // Campos de identificação complementares
+  dataNascimento?: string | null;
+  sexo?: string | null;
+  dsLeitoCompleto?: string | null;
+  dsEspecialidade?: string | null;
+  codigoAtendimento?: string | null;
+  dhCriacaoEvolucao?: string | null;
   [key: string]: any;
 }
 
@@ -1252,15 +1263,27 @@ Gere 3-5 recomendações de cuidados prioritários.`;
   }
 
   private buildClinicalAnalysisPrompt(patient: PatientData): string {
+    // Montar campos clínicos textuais (fontes primárias)
+    const clinicalTextSection = [
+      patient.dsEvolucaoCompleta ? `  "dsEvolucao": ${JSON.stringify(patient.dsEvolucaoCompleta)},` : '',
+      patient.dsEvolucaoMedica ? `  "dsEvolucaoMedica": ${JSON.stringify(patient.dsEvolucaoMedica)},` : '',
+      patient.dsAnotacaoEnfermagem ? `  "dsAnotacaoEnfermagem": ${JSON.stringify(patient.dsAnotacaoEnfermagem)},` : '',
+    ].filter(Boolean).join('\n');
+
     return `Analise criticamente os dados deste paciente para passagem de plantão:
 
 DADOS DO PACIENTE:
 {
   "id": "${patient.id || ""}",
   "leito": "${patient.leito || ""}",
+  "dsLeitoCompleto": "${patient.dsLeitoCompleto || ""}",
   "ds_enfermaria": "${patient.dsEnfermaria || ""}",
+  "dsEspecialidade": "${patient.dsEspecialidade || ""}",
   "nome_paciente": "${patient.nome || ""}",
+  "dataNascimento": "${patient.dataNascimento || ""}",
+  "sexo": "${patient.sexo || ""}",
   "data_internacao": "${patient.dataInternacao || ""}",
+  "codigoAtendimento": "${patient.codigoAtendimento || ""}",
   "braden": "${patient.braden || ""}",
   "diagnostico": "${patient.diagnostico || ""}",
   "alergias": "${patient.alergias || ""}",
@@ -1274,7 +1297,7 @@ DADOS DO PACIENTE:
   "exames": "${patient.exames || ""}",
   "cirurgia": "${patient.cirurgia || ""}",
   "observacoes": "${patient.observacoes || ""}",
-  "previsaoAlta": "${patient.previsaoAlta || ""}"
+  "previsaoAlta": "${patient.previsaoAlta || ""}"${clinicalTextSection ? ',\n' + clinicalTextSection : ''}
 }
 
 Responda em JSON com o seguinte formato:

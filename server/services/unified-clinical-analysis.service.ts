@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { env } from "../config/env";
 import { intelligentCache } from "./intelligent-cache.service";
@@ -5,15 +6,16 @@ import { createHash } from 'node:crypto';
 
 /**
  * UNIFIED CLINICAL ANALYSIS SERVICE
- * 
+ *
  * Serviço unificado para análise clínica de pacientes.
  * Resolve a inconsistência entre análise em lote (batch sync) e individual.
- * 
+ *
  * REGRAS:
  * 1. Chave de cache ÚNICA baseada em codigoAtendimento (identificador hospitalar)
- * 2. Mesmo modelo (GPT-4o-mini) e prompt para ambos os fluxos
- * 3. Invalidação cruzada de cache (quando um atualiza, limpa chaves antigas)
- * 4. Mantém otimizações de custo do batch system
+ * 2. Mesmo modelo (GPT-4o) e prompt para ambos os fluxos
+ * 3. Fallback para Claude Haiku 4.5 quando GPT-4o falha
+ * 4. Invalidação cruzada de cache (quando um atualiza, limpa chaves antigas)
+ * 5. Mantém otimizações de custo do batch system
  */
 
 const openai = new OpenAI({
@@ -21,6 +23,23 @@ const openai = new OpenAI({
 });
 
 const MODEL = "gpt-4o";
+
+// Claude Haiku 4.5 como fallback quando GPT-4o falha
+const anthropic = env.ANTHROPIC_API_KEY ? new Anthropic({
+  apiKey: env.ANTHROPIC_API_KEY,
+}) : null;
+const CLAUDE_MODEL = env.ANTHROPIC_MODEL;
+const HAS_CLAUDE = !!env.ANTHROPIC_API_KEY;
+
+function buildCachedSystemPrompt(systemText: string): Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> {
+  return [
+    {
+      type: "text" as const,
+      text: systemText,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
 
 export interface PatientData {
   id?: string | null;
@@ -153,6 +172,7 @@ interface CostMetrics {
 }
 
 export class UnifiedClinicalAnalysisService {
+  private provider: "openai" | "claude" = "openai";
   private metrics: CostMetrics = {
     totalCalls: 0,
     cachedCalls: 0,
@@ -162,6 +182,10 @@ export class UnifiedClinicalAnalysisService {
     estimatedCost: 0,
     estimatedSavings: 0
   };
+
+  getProvider(): string {
+    return this.provider;
+  }
 
   private readonly COMPACT_SYSTEM_PROMPT = `Voce e um sistema de classificacao de pacientes que analisa dados clinicos de um sistema hospitalar e produz:
 1. Classificacao pelo SCP de Fugulin (12 dimensoes, pontuacao 1-4 cada)
@@ -799,6 +823,164 @@ ${JSON.stringify(compact, null, 2)}`;
   }
 
   /**
+   * Chama Claude Haiku 4.5 como fallback para análise clínica individual
+   */
+  private async callClaudeHaiku(patient: PatientData): Promise<ClinicalInsights> {
+    if (!HAS_CLAUDE || !anthropic) {
+      throw new Error('Claude Haiku não disponível (ANTHROPIC_API_KEY não configurada)');
+    }
+
+    const userPrompt = this.buildClinicalPrompt(patient);
+
+    try {
+      const response = await anthropic.messages.create({
+        model: CLAUDE_MODEL,
+        max_tokens: 4000,
+        temperature: 0,
+        messages: [{ role: "user", content: userPrompt }],
+        system: buildCachedSystemPrompt(this.COMPACT_SYSTEM_PROMPT),
+      });
+
+      const content = response.content[0];
+      if (content.type !== "text") {
+        throw new Error('Resposta inesperada do Claude Haiku');
+      }
+
+      // Claude pode adicionar texto ao redor do JSON
+      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('JSON não encontrado na resposta do Claude Haiku');
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+      return this.transformToInsights(analysis);
+
+    } catch (error) {
+      console.error('[UnifiedClinicalAnalysis] Erro no Claude Haiku (individual):', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Chama Claude Haiku 4.5 como fallback para análise em lote (batch)
+   */
+  private async callClaudeHaikuBatch(patients: PatientData[]): Promise<ClinicalInsights[]> {
+    if (!HAS_CLAUDE || !anthropic) {
+      throw new Error('Claude Haiku não disponível (ANTHROPIC_API_KEY não configurada)');
+    }
+
+    const userPrompt = this.buildBatchPrompt(patients);
+    const startTime = Date.now();
+
+    try {
+      const response = await anthropic.messages.create({
+        model: CLAUDE_MODEL,
+        max_tokens: 16000,
+        temperature: 0,
+        messages: [{ role: "user", content: userPrompt }],
+        system: buildCachedSystemPrompt(this.BATCH_SYSTEM_PROMPT),
+      });
+
+      const content = response.content[0];
+      if (content.type !== "text") {
+        throw new Error('Resposta inesperada do Claude Haiku (batch)');
+      }
+
+      // Extrair JSON da resposta
+      const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('JSON não encontrado na resposta do Claude Haiku (batch)');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const analises = parsed.analises || parsed.analyses || [];
+
+      if (analises.length !== patients.length) {
+        console.warn(`[UnifiedClinicalAnalysis] ⚠️ Claude Haiku batch retornou ${analises.length} análises para ${patients.length} pacientes`);
+      }
+
+      const results: ClinicalInsights[] = [];
+      for (let i = 0; i < patients.length; i++) {
+        const analysis = analises[i];
+        if (analysis) {
+          results.push(this.transformToInsights(analysis));
+        } else {
+          results.push(this.createDefaultInsights());
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`[UnifiedClinicalAnalysis] ✅ Claude Haiku batch de ${patients.length} pacientes processado em ${duration}ms`);
+
+      return results;
+
+    } catch (error) {
+      console.error('[UnifiedClinicalAnalysis] Erro no Claude Haiku (batch):', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Executa análise individual com fallback: GPT-4o → Claude Haiku 4.5
+   */
+  private async callWithFallback(patient: PatientData): Promise<ClinicalInsights> {
+    try {
+      console.log(`[UnifiedClinicalAnalysis] Tentando GPT-4o...`);
+      const result = await this.callGPT4o(patient);
+      this.provider = "openai";
+      return result;
+    } catch (openaiError) {
+      console.warn('[UnifiedClinicalAnalysis] ⚠️ GPT-4o falhou:', openaiError);
+
+      if (!HAS_CLAUDE || !anthropic) {
+        console.error('[UnifiedClinicalAnalysis] Claude Haiku não disponível como fallback (sem ANTHROPIC_API_KEY)');
+        throw openaiError;
+      }
+
+      try {
+        console.log(`[UnifiedClinicalAnalysis] 🔄 Fallback para Claude Haiku 4.5 (${CLAUDE_MODEL})...`);
+        const result = await this.callClaudeHaiku(patient);
+        this.provider = "claude";
+        console.log(`[UnifiedClinicalAnalysis] ✅ Claude Haiku respondeu com sucesso (fallback)`);
+        return result;
+      } catch (claudeError) {
+        console.error('[UnifiedClinicalAnalysis] ❌ Ambos provedores falharam (GPT-4o e Claude Haiku)');
+        throw claudeError;
+      }
+    }
+  }
+
+  /**
+   * Executa análise em lote com fallback: GPT-4o → Claude Haiku 4.5
+   */
+  private async callBatchWithFallback(patients: PatientData[]): Promise<ClinicalInsights[]> {
+    try {
+      console.log(`[UnifiedClinicalAnalysis] Tentando GPT-4o batch (${patients.length} pacientes)...`);
+      const result = await this.callGPT4oBatch(patients);
+      this.provider = "openai";
+      return result;
+    } catch (openaiError) {
+      console.warn('[UnifiedClinicalAnalysis] ⚠️ GPT-4o batch falhou:', openaiError);
+
+      if (!HAS_CLAUDE || !anthropic) {
+        console.error('[UnifiedClinicalAnalysis] Claude Haiku não disponível como fallback (sem ANTHROPIC_API_KEY)');
+        throw openaiError;
+      }
+
+      try {
+        console.log(`[UnifiedClinicalAnalysis] 🔄 Fallback para Claude Haiku 4.5 batch (${CLAUDE_MODEL})...`);
+        const result = await this.callClaudeHaikuBatch(patients);
+        this.provider = "claude";
+        console.log(`[UnifiedClinicalAnalysis] ✅ Claude Haiku batch respondeu com sucesso (fallback)`);
+        return result;
+      } catch (claudeError) {
+        console.error('[UnifiedClinicalAnalysis] ❌ Ambos provedores falharam no batch (GPT-4o e Claude Haiku)');
+        throw claudeError;
+      }
+    }
+  }
+
+  /**
    * Constrói prompt para múltiplos pacientes (batch real) com dados Fugulin
    */
   private buildBatchPrompt(patients: PatientData[]): string {
@@ -962,14 +1144,14 @@ Retorne JSON com array "analises" contendo ${patients.length} objetos NA MESMA O
     this.metrics.actualAPICalls++;
 
     try {
-      const insights = await this.callGPT4o(patient);
+      const insights = await this.callWithFallback(patient);
 
       if (useCache) {
         this.invalidateLegacyCache(cacheKeys);
 
-        const criticality = insights.nivel_alerta === 'VERMELHO' ? 'critical' : 
+        const criticality = insights.nivel_alerta === 'VERMELHO' ? 'critical' :
                            insights.nivel_alerta === 'AMARELO' ? 'high' : 'medium';
-        
+
         intelligentCache.set(cacheKeys.primary, insights, {
           contentHash,
           ttlMinutes: this.calculateTTL(insights.nivel_alerta),
@@ -980,11 +1162,11 @@ Retorne JSON com array "analises" contendo ${patients.length} objetos NA MESMA O
       this.metrics.tokensUsed += 3500;
       this.metrics.estimatedCost += 0.03;
 
-      console.log(`[UnifiedClinicalAnalysis] ✅ Análise concluída: ${patientIdentifier} - ${insights.nivel_alerta} (caller: ${caller})`);
+      console.log(`[UnifiedClinicalAnalysis] ✅ Análise concluída: ${patientIdentifier} - ${insights.nivel_alerta} (caller: ${caller}, provider: ${this.provider})`);
       return { insights, fromCache: false };
 
     } catch (error) {
-      console.error('[UnifiedClinicalAnalysis] Erro na análise:', error);
+      console.error('[UnifiedClinicalAnalysis] Erro na análise (ambos provedores falharam):', error);
       throw error;
     }
   }
@@ -1052,14 +1234,14 @@ Retorne JSON com array "analises" contendo ${patients.length} objetos NA MESMA O
         
         try {
           const batchPatients = currentBatch.map(item => item.patient);
-          const batchInsights = await this.callGPT4oBatch(batchPatients);
-          
+          const batchInsights = await this.callBatchWithFallback(batchPatients);
+
           const batchDuration = Date.now() - batchStartTime;
-          console.log(`[UnifiedClinicalAnalysis] ✅ Lote ${batchIndex + 1} concluído em ${batchDuration}ms`);
-          
+          console.log(`[UnifiedClinicalAnalysis] ✅ Lote ${batchIndex + 1} concluído em ${batchDuration}ms (provider: ${this.provider})`);
+
           return { batchIndex, currentBatch, batchInsights, success: true };
         } catch (error) {
-          console.error(`[UnifiedClinicalAnalysis] ❌ Erro no lote ${batchIndex + 1}:`, error);
+          console.error(`[UnifiedClinicalAnalysis] ❌ Erro no lote ${batchIndex + 1} (ambos provedores falharam):`, error);
           return { batchIndex, currentBatch, batchInsights: [] as ClinicalInsights[], success: false };
         }
       });
