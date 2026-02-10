@@ -396,6 +396,93 @@ export function PatientDetailsModal({
                     </Card>
                   )}
 
+                  {/* Classificação Fugulin */}
+                  {individualAnalysis.fugulin && individualAnalysis.fugulin.total && (
+                    <div className="border-l-2 border-purple-500 pl-3">
+                      <h4 className="font-semibold text-xs text-purple-600 uppercase mb-2">
+                        Classificação Fugulin
+                      </h4>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                          {individualAnalysis.fugulin.total} pts — {individualAnalysis.fugulin.categoria}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          ~{individualAnalysis.fugulin.horas_enf_24h}h enf/dia
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {individualAnalysis.fugulin.dimensoes.map((dim, idx) => (
+                          <div key={idx} className="flex items-center gap-1 text-xs">
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-white text-[10px] font-bold flex-shrink-0 ${
+                              dim.pts === "?" ? "bg-gray-400" :
+                              Number(dim.pts) === 1 ? "bg-green-500" :
+                              Number(dim.pts) === 2 ? "bg-yellow-500" :
+                              Number(dim.pts) === 3 ? "bg-orange-500" : "bg-red-500"
+                            }`}>
+                              {dim.pts}
+                            </span>
+                            <span className="truncate" title={dim.motivo}>{dim.dim}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Escalas Avaliadas */}
+                  {individualAnalysis.escalas && (
+                    <div className="border-l-2 border-blue-500 pl-3">
+                      <h4 className="font-semibold text-xs text-blue-600 uppercase mb-2">
+                        Escalas Clínicas
+                      </h4>
+                      <div className="space-y-1 text-sm">
+                        {individualAnalysis.escalas.glasgow?.valor != null && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Glasgow:</span>
+                            <span className="font-medium">{individualAnalysis.escalas.glasgow.valor} — {individualAnalysis.escalas.glasgow.classificacao}</span>
+                          </div>
+                        )}
+                        {individualAnalysis.escalas.braden?.valor != null && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Braden:</span>
+                            <span className="font-medium">{individualAnalysis.escalas.braden.valor} — {individualAnalysis.escalas.braden.classificacao}</span>
+                          </div>
+                        )}
+                        {individualAnalysis.escalas.queda?.valor != null && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">{individualAnalysis.escalas.queda.escala_utilizada}:</span>
+                            <span className="font-medium">{individualAnalysis.escalas.queda.valor} — {individualAnalysis.escalas.queda.classificacao}</span>
+                          </div>
+                        )}
+                        {individualAnalysis.escalas.risco_integrado_lpp?.nivel && (
+                          <div className="flex justify-between items-center mt-1 pt-1 border-t">
+                            <span className="text-muted-foreground text-xs">Risco integrado LPP:</span>
+                            <Badge className={`text-xs ${
+                              individualAnalysis.escalas.risco_integrado_lpp.nivel === "CRITICO" || individualAnalysis.escalas.risco_integrado_lpp.nivel === "VERMELHO ALTO" ? "bg-red-700 text-white" :
+                              individualAnalysis.escalas.risco_integrado_lpp.nivel === "VERMELHO" ? "bg-red-500 text-white" :
+                              individualAnalysis.escalas.risco_integrado_lpp.nivel === "LARANJA" ? "bg-orange-500 text-white" :
+                              individualAnalysis.escalas.risco_integrado_lpp.nivel === "AMARELO" ? "bg-yellow-500 text-black" :
+                              "bg-green-500 text-white"
+                            }`}>
+                              {individualAnalysis.escalas.risco_integrado_lpp.nivel}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Alertas Fugulin */}
+                  {individualAnalysis.alertas_fugulin && individualAnalysis.alertas_fugulin.length > 0 && (
+                    <div className="border-l-2 border-orange-500 pl-3">
+                      <h4 className="font-semibold text-xs text-orange-600 uppercase mb-2">Alertas de Validação</h4>
+                      <ul className="space-y-1">
+                        {individualAnalysis.alertas_fugulin.map((alerta, idx) => (
+                          <li key={idx} className="text-xs text-muted-foreground break-words">• {alerta}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <p className="text-xs text-muted-foreground text-center">
                     Análise gerada em: {new Date(individualAnalysis.timestamp).toLocaleString("pt-BR")}
                   </p>

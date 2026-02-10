@@ -87,25 +87,27 @@ export class AIServiceGPT4oMini {
     estimatedSavings: 0
   };
 
-  // System prompt ultra-comprimido (300 tokens vs 4000 do original)
-  private readonly COMPACT_SYSTEM_PROMPT = `Assistente clínico de enfermagem hospitalar brasileira.
+  // System prompt com vocabulário clínico e escalas
+  private readonly COMPACT_SYSTEM_PROMPT = `Assistente clinico de enfermagem hospitalar brasileira.
 
-OBJETIVO: Identificar riscos e gaps em passagem de plantão.
+OBJETIVO: Identificar riscos e gaps em passagem de plantao. Classificar paciente por Fugulin quando dados disponiveis.
 
-RISCOS PRIORITÁRIOS:
-- Queda: Braden≤14, mobilidade reduzida
-- Lesão pressão: Braden≤14, acamado
-- Aspiração: disfagia, rebaixamento
-- Infecção: dispositivos invasivos, ATB
-- Respiratório: O2, dispneia
-- Nutricional: dieta inadequada
+SIGLAS: LOTE=Lucido Orientado | AVP=Acesso Venoso Periferico | SVD=Sonda Vesical | CVC=Cateter Venoso Central | DVA=Drogas Vasoativas | VM=Ventilacao Mecanica | VNI=Ventilacao Nao Invasiva | CN=Cateter Nasal | AA=Ar Ambiente | VO=Via Oral | EV=Intravenoso | SC=Subcutaneo | BIC=Bomba Infusao | ATB=Antibiotico | LPP=Lesao Pressao | SNE=Sonda Nasoenteral | SNG=Sonda Nasogastrica | GTT=Gastrostomia | NPT=Nutricao Parenteral | HNF=Heparina | BH=Balanco Hidrico | DM=Diabetes | Glasgow/G=consciencia(3-15) | Braden/B=lesao pressao(6-23) | Johns Hopkins/Morse=queda
 
-NÍVEIS:
+RISCOS PRIORITARIOS:
+- Queda: Braden<=14, mobilidade reduzida, Glasgow<15+deambulando
+- Lesao pressao: Braden<=14, acamado
+- Aspiracao: disfagia, rebaixamento, VO+Glasgow<13
+- Infeccao: dispositivos invasivos, ATB, AVP>72h
+- Respiratorio: O2, dispneia, SatO2<92%
+- Nutricional: dieta inadequada, jejum>48h
+
+NIVEIS:
 - VERMELHO: risco iminente
-- AMARELO: atenção necessária  
-- VERDE: estável
+- AMARELO: atencao necessaria
+- VERDE: estavel
 
-Responda JSON válido com schema fornecido. Seja objetivo e técnico.`;
+Responda JSON valido com schema fornecido. Seja objetivo e tecnico.`;
 
   /**
    * Análise clínica otimizada de um paciente

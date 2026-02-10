@@ -60,6 +60,58 @@ export interface ClinicalAlert {
   descricao?: string;
 }
 
+export interface FugulimDimensao {
+  dim: string;
+  pts: number | string;
+  motivo: string;
+}
+
+export interface FugulimClassificacao {
+  dimensoes: FugulimDimensao[];
+  total: number | null;
+  categoria: string;
+  horas_enf_24h: number;
+}
+
+export interface EscalasAvaliacao {
+  glasgow: {
+    valor: number | null;
+    classificacao: string;
+    fonte: string;
+  };
+  braden: {
+    valor: number | null;
+    classificacao: string;
+    fonte: string;
+  };
+  queda: {
+    escala_utilizada: string;
+    valor: number | null;
+    classificacao: string;
+    fonte: string;
+  };
+  risco_integrado_lpp: {
+    nivel: string;
+    descricao: string;
+  };
+}
+
+export interface ResumoFugulin {
+  leito: string;
+  enfermaria: string;
+  especialidade: string;
+  idade: number;
+  sexo: string;
+  dias_internacao: number;
+  diagnostico: string;
+  fugulin: string;
+  glasgow: string;
+  braden: string;
+  queda: string;
+  risco_integrado_lpp: string;
+  total_alertas: number;
+}
+
 export interface ClinicalInsights {
   timestamp: string;
   nivel_alerta: "VERMELHO" | "AMARELO" | "VERDE";
@@ -70,6 +122,11 @@ export interface ClinicalInsights {
   categoria_qualidade: string;
   prioridade_acao: string | null;
   recomendacoes_enfermagem: string[];
+  // Campos Fugulin + Escalas (opcionais para compatibilidade)
+  resumo_fugulin?: ResumoFugulin;
+  fugulin?: FugulimClassificacao;
+  escalas?: EscalasAvaliacao;
+  alertas_fugulin?: string[];
 }
 
 export interface LeitoDetalhadoSimples {
